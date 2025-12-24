@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QWERTZ Snake</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>QWERTZ Snake</h1>
+            <div class="score-display">
+                <span>Punkte: <span id="score">0</span></span>
+            </div>
+        </header>
+
+        <div class="controls-display">
+            <div class="control-box control-spacer"></div>
+            <div class="control-box">
+                <div class="control-arrow">↑</div>
+                <div class="control-key" id="key-up">t</div>
+                <div class="control-counter" id="counter-up">0/20</div>
+            </div>
+            <div class="control-box control-spacer"></div>
+            <div class="control-box">
+                <div class="control-arrow">←</div>
+                <div class="control-key" id="key-left">f</div>
+                <div class="control-counter" id="counter-left">0/20</div>
+            </div>
+            <div class="control-box control-center">
+                <div class="control-label">Steuerung</div>
+            </div>
+            <div class="control-box">
+                <div class="control-arrow">→</div>
+                <div class="control-key" id="key-right">j</div>
+                <div class="control-counter" id="counter-right">0/20</div>
+            </div>
+            <div class="control-box control-spacer"></div>
+            <div class="control-box">
+                <div class="control-arrow">↓</div>
+                <div class="control-key" id="key-down">b</div>
+                <div class="control-counter" id="counter-down">0/20</div>
+            </div>
+            <div class="control-box control-spacer"></div>
+        </div>
+
+        <div class="game-area">
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="game-overlay" id="gameOverlay">
+            <div class="overlay-content">
+                <h2 id="overlayTitle">QWERTZ Snake</h2>
+                <p id="overlayMessage">Drücke eine Taste zum Starten</p>
+                <button id="restartButton" class="restart-button">Neues Spiel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
+
