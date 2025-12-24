@@ -40,88 +40,149 @@ h1 {
     font-weight: 600;
 }
 
-.controls-display {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 8px;
+.keyboard-section {
+    margin-bottom: 20px;
+}
+
+.direction-info {
+    display: flex;
+    justify-content: space-around;
     margin-bottom: 15px;
-    max-width: 280px;
-    margin-left: auto;
-    margin-right: auto;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.control-spacer {
-    visibility: hidden;
-}
-
-.control-center {
+.direction-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: transparent;
-    box-shadow: none;
-}
-
-.control-center:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.control-box {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    gap: 8px;
+    background: #f8f9fa;
+    padding: 8px 12px;
     border-radius: 8px;
-    padding: 8px;
-    text-align: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 0.9em;
 }
 
-.control-box:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+.direction-arrow {
+    font-size: 1.2em;
+    color: #667eea;
+    font-weight: bold;
 }
 
-.control-label {
-    font-size: 0.75em;
-    color: #666;
-    margin-bottom: 4px;
+.direction-label {
+    color: #555;
     font-weight: 500;
 }
 
-.control-arrow {
-    font-size: 1.3em;
+.direction-counter {
     color: #667eea;
-    margin-bottom: 3px;
-    font-weight: bold;
+    font-weight: 600;
+    font-size: 0.9em;
 }
 
-.control-key {
-    font-size: 1.4em;
-    font-weight: bold;
-    color: #667eea;
-    background: white;
-    border-radius: 6px;
-    padding: 6px;
-    min-height: 40px;
+.virtual-keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 12px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.keyboard-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.keyboard-key {
+    min-width: 32px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s;
-    margin-bottom: 3px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #333;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    cursor: default;
+    user-select: none;
 }
 
-.control-counter {
-    font-size: 0.7em;
-    color: #666;
-    font-weight: 500;
-}
-
-.control-key.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Finger color coding - 10-Finger-System QWERTZ */
+/* Gleiche Farben für beide Hände (4 Farben) */
+.keyboard-key.finger-pinky {
+    background: #ff6b6b; /* Rot - Kleiner Finger */
     color: white;
+}
+
+.keyboard-key.finger-ring {
+    background: #ffa500; /* Orange - Ringfinger */
+    color: white;
+}
+
+.keyboard-key.finger-middle {
+    background: #ffd700; /* Gelb - Mittelfinger */
+    color: #333;
+}
+
+.keyboard-key.finger-index {
+    background: #32cd32; /* Grün - Zeigefinger */
+    color: white;
+}
+
+/* Active control keys */
+.keyboard-key.active-control {
+    border: 3px solid #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    z-index: 10;
+    position: relative;
+}
+
+.keyboard-key.active-control::after {
+    content: attr(data-arrow);
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    background: #667eea;
+    border-radius: 50%;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+}
+
+/* Active state when key is pressed */
+.keyboard-key.active {
+    transform: scale(1.15);
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
+    z-index: 20;
+}
+
+/* Wider keys for space and special keys */
+.keyboard-key.wide {
+    min-width: 60px;
+}
+
+.keyboard-key.extra-wide {
+    min-width: 100px;
+}
+
+.keyboard-key.keyboard-space {
+    min-width: 200px;
+    background: #e0e0e0;
+    color: #333;
+    font-size: 0.75em;
 }
 
 
@@ -211,21 +272,30 @@ h1 {
 
 @media (max-width: 600px) {
     .container {
-        padding: 20px;
+        padding: 15px;
     }
 
     h1 {
-        font-size: 2em;
+        font-size: 1.8em;
     }
 
-    .controls-display {
-        grid-template-columns: repeat(3, 1fr);
-        max-width: 100%;
+    .direction-info {
+        font-size: 0.8em;
+        gap: 6px;
     }
 
-    .control-key {
-        font-size: 1.5em;
-        min-height: 50px;
+    .keyboard-key {
+        min-width: 28px;
+        height: 32px;
+        font-size: 0.75em;
+    }
+
+    .keyboard-key.wide {
+        min-width: 50px;
+    }
+
+    .keyboard-key.extra-wide {
+        min-width: 80px;
     }
 
     #gameCanvas {
