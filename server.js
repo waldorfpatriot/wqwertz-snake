@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
 const STATS_FILE = path.join(__dirname, 'statistics.json');
 const LEVELS_FILE = path.join(__dirname, 'levels.json');
+const LOGS_FILE = path.join(__dirname, 'game-logs.txt');
 
 // Admin password - set via environment variable for security
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Znake';
@@ -326,6 +327,63 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // Logs endpoint
+    if (req.url === '/api/logs' && req.method === 'POST') {
+        readBody(req, MAX_BODY_SIZE).then(body => {
+            try {
+                let logData;
+                
+                // Handle both JSON and sendBeacon (plain text) formats
+                const contentType = req.headers['content-type'] || '';
+                if (contentType.includes('application/json')) {
+                    logData = JSON.parse(body);
+                } else {
+                    // sendBeacon sends plain text, try to parse as JSON
+                    try {
+                        logData = JSON.parse(body);
+                    } catch (e) {
+                        // If not JSON, treat as single log entry
+                        logData = { logs: [{ raw: body, timestamp: new Date().toISOString() }] };
+                    }
+                }
+                
+                // Validate log data
+                if (!logData || !Array.isArray(logData.logs)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid log data format' }));
+                    return;
+                }
+                
+                // Limit number of logs per request
+                if (logData.logs.length > 1000) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Too many logs in request' }));
+                    return;
+                }
+                
+                // Format and append logs to file
+                const logLines = logData.logs.map(log => {
+                    const logString = typeof log === 'string' ? log : JSON.stringify(log);
+                    return `${new Date().toISOString()} | ${logString}\n`;
+                }).join('');
+                
+                // Append to log file (create if doesn't exist)
+                fs.appendFileSync(LOGS_FILE, logLines, 'utf8');
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, logged: logData.logs.length }));
+            } catch (error) {
+                console.error('Error processing logs:', error);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+            }
+        }).catch(() => {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Request too large' }));
+        });
+        return;
+    }
+
     // Serve static files with path traversal protection
     let requestedPath = req.url === '/' ? 'index.html' : sanitizePath(req.url);
     
@@ -372,7 +430,13 @@ const server = http.createServer((req, res) => {
 initStatsFile();
 initLevelsFile();
 
+// Initialize logs file (create empty file if doesn't exist)
+if (!fs.existsSync(LOGS_FILE)) {
+    fs.writeFileSync(LOGS_FILE, `=== Game Logs Started at ${new Date().toISOString()} ===\n`, 'utf8');
+}
+
 server.listen(PORT, () => {
     console.log(`🐍 qwertZnake server running at http://localhost:${PORT}`);
+    console.log(`📝 Logs will be saved to: ${LOGS_FILE}`);
 });
 

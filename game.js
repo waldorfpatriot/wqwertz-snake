@@ -1,8 +1,8 @@
 // Game configuration
 const GRID_SIZE = 20;
 const CELL_SIZE = 20;
-const FPS = 4.65; // 25% slower than 6.2 FPS
-const PRESSES_PER_CHANGE = 10;
+let FPS = 4.65; // 25% slower than 6.2 FPS
+let PRESSES_PER_CHANGE = 10;
 const MIN_SCORE_FOR_KEY_CHANGE = 3;
 
 // QWERTZ keyboard layout
@@ -18,6 +18,18 @@ const KEYBOARD_ROWS = [
 // https://de.wikipedia.org/wiki/Zehnfingersystem#Bedienung_der_Tasten
 // Home row: ASDF (left) and JKLÖ (right)
 // Format: { finger: 'finger-type', hand: 'links'|'rechts' }
+//
+// Complete Key -> Finger/Hand Mapping:
+// LEFT HAND:
+//   - Pinky:   q, a, y
+//   - Ring:    w, s, x
+//   - Middle:  e, d, c
+//   - Index:   r, f, v, t, g, b
+// RIGHT HAND:
+//   - Pinky:   p, ü, ö, ä, -
+//   - Ring:    o, l, .
+//   - Middle:  i, k, ,
+//   - Index:   z, h, n, u, j, m
 const FINGER_MAP = {
     // Kleiner Finger links: Q A Y
     'q': { finger: 'finger-pinky', hand: 'links' },
@@ -73,6 +85,106 @@ function getFingerHand(key) {
     return mapping ? mapping.hand : '';
 }
 
+// Helper function to get row index of a key (0 = top, 1 = middle, 2 = bottom)
+function getKeyRow(key) {
+    for (let rowIndex = 0; rowIndex < KEYBOARD_ROWS.length; rowIndex++) {
+        if (KEYBOARD_ROWS[rowIndex].includes(key)) {
+            return rowIndex;
+        }
+    }
+    return -1; // Key not found
+}
+
+// Helper function to get column position of a key within its row
+function getKeyColumn(key) {
+    for (let rowIndex = 0; rowIndex < KEYBOARD_ROWS.length; rowIndex++) {
+        const colIndex = KEYBOARD_ROWS[rowIndex].indexOf(key);
+        if (colIndex !== -1) {
+            return colIndex;
+        }
+    }
+    return -1; // Key not found
+}
+
+// Helper function to check if two keys are in the same row
+function areKeysInSameRow(key1, key2) {
+    const row1 = getKeyRow(key1);
+    const row2 = getKeyRow(key2);
+    return row1 !== -1 && row2 !== -1 && row1 === row2;
+}
+
+// Helper function to check if a key position violates the left/right constraint
+// Returns true if the constraint is violated, false otherwise
+function violatesPositionConstraint(direction, newKey) {
+    const newKeyRow = getKeyRow(newKey);
+    const newKeyCol = getKeyColumn(newKey);
+    
+    if (newKeyRow === -1 || newKeyCol === -1) {
+        return false; // Can't check if key position is unknown
+    }
+    
+    // Check constraint based on direction being changed
+    if (direction === 'left') {
+        // Left should be more left than up/down in the same row
+        const upKey = controlKeys.up;
+        const downKey = controlKeys.down;
+        
+        if (areKeysInSameRow(newKey, upKey)) {
+            const upCol = getKeyColumn(upKey);
+            if (newKeyCol >= upCol) {
+                return true; // Violation: left is not more left than up
+            }
+        }
+        
+        if (areKeysInSameRow(newKey, downKey)) {
+            const downCol = getKeyColumn(downKey);
+            if (newKeyCol >= downCol) {
+                return true; // Violation: left is not more left than down
+            }
+        }
+    } else if (direction === 'right') {
+        // Right should be more right than up/down in the same row
+        const upKey = controlKeys.up;
+        const downKey = controlKeys.down;
+        
+        if (areKeysInSameRow(newKey, upKey)) {
+            const upCol = getKeyColumn(upKey);
+            if (newKeyCol <= upCol) {
+                return true; // Violation: right is not more right than up
+            }
+        }
+        
+        if (areKeysInSameRow(newKey, downKey)) {
+            const downCol = getKeyColumn(downKey);
+            if (newKeyCol <= downCol) {
+                return true; // Violation: right is not more right than down
+            }
+        }
+    } else if (direction === 'up' || direction === 'down') {
+        // Up/down should be more right than left, and more left than right when in the same row
+        const leftKey = controlKeys.left;
+        const rightKey = controlKeys.right;
+        
+        // Check constraint with left: up/down must be more right than left in same row
+        if (areKeysInSameRow(newKey, leftKey)) {
+            const leftCol = getKeyColumn(leftKey);
+            if (newKeyCol <= leftCol) {
+                return true; // Violation: up/down is not more right than left
+            }
+        }
+        
+        // Check constraint with right: up/down must be more left than right in same row
+        if (areKeysInSameRow(newKey, rightKey)) {
+            const rightCol = getKeyColumn(rightKey);
+            if (newKeyCol >= rightCol) {
+                return true; // Violation: up/down is not more left than right
+            }
+        }
+    }
+    
+    return false; // No violation
+}
+
 // Finger names for display
 const FINGER_NAMES = {
     'finger-pinky': 'Kleiner',
@@ -82,11 +194,21 @@ const FINGER_NAMES = {
 };
 
 // Key pools for each direction
+// Rules:
+// - left: only keys from left hand (hand: 'links')
+// - right: only keys from right hand (hand: 'rechts')
+// - up: only keys from top row (KEYBOARD_ROWS[0])
+// - down: only keys from bottom row (KEYBOARD_ROWS[2])
+// These rules have priority over finger progression (index -> ring -> middle -> pinky)
 const KEY_POOLS = {
-    left: ['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü', 'a', 's', 'd', 'f'], // alles links von g
-    right: ['j', 'k', 'l', 'ö', 'ä', 'y', 'x', 'c', 'v', 'b', 'n', 'm'], // alles rechts von h
-    up: ['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü'], // oberste Reihe
-    down: ['y', 'x', 'c', 'v', 'b', 'n', 'm'] // unterste Reihe
+    // Left hand keys: q, a, y, w, s, x, e, d, c, r, f, v, t, g, b
+    left: ['q', 'a', 'y', 'w', 's', 'x', 'e', 'd', 'c', 'r', 'f', 'v', 't', 'g', 'b'],
+    // Right hand keys: p, ü, ö, ä, -, o, l, ., i, k, ,, z, h, n, u, j, m
+    right: ['p', 'ü', 'ö', 'ä', '-', 'o', 'l', '.', 'i', 'k', ',', 'z', 'h', 'n', 'u', 'j', 'm'],
+    // Top row keys: q, w, e, r, t, z, u, i, o, p, ü
+    up: ['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü'],
+    // Bottom row keys: y, x, c, v, b, n, m, ,, ., -
+    down: ['y', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
 };
 
 // Game state
@@ -147,6 +269,16 @@ let directionIndices = {
     left: 0,
     right: 0
 };
+
+// Track how many times each direction has changed keys
+// After 12 changes, force progression to next finger type
+let keyChangeCounts = {
+    up: 0,
+    down: 0,
+    left: 0,
+    right: 0
+};
+let KEY_CHANGES_BEFORE_FORCE_PROGRESSION = 4;
 
 // DOM elements
 let scoreElement, kpmElement;
@@ -375,9 +507,34 @@ async function init() {
     updateCounters();
     resetGame();
     
+    // Update debug menu after levels are loaded
+    updateDebugMenu();
+    
     // Event listeners
     document.addEventListener('keydown', handleKeyPress);
-    restartButton.addEventListener('click', startGame);
+    restartButton.addEventListener('click', async () => {
+        // If game over screen is showing, save statistics first
+        if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
+            // Get name from input field in the table
+            const nameInput = document.querySelector('.game-over-name-input');
+            if (nameInput) {
+                const inputValue = nameInput.value.trim();
+                if (inputValue) {
+                    playerName = inputValue;
+                } else {
+                    // Use placeholder if input is empty
+                    const placeholder = nameInput.placeholder;
+                    playerName = placeholder === 'Anonym' ? '' : placeholder;
+                }
+                localStorage.setItem('qwertzsnake_name', playerName);
+            }
+            
+            // Save statistics
+            await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage);
+            gameStatsSaved = true;
+        }
+        startGame();
+    });
     statsButton.addEventListener('click', openStatsModal);
     overlayStatsButton.addEventListener('click', openStatsModal);
     statsClose.addEventListener('click', closeStatsModal);
@@ -434,6 +591,63 @@ async function init() {
     
     // Start screen
     showOverlay('qwertZnake', 'Drücke eine Taste zum Starten', false);
+    
+    // Debug menu elements
+    const simulateGameEndBtn = document.getElementById('simulateGameEnd');
+    const debugSpeedInput = document.getElementById('debugSpeed');
+    const applySpeedBtn = document.getElementById('applySpeed');
+    const debugKeyChangePeriodInput = document.getElementById('debugKeyChangePeriod');
+    const applyKeyChangePeriodBtn = document.getElementById('applyKeyChangePeriod');
+    const debugLevelInput = document.getElementById('debugLevel');
+    const goToLevelBtn = document.getElementById('goToLevel');
+    const debugForceProgressionInput = document.getElementById('debugForceProgression');
+    const applyForceProgressionBtn = document.getElementById('applyForceProgression');
+    
+    // Debug menu event listeners
+    if (simulateGameEndBtn) {
+        simulateGameEndBtn.addEventListener('click', simulateGameEndWithRandomData);
+    }
+    if (applySpeedBtn) {
+        applySpeedBtn.addEventListener('click', () => {
+            const newSpeed = parseFloat(debugSpeedInput.value);
+            if (!isNaN(newSpeed) && newSpeed > 0) {
+                changeGameSpeed(newSpeed);
+            }
+        });
+    }
+    if (applyKeyChangePeriodBtn) {
+        applyKeyChangePeriodBtn.addEventListener('click', () => {
+            const newPeriod = parseInt(debugKeyChangePeriodInput.value);
+            if (!isNaN(newPeriod) && newPeriod > 0) {
+                changeKeyChangePeriod(newPeriod);
+            }
+        });
+    }
+    if (goToLevelBtn) {
+        goToLevelBtn.addEventListener('click', () => {
+            const targetLevel = parseInt(debugLevelInput.value);
+            if (!isNaN(targetLevel) && targetLevel > 0) {
+                goToLevel(targetLevel);
+            }
+        });
+    }
+    if (applyForceProgressionBtn) {
+        applyForceProgressionBtn.addEventListener('click', () => {
+            const newValue = parseInt(debugForceProgressionInput.value);
+            if (!isNaN(newValue) && newValue > 0) {
+                KEY_CHANGES_BEFORE_FORCE_PROGRESSION = newValue;
+                console.log(`Force progression threshold set to ${KEY_CHANGES_BEFORE_FORCE_PROGRESSION} key changes`);
+            }
+        });
+    }
+    
+    // Logging toggle button
+    const toggleLoggingBtn = document.getElementById('toggleLogging');
+    const logStatusElement = document.getElementById('logStatus');
+    if (toggleLoggingBtn && logStatusElement) {
+        toggleLoggingBtn.addEventListener('click', toggleLogging);
+        updateLoggingUI();
+    }
     
     // Handle hash navigation
     handleHashNavigation();
@@ -538,6 +752,14 @@ function resetGame() {
         right: 0
     };
     
+    // Reset key change counts
+    keyChangeCounts = {
+        up: 0,
+        down: 0,
+        left: 0,
+        right: 0
+    };
+    
     // Reset statistics
     totalKeystrokes = 0;
     fingerUsage = {
@@ -550,7 +772,7 @@ function resetGame() {
     updateCounters();
 }
 
-// Calculate KPM (keystrokes per minute)
+// Calculate T/Min (keystrokes per minute)
 function calculateKPM() {
     if (!gameStartTime || totalKeystrokes === 0) return 0;
     const elapsedMinutes = (Date.now() - gameStartTime) / 60000;
@@ -558,7 +780,7 @@ function calculateKPM() {
     return Math.round(totalKeystrokes / elapsedMinutes);
 }
 
-// Update KPM display
+// Update T/Min display
 function updateKPMDisplay() {
     if (gameRunning && !gamePaused) {
         kpmElement.textContent = calculateKPM();
@@ -568,6 +790,11 @@ function updateKPMDisplay() {
 // Track last game score for saving
 let lastGameScore = 0;
 let lastGameFingerUsage = {};
+
+// Logging state
+let loggingEnabled = false;
+let logBuffer = [];
+const LOG_BUFFER_SIZE = 50; // Send logs in batches
 
 // Start game
 async function startGame() {
@@ -587,9 +814,17 @@ async function startGame() {
     lastUpdate = Date.now();
     gameLoop = requestAnimationFrame(update);
     
-    // Start KPM update interval
+    // Start T/Min update interval
     if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
     kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    
+    // Log game start
+    if (loggingEnabled) {
+        logEvent('game_start', {
+            timestamp: new Date().toISOString(),
+            controlKeys: { ...controlKeys }
+        });
+    }
 }
 
 // Game over
@@ -607,6 +842,20 @@ function gameOver() {
     lastGameScore = score;
     lastGameFingerUsage = { ...fingerUsage };
     gameStatsSaved = false;
+    
+    // Log game over
+    if (loggingEnabled) {
+        logEvent('game_over', {
+            score: score,
+            kpm: lastGameKPM,
+            level: currentLevelIndex,
+            fingerUsage: { ...fingerUsage },
+            duration: Math.round((Date.now() - gameStartTime) / 1000),
+            timestamp: new Date().toISOString()
+        });
+        // Send logs immediately on game over
+        sendLogsToServer();
+    }
     
     // Show game over with stats (don't auto-save, wait for user to click button)
     showOverlay('Game Over!', `Punkte: ${score}`, true, lastGameKPM);
@@ -734,9 +983,15 @@ function closeStatsModal() {
 }
 
 // Show overlay
-function showOverlay(title, message, showStats = false, kpm = 0) {
+async function showOverlay(title, message, showStats = false, kpm = 0) {
     overlayTitleElement.textContent = title;
     overlayMessageElement.textContent = message;
+    // Hide message when showing stats
+    if (showStats) {
+        overlayMessageElement.style.display = 'none';
+    } else {
+        overlayMessageElement.style.display = 'block';
+    }
     overlayElement.classList.remove('hidden');
     // Update hash for start screen if not game over
     if (!showStats && !gameRunning) {
@@ -761,20 +1016,38 @@ function showOverlay(title, message, showStats = false, kpm = 0) {
             // Game over or pause - hide keyboard visualization
             titleKeyboardElement.style.display = 'none';
             titleScreenHint.style.display = 'none';
-            // Show spacebar hint when paused or game over
-            if (spacebarHint) {
+            // Hide spacebar hint on game over (no keyboard shortcuts)
+            if (spacebarHint && showStats) {
+                spacebarHint.style.display = 'none';
+            } else if (spacebarHint) {
                 spacebarHint.style.display = 'flex';
             }
         }
     }
     
     if (showStats && score > 0) {
-        nameInputSection.classList.add('visible');
-        overlayStatsElement.innerHTML = renderOverlayStats(kpm);
-        restartButton.textContent = 'Speichern & Neues Spiel';
+        nameInputSection.classList.remove('visible'); // Hide the old name input section
+        // Fetch statistics and render table with new score
+        const stats = await fetchStatistics();
+        overlayStatsElement.innerHTML = renderGameOverStatsTable(stats, kpm);
+        
+        // Set up event listener for the name input in the table
+        setTimeout(() => {
+            const gameOverNameInput = document.querySelector('.game-over-name-input');
+            if (gameOverNameInput) {
+                gameOverNameInput.addEventListener('input', (e) => {
+                    playerName = e.target.value.trim();
+                    localStorage.setItem('qwertzsnake_name', playerName);
+                });
+                // Focus the input
+                gameOverNameInput.focus();
+            }
+        }, 100);
+        
+        restartButton.textContent = 'speichern & neues spiel';
         restartButton.style.display = 'inline-block';
-        saveHint.textContent = 'Dein Ergebnis wird beim Klick gespeichert';
-        saveHint.style.display = 'block';
+        saveHint.textContent = '';
+        saveHint.style.display = 'none';
     } else {
         nameInputSection.classList.remove('visible');
         overlayStatsElement.innerHTML = '';
@@ -784,26 +1057,77 @@ function showOverlay(title, message, showStats = false, kpm = 0) {
     }
 }
 
-// Render overlay statistics
-function renderOverlayStats(kpm) {
-    const fingerBadges = renderFingerBadges();
+// Render game over statistics table with new score inserted
+function renderGameOverStatsTable(stats, kpm) {
+    // Create new score entry
+    const newScore = {
+        name: playerName || 'Anonym',
+        points: score,
+        kpm: kpm,
+        level: maxLevelReached,
+        fingersUsed: lastGameFingerUsage,
+        isNew: true
+    };
     
-    return `
-        <div class="overlay-stats-grid">
-            <div class="overlay-stat-item">
-                <div class="overlay-stat-label">Punkte</div>
-                <div class="overlay-stat-value">${score}</div>
-            </div>
-            <div class="overlay-stat-item">
-                <div class="overlay-stat-label">KPM</div>
-                <div class="overlay-stat-value">${kpm}</div>
-            </div>
-        </div>
-        <div class="overlay-stat-item" style="margin-bottom: 0;">
-            <div class="overlay-stat-label">Finger verwendet</div>
-            <div class="overlay-fingers-used">${fingerBadges}</div>
+    // Combine existing stats with new score and sort by points descending
+    const allStats = [...stats, newScore].sort((a, b) => b.points - a.points);
+    
+    // Find position of new score
+    const newScoreIndex = allStats.findIndex(s => s.isNew);
+    
+    // Show top 10 entries, but always include the new score if it's not in top 10
+    let displayStats = allStats.slice(0, 10);
+    if (newScoreIndex >= 10) {
+        // Replace last entry with new score if it's not in top 10
+        displayStats = [...allStats.slice(0, 9), newScore];
+    }
+    
+    // Get saved name for placeholder
+    const savedName = localStorage.getItem('qwertzsnake_name') || '';
+    const placeholderName = savedName || 'Anonym';
+    
+    let html = `
+        <div class="game-over-stats-container">
+            <table class="game-over-stats-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Punkte</th>
+                        <th>Level</th>
+                        <th>T/Min</th>
+                        <th>Finger</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    displayStats.forEach((game) => {
+        const actualIndex = allStats.indexOf(game);
+        const fingerDots = game.isNew ? renderFingerDots(newScore.fingersUsed) : renderFingerDots(game.fingersUsed);
+        const levelDisplay = game.level ? `Level ${game.level}` : '-';
+        const isNewRow = game.isNew;
+        const rowClass = isNewRow ? 'new-score-row blinking' : '';
+        
+        html += `
+            <tr class="${rowClass}">
+                <td>${actualIndex + 1}</td>
+                <td>${isNewRow ? `<input type="text" class="game-over-name-input" placeholder="${placeholderName}" value="${playerName || ''}" maxlength="20">` : escapeHtml(game.name)}</td>
+                <td>${game.points}</td>
+                <td>${levelDisplay}</td>
+                <td>${game.kpm}</td>
+                <td>${fingerDots}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
         </div>
     `;
+    
+    return html;
 }
 
 // Render finger badges for overlay
@@ -854,6 +1178,14 @@ function renderKeyChangeKeyboard(newKey) {
     // Only render the letter rows (not space bar)
     const letterRows = KEYBOARD_ROWS.slice(0, 3);
     
+    // Map of direction to arrow symbol
+    const directionMap = {
+        'up': '↑',
+        'down': '↓',
+        'left': '←',
+        'right': '→'
+    };
+    
     letterRows.forEach((row, rowIndex) => {
         const rowElement = document.createElement('div');
         rowElement.className = 'key-change-keyboard-row';
@@ -874,6 +1206,15 @@ function renderKeyChangeKeyboard(newKey) {
             if (key === newKey) {
                 keyElement.classList.add('highlighted');
             }
+            
+            // Add arrows for all current control keys
+            ['up', 'down', 'left', 'right'].forEach(dir => {
+                if (controlKeys[dir] === key) {
+                    keyElement.classList.add('active-control');
+                    keyElement.setAttribute('data-direction', dir);
+                    keyElement.setAttribute('data-arrow', directionMap[dir]);
+                }
+            });
             
             rowElement.appendChild(keyElement);
         });
@@ -959,6 +1300,15 @@ function togglePause() {
     if (!gameRunning) return;
     
     gamePaused = !gamePaused;
+    
+    // Log pause/unpause
+    if (loggingEnabled) {
+        logEvent(gamePaused ? 'game_pause' : 'game_resume', {
+            score: score,
+            level: currentLevelIndex,
+            timestamp: new Date().toISOString()
+        });
+    }
     
     if (gamePaused) {
         if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
@@ -1108,6 +1458,20 @@ function handleKeyPress(event) {
         document.activeElement === loginPassword ||
         document.activeElement === levelNameInput) {
         return;
+    }
+    
+    // Check if typing in game over name input
+    const gameOverNameInput = document.querySelector('.game-over-name-input');
+    if (gameOverNameInput && document.activeElement === gameOverNameInput) {
+        // Update player name as user types
+        playerName = gameOverNameInput.value.trim();
+        localStorage.setItem('qwertzsnake_name', playerName);
+        return;
+    }
+    
+    // Don't allow any keyboard shortcuts when game over screen is showing
+    if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
+        return; // Game over screen - no keyboard shortcuts
     }
     
     // Handle level change modal - only space continues
@@ -1295,6 +1659,10 @@ function handleKeyPress(event) {
     // Handle space key
     if (key === ' ' || event.code === 'Space') {
         event.preventDefault();
+        // Don't allow space to start game if game over screen is showing (with stats)
+        if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
+            return; // Game over screen - no keyboard shortcuts
+        }
         if (!gameRunning) {
             // Start game if not running
             startGame();
@@ -1306,7 +1674,12 @@ function handleKeyPress(event) {
     }
 
     // Start game if not running (for any other key with finger class)
+    // But not if game over screen is showing
     if (!gameRunning) {
+        // Don't allow keyboard shortcuts if game over screen is showing
+        if (lastGameScore > 0 && !gameStatsSaved) {
+            return; // Game over screen - no keyboard shortcuts
+        }
         if (getFingerClass(key)) {
             startGame();
         }
@@ -1355,6 +1728,18 @@ function handleKeyPress(event) {
         keyPressCounters[directionChanged]++;
         updateCounters();
         
+        // Log key press interaction
+        if (loggingEnabled) {
+            logEvent('key_press', {
+                key: key,
+                direction: directionChanged,
+                fingerType: fingerType,
+                score: score,
+                keyPressCount: keyPressCounters[directionChanged],
+                timestamp: new Date().toISOString()
+            });
+        }
+        
         if (keyPressCounters[directionChanged] >= PRESSES_PER_CHANGE && score >= MIN_SCORE_FOR_KEY_CHANGE) {
             changeSingleKey(directionChanged);
             keyPressCounters[directionChanged] = 0;
@@ -1384,24 +1769,28 @@ function updateCounters() {
 
 // Filter sequence maintaining finger order: index -> ring -> middle -> pinky
 // Only including keys from keyPool, but respecting finger progression
+// Removes duplicates while preserving order (first occurrence)
 function filterSequenceByFingerOrder(sequence, keyPool) {
     const fingerOrder = ['finger-index', 'finger-ring', 'finger-middle', 'finger-pinky'];
     const filtered = [];
     
     // First, collect all keys from sequence that are in keyPool, grouped by finger
+    // Remove duplicates while preserving order (first occurrence)
     const keysByFinger = {
         'finger-index': [],
         'finger-ring': [],
         'finger-middle': [],
         'finger-pinky': []
     };
+    const seenKeys = new Set();
     
-    // Go through sequence in original order and group by finger
+    // Go through sequence in original order and group by finger (deduplicated)
     for (let key of sequence) {
-        if (keyPool.includes(key) && getFingerClass(key)) {
+        if (keyPool.includes(key) && getFingerClass(key) && !seenKeys.has(key)) {
             const fingerType = getFingerClass(key);
             if (keysByFinger[fingerType]) {
                 keysByFinger[fingerType].push(key);
+                seenKeys.add(key);
             }
         }
     }
@@ -1434,29 +1823,307 @@ function changeSingleKey(direction) {
         return;
     }
 
-    // Use direction-specific index
-    const directionIndex = directionIndices[direction];
-
-    // Get next key from filtered sequence using direction-specific index
-    const newKey = filteredSequence[directionIndex % filteredSequence.length];
-    directionIndices[direction] = (directionIndex + 1) % filteredSequence.length;
-
-    // Make sure the new key is not already used by another direction
-    const usedKeys = Object.values(controlKeys);
-    let finalKey = newKey;
-    let attempts = 0;
-    let currentIndex = directionIndices[direction];
+    // Group filtered sequence by finger type to enable finger-type-level skipping
+    // Remove duplicates while preserving order (first occurrence)
+    const fingerOrder = ['finger-index', 'finger-ring', 'finger-middle', 'finger-pinky'];
+    const keysByFinger = {
+        'finger-index': [],
+        'finger-ring': [],
+        'finger-middle': [],
+        'finger-pinky': []
+    };
+    const seenKeys = new Set();
     
-    // If the key is already used, try to find a different one from the pool
-    while (usedKeys.includes(finalKey) && attempts < filteredSequence.length) {
-        finalKey = filteredSequence[currentIndex % filteredSequence.length];
-        currentIndex = (currentIndex + 1) % filteredSequence.length;
-        attempts++;
+    for (let key of filteredSequence) {
+        const fingerType = getFingerClass(key);
+        if (fingerType && keysByFinger[fingerType] && !seenKeys.has(key)) {
+            keysByFinger[fingerType].push(key);
+            seenKeys.add(key);
+        }
     }
     
-    // Update the index if we skipped keys
-    if (attempts > 0) {
-        directionIndices[direction] = currentIndex;
+    // Find which finger type the current index points to
+    const directionIndex = directionIndices[direction];
+    let currentFingerTypeIndex = 0;
+    let currentKeyIndexInFinger = 0;
+    let accumulatedLength = 0;
+    
+    // Determine current finger type and position within it
+    for (let i = 0; i < fingerOrder.length; i++) {
+        const fingerType = fingerOrder[i];
+        const fingerKeys = keysByFinger[fingerType];
+        if (directionIndex < accumulatedLength + fingerKeys.length) {
+            currentFingerTypeIndex = i;
+            currentKeyIndexInFinger = directionIndex - accumulatedLength;
+            break;
+        }
+        accumulatedLength += fingerKeys.length;
+    }
+
+    // Make sure the new key is not already used by another direction
+    // and that it doesn't violate the position constraint
+    // Exclude the old key for this direction from usedKeys check
+    const usedKeys = Object.values(controlKeys).filter(key => key !== oldKey);
+    
+    let finalKey = null;
+    let debugLog = [];
+    
+    // Strategy: Progress through finger types when all keys of current type are exhausted
+    // Track how many times we've used keys from each finger type
+    // When we've used all available keys of a finger type, move to the next
+    
+    let fingerTypeIndex = currentFingerTypeIndex;
+    let keyIndexInFinger = currentKeyIndexInFinger;
+    
+    // Check if we've changed keys 12 times for this direction
+    // If so, force progression to next finger type
+    // Note: counter will be incremented AFTER this key change, so check if count >= 11
+    // means we've done 11 changes and this is the 12th, so we should force after this one
+    // Actually, we want to force ON the 12th change, so check if count >= 11 (after 11 changes, this is the 12th)
+    const currentChangeCount = keyChangeCounts[direction] || 0;
+    const shouldForceProgression = currentChangeCount >= (KEY_CHANGES_BEFORE_FORCE_PROGRESSION - 1);
+    
+    debugLog.push(`Key change count for ${direction}: ${currentChangeCount}/${KEY_CHANGES_BEFORE_FORCE_PROGRESSION}, shouldForce: ${shouldForceProgression}`);
+    
+    // Track the original finger type before any changes
+    const originalFingerTypeIndex = fingerTypeIndex;
+    let forcedToNextFingerType = false;
+    
+    // If we need to force progression, skip current finger type and go to next
+    if (shouldForceProgression) {
+        debugLog.push(`Forcing progression after ${currentChangeCount} key changes - moving to next finger type`);
+        fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+        keyIndexInFinger = 0;
+        forcedToNextFingerType = true;
+        // Reset counter when forcing progression (will be incremented after key selection)
+        keyChangeCounts[direction] = 0;
+    }
+    
+    // Check if current finger type is exhausted (all available keys are used)
+    const currentFingerType = fingerOrder[fingerTypeIndex];
+    const currentFingerKeys = keysByFinger[currentFingerType];
+    const availableKeysInCurrentType = currentFingerKeys.filter(key => {
+        if (key === oldKey) return false; // Exclude old key
+        const isUsed = usedKeys.includes(key);
+        const violatesConstraint = violatesPositionConstraint(direction, key);
+        return !isUsed && !violatesConstraint;
+    });
+    
+    debugLog.push(`Current finger type: ${currentFingerType}, ${availableKeysInCurrentType.length} available`);
+    
+    // If current finger type has no available keys, move to next finger type
+    if (availableKeysInCurrentType.length === 0 && currentFingerKeys.length > 0) {
+        debugLog.push(`All keys of ${currentFingerType} are unavailable, moving to next finger type`);
+        fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+        keyIndexInFinger = 0;
+    }
+    
+    // Try all finger types starting from current (or next if current is exhausted)
+    for (let fingerTypeAttempt = 0; fingerTypeAttempt < fingerOrder.length; fingerTypeAttempt++) {
+        const tryFingerType = fingerOrder[fingerTypeIndex];
+        const tryFingerKeys = keysByFinger[tryFingerType];
+        
+        debugLog.push(`Trying finger type ${tryFingerType} (${tryFingerKeys.length} keys)`);
+        
+        if (tryFingerKeys.length === 0) {
+            debugLog.push(`No keys for ${tryFingerType}, skipping to next`);
+            fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+            keyIndexInFinger = 0;
+            continue;
+        }
+        
+        // Check if there are any available keys in this finger type
+        // Exclude the old key to ensure we always change to a different key
+        const availableKeysInType = tryFingerKeys.filter(key => {
+            if (key === oldKey) return false; // Never select the same key we're replacing
+            const isUsed = usedKeys.includes(key);
+            const violatesConstraint = violatesPositionConstraint(direction, key);
+            return !isUsed && !violatesConstraint;
+        });
+        
+        debugLog.push(`${tryFingerType}: ${availableKeysInType.length} available out of ${tryFingerKeys.length} total`);
+        
+        if (availableKeysInType.length === 0) {
+            // No available keys in this finger type, try next
+            debugLog.push(`All keys of ${tryFingerType} are unavailable, moving to next finger type`);
+            fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+            keyIndexInFinger = 0;
+            continue;
+        }
+        
+        // Found available keys in this finger type
+        // Find the first available key starting from current position
+        let foundKey = false;
+        let selectedCandidateIndex = -1;
+        
+        for (let i = 0; i < tryFingerKeys.length; i++) {
+            const candidateIndex = (keyIndexInFinger + i) % tryFingerKeys.length;
+            const candidateKey = tryFingerKeys[candidateIndex];
+            const isUsed = usedKeys.includes(candidateKey);
+            const violatesConstraint = violatesPositionConstraint(direction, candidateKey);
+            
+            if (!isUsed && !violatesConstraint && candidateKey !== oldKey) {
+                finalKey = candidateKey;
+                foundKey = true;
+                selectedCandidateIndex = candidateIndex;
+                debugLog.push(`Selected ${finalKey} from ${tryFingerType} at index ${candidateIndex}`);
+                break;
+            }
+        }
+        
+        if (foundKey) {
+            // Verify we actually selected from a different finger type if we forced progression
+            const selectedFingerType = getFingerClass(finalKey);
+            const originalFingerType = fingerOrder[originalFingerTypeIndex];
+            
+            if (forcedToNextFingerType && selectedFingerType === originalFingerType) {
+                debugLog.push(`WARNING: Forced progression but still selected from ${originalFingerType}, trying next finger type`);
+                // Continue to next finger type
+                fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+                keyIndexInFinger = 0;
+                foundKey = false;
+                finalKey = null;
+                continue;
+            }
+            
+            // Update indices for next time: move to next key in this finger type
+            keyIndexInFinger = (selectedCandidateIndex + 1) % tryFingerKeys.length;
+            
+            // If we've wrapped around (tried all keys in this finger type), move to next finger type
+            if (keyIndexInFinger === 0) {
+                debugLog.push(`Wrapped around ${tryFingerType}, will move to next finger type next time`);
+                fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+            }
+            break;
+        }
+        
+        // Should not reach here if availableKeysInType.length > 0, but just in case
+        debugLog.push(`Unexpected: no key found in ${tryFingerType} despite ${availableKeysInType.length} available`);
+        fingerTypeIndex = (fingerTypeIndex + 1) % fingerOrder.length;
+        keyIndexInFinger = 0;
+    }
+    
+    // If no valid key found (shouldn't happen, but fallback)
+    if (finalKey === null) {
+        debugLog.push('ERROR: No key found in main loop, using fallback');
+        // First try: find first available key from any finger type (respecting constraints)
+        for (let fingerType of fingerOrder) {
+            const fingerKeys = keysByFinger[fingerType];
+            for (let key of fingerKeys) {
+                if (key !== oldKey && !usedKeys.includes(key) && !violatesPositionConstraint(direction, key)) {
+                    finalKey = key;
+                    debugLog.push(`Found fallback key (with constraints): ${finalKey} from ${fingerType}`);
+                    fingerTypeIndex = fingerOrder.indexOf(fingerType);
+                    keyIndexInFinger = fingerKeys.indexOf(key);
+                    break;
+                }
+            }
+            if (finalKey) break;
+        }
+        
+        // Second try: if still no key, ignore position constraints (but still avoid used keys and old key)
+        if (finalKey === null) {
+            debugLog.push('No key found respecting constraints, ignoring constraints');
+            for (let fingerType of fingerOrder) {
+                const fingerKeys = keysByFinger[fingerType];
+                for (let key of fingerKeys) {
+                    if (key !== oldKey && !usedKeys.includes(key)) {
+                        finalKey = key;
+                        debugLog.push(`Found fallback key (ignoring constraints): ${finalKey} from ${fingerType}`);
+                        fingerTypeIndex = fingerOrder.indexOf(fingerType);
+                        keyIndexInFinger = fingerKeys.indexOf(key);
+                        break;
+                    }
+                }
+                if (finalKey) break;
+            }
+        }
+        
+        // Last resort: use first key in filtered sequence (even if used)
+        if (finalKey === null) {
+            finalKey = filteredSequence[0];
+            debugLog.push(`Using first key as last resort: ${finalKey}`);
+            // Find which finger type this key belongs to
+            for (let i = 0; i < fingerOrder.length; i++) {
+                const fingerKeys = keysByFinger[fingerOrder[i]];
+                if (fingerKeys.includes(finalKey)) {
+                    fingerTypeIndex = i;
+                    keyIndexInFinger = fingerKeys.indexOf(finalKey);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Calculate new absolute index in filtered sequence
+    // This index should point to the selected key's position in the filtered sequence
+    // Find which finger type the finalKey belongs to
+    let finalKeyFingerTypeIndex = -1;
+    for (let i = 0; i < fingerOrder.length; i++) {
+        if (keysByFinger[fingerOrder[i]].includes(finalKey)) {
+            finalKeyFingerTypeIndex = i;
+            break;
+        }
+    }
+    
+    let newAbsoluteIndex = 0;
+    if (finalKeyFingerTypeIndex !== -1) {
+        // Sum up lengths of all finger types before the one containing finalKey
+        for (let i = 0; i < finalKeyFingerTypeIndex; i++) {
+            newAbsoluteIndex += keysByFinger[fingerOrder[i]].length;
+        }
+        // Add the index of finalKey within its finger type
+        const finalKeyFingerKeys = keysByFinger[fingerOrder[finalKeyFingerTypeIndex]];
+        const finalKeyIndexInFinger = finalKeyFingerKeys.indexOf(finalKey);
+        if (finalKeyIndexInFinger !== -1) {
+            newAbsoluteIndex += finalKeyIndexInFinger;
+        }
+    } else {
+        // Fallback: find finalKey in filtered sequence
+        newAbsoluteIndex = filteredSequence.indexOf(finalKey);
+        if (newAbsoluteIndex === -1) {
+            newAbsoluteIndex = 0;
+        }
+    }
+    
+    // Ensure index is within bounds
+    newAbsoluteIndex = newAbsoluteIndex % filteredSequence.length;
+    
+    // Log detailed information
+    if (loggingEnabled) {
+        logEvent('key_change', {
+            direction: direction,
+            oldKey: oldKey,
+            newKey: finalKey,
+            oldFingerType: getFingerClass(oldKey),
+            newFingerType: getFingerClass(finalKey),
+            score: score,
+            filteredSequence: filteredSequence.join(''),
+            keysByFinger: {
+                index: keysByFinger['finger-index'],
+                ring: keysByFinger['finger-ring'],
+                middle: keysByFinger['finger-middle'],
+                pinky: keysByFinger['finger-pinky']
+            },
+            usedKeys: Object.values(controlKeys),
+            oldIndex: directionIndex,
+            newIndex: newAbsoluteIndex,
+            debugLog: debugLog,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Update the index for next time
+    directionIndices[direction] = newAbsoluteIndex;
+
+    // Increment key change counter for this direction
+    const previousCount = keyChangeCounts[direction] || 0;
+    keyChangeCounts[direction] = previousCount + 1;
+    debugLog.push(`Key change count: ${previousCount} -> ${keyChangeCounts[direction]}`);
+    
+    // Also log to console for debugging
+    if (loggingEnabled) {
+        console.log(`[KEY_CHANGE_COUNT] ${direction}: ${previousCount} -> ${keyChangeCounts[direction]}`);
     }
 
     // Update the specific key
@@ -1483,6 +2150,8 @@ async function loadLevels() {
         const response = await fetch('/api/levels');
         availableLevels = await response.json();
         console.log('Loaded', availableLevels.length, 'levels');
+        // Update debug menu after loading levels
+        updateDebugMenu();
     } catch (error) {
         console.error('Failed to load levels:', error);
         availableLevels = [];
@@ -1512,6 +2181,12 @@ function checkLevelChange(oldScore, newScore) {
             currentLevelIndex = newLevelIndex;
             currentLevel = newLevel;
             maxLevelReached = Math.max(maxLevelReached, newLevelIndex);
+            
+            // Update debug menu level input
+            const debugLevelInput = document.getElementById('debugLevel');
+            if (debugLevelInput) {
+                debugLevelInput.value = currentLevelIndex;
+            }
             
             // Draw the current frame first so player sees they ate the food
             draw();
@@ -3039,7 +3714,7 @@ function renderTutorialMiniScore() {
         </div>
         <div class="tutorial-mini-score-divider">|</div>
         <div class="tutorial-mini-score-item">
-            <span class="tutorial-mini-score-label">KPM:</span>
+            <span class="tutorial-mini-score-label">T/Min:</span>
             <span class="tutorial-mini-score-value">120</span>
         </div>
     `;
@@ -3222,6 +3897,241 @@ function renderTutorialGameDemo() {
     
     // Start animation after initial delay
     tutorialDemoAnimationTimeout = setTimeout(animateDemo, 500);
+}
+
+// ============= LOGGING FUNCTIONS =============
+
+// Log an event
+function logEvent(eventType, data) {
+    if (!loggingEnabled) return;
+    
+    const logEntry = {
+        type: eventType,
+        data: data,
+        timestamp: new Date().toISOString(),
+        gameState: {
+            score: score,
+            gameRunning: gameRunning,
+            gamePaused: gamePaused,
+            level: currentLevelIndex
+        }
+    };
+    
+    logBuffer.push(logEntry);
+    
+    // Send logs in batches
+    if (logBuffer.length >= LOG_BUFFER_SIZE) {
+        sendLogsToServer();
+    }
+}
+
+// Send logs to server
+async function sendLogsToServer() {
+    if (logBuffer.length === 0) return;
+    
+    const logsToSend = [...logBuffer];
+    logBuffer = []; // Clear buffer
+    
+    try {
+        const response = await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logs: logsToSend })
+        });
+        
+        if (!response.ok) {
+            console.error('Failed to send logs to server');
+            // Re-add logs to buffer if send failed (for retry)
+            logBuffer.unshift(...logsToSend);
+        }
+    } catch (error) {
+        console.error('Error sending logs:', error);
+        // Re-add logs to buffer if send failed (for retry)
+        logBuffer.unshift(...logsToSend);
+    }
+}
+
+// Toggle logging on/off
+function toggleLogging() {
+    loggingEnabled = !loggingEnabled;
+    
+    if (loggingEnabled) {
+        // Log that logging started
+        logEvent('logging_started', {
+            timestamp: new Date().toISOString()
+        });
+        // Send any buffered logs immediately
+        sendLogsToServer();
+    } else {
+        // Send any remaining logs before stopping
+        sendLogsToServer();
+        // Log that logging stopped
+        logBuffer.push({
+            type: 'logging_stopped',
+            data: { timestamp: new Date().toISOString() },
+            timestamp: new Date().toISOString(),
+            gameState: {
+                score: score,
+                gameRunning: gameRunning,
+                gamePaused: gamePaused,
+                level: currentLevelIndex
+            }
+        });
+        sendLogsToServer();
+    }
+    
+    updateLoggingUI();
+}
+
+// Update logging UI
+function updateLoggingUI() {
+    const toggleLoggingBtn = document.getElementById('toggleLogging');
+    const logStatusElement = document.getElementById('logStatus');
+    
+    if (toggleLoggingBtn && logStatusElement) {
+        if (loggingEnabled) {
+            toggleLoggingBtn.textContent = 'Stop Logging';
+            logStatusElement.textContent = 'Logging: ON';
+            logStatusElement.classList.add('logging');
+        } else {
+            toggleLoggingBtn.textContent = 'Start Logging';
+            logStatusElement.textContent = 'Logging: OFF';
+            logStatusElement.classList.remove('logging');
+        }
+    }
+}
+
+// Send logs periodically and on page unload
+setInterval(() => {
+    if (loggingEnabled && logBuffer.length > 0) {
+        sendLogsToServer();
+    }
+}, 5000); // Send every 5 seconds
+
+// Send logs on page unload
+window.addEventListener('beforeunload', () => {
+    if (loggingEnabled && logBuffer.length > 0) {
+        // Use sendBeacon for reliable delivery on page unload
+        const logsToSend = JSON.stringify({ logs: logBuffer });
+        const blob = new Blob([logsToSend], { type: 'application/json' });
+        navigator.sendBeacon('/api/logs', blob);
+    }
+});
+
+// ============= DEBUG MENU FUNCTIONS =============
+
+// Simulate game end with random data
+function simulateGameEndWithRandomData() {
+    if (!gameRunning) {
+        // Generate random game data
+        const randomScore = Math.floor(Math.random() * 100) + 10;
+        const randomKPM = Math.floor(Math.random() * 200) + 50;
+        const randomFingerUsage = {
+            'finger-pinky': Math.floor(Math.random() * 20),
+            'finger-ring': Math.floor(Math.random() * 30),
+            'finger-middle': Math.floor(Math.random() * 25),
+            'finger-index': Math.floor(Math.random() * 40)
+        };
+        
+        // Set the game state to simulate game over
+        score = randomScore;
+        lastGameScore = randomScore;
+        lastGameKPM = randomKPM;
+        lastGameFingerUsage = randomFingerUsage;
+        gameStatsSaved = false;
+        
+        // Show game over overlay with random data
+        showOverlay('Game Over!', `Punkte: ${randomScore}`, true, randomKPM);
+    } else {
+        // If game is running, just trigger game over normally
+        gameOver();
+    }
+}
+
+// Change game speed (FPS)
+function changeGameSpeed(newFPS) {
+    if (newFPS > 0 && newFPS <= 20) {
+        FPS = newFPS;
+        const debugSpeedInput = document.getElementById('debugSpeed');
+        if (debugSpeedInput) {
+            debugSpeedInput.value = FPS;
+        }
+        console.log(`Game speed changed to ${FPS} FPS`);
+    }
+}
+
+// Change key-changing period
+function changeKeyChangePeriod(newPeriod) {
+    if (newPeriod > 0) {
+        PRESSES_PER_CHANGE = newPeriod;
+        updateCounters(); // Update the counter displays
+        const debugKeyChangePeriodInput = document.getElementById('debugKeyChangePeriod');
+        if (debugKeyChangePeriodInput) {
+            debugKeyChangePeriodInput.value = PRESSES_PER_CHANGE;
+        }
+        console.log(`Key change period changed to ${PRESSES_PER_CHANGE} presses`);
+    }
+}
+
+// Go to specific level
+function goToLevel(targetLevel) {
+    if (availableLevels.length === 0) {
+        console.warn('No levels available');
+        return;
+    }
+    
+    const levelIndex = Math.min(targetLevel - 1, availableLevels.length - 1);
+    const level = availableLevels[levelIndex];
+    
+    if (level) {
+        // Set the level
+        currentLevelIndex = levelIndex + 1;
+        currentLevel = level;
+        maxLevelReached = Math.max(maxLevelReached, currentLevelIndex);
+        
+        // Apply level barriers
+        applyLevel(level);
+        
+        // Set score to match the level (10 points per level)
+        score = (levelIndex + 1) * 10;
+        scoreElement.textContent = score;
+        
+        // Update debug menu level input
+        const debugLevelInput = document.getElementById('debugLevel');
+        if (debugLevelInput) {
+            debugLevelInput.value = currentLevelIndex;
+            debugLevelInput.max = availableLevels.length;
+        }
+        
+        console.log(`Jumped to level ${currentLevelIndex}: ${level.name}`);
+        
+        // If game is running, show level change modal
+        if (gameRunning) {
+            showLevelChangeModal(level, currentLevelIndex);
+        }
+    }
+}
+
+// Update debug menu inputs to reflect current game state
+function updateDebugMenu() {
+    const debugSpeedInput = document.getElementById('debugSpeed');
+    const debugKeyChangePeriodInput = document.getElementById('debugKeyChangePeriod');
+    const debugLevelInput = document.getElementById('debugLevel');
+    const debugForceProgressionInput = document.getElementById('debugForceProgression');
+    
+    if (debugSpeedInput) {
+        debugSpeedInput.value = FPS;
+    }
+    if (debugKeyChangePeriodInput) {
+        debugKeyChangePeriodInput.value = PRESSES_PER_CHANGE;
+    }
+    if (debugLevelInput && availableLevels.length > 0) {
+        debugLevelInput.value = currentLevelIndex || 1;
+        debugLevelInput.max = availableLevels.length;
+    }
+    if (debugForceProgressionInput) {
+        debugForceProgressionInput.value = KEY_CHANGES_BEFORE_FORCE_PROGRESSION;
+    }
 }
 
 // Initialize on load

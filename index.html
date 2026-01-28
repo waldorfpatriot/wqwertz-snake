@@ -7,6 +7,34 @@
     <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
+    <div class="debug-menu" id="debugMenu">
+        <h3>Debug Menu</h3>
+        <button class="debug-btn" id="simulateGameEnd">Simulate Game End</button>
+        <div class="debug-control">
+            <label>Speed (FPS):</label>
+            <input type="number" id="debugSpeed" value="4.65" min="1" max="20" step="0.1">
+            <button class="debug-btn-small" id="applySpeed">Apply</button>
+        </div>
+        <div class="debug-control">
+            <label>Key Change Period:</label>
+            <input type="number" id="debugKeyChangePeriod" value="10" min="1" max="50" step="1">
+            <button class="debug-btn-small" id="applyKeyChangePeriod">Apply</button>
+        </div>
+        <div class="debug-control">
+            <label>Go to Level:</label>
+            <input type="number" id="debugLevel" value="1" min="1" step="1">
+            <button class="debug-btn-small" id="goToLevel">Go</button>
+        </div>
+        <div class="debug-control">
+            <label>Force Progression After:</label>
+            <input type="number" id="debugForceProgression" value="4" min="1" max="100" step="1">
+            <button class="debug-btn-small" id="applyForceProgression">Apply</button>
+        </div>
+        <div class="debug-control">
+            <button class="debug-btn" id="toggleLogging">Start Logging</button>
+            <div class="debug-log-status" id="logStatus">Logging: OFF</div>
+        </div>
+    </div>
     <div class="container">
         <header>
             <button class="stats-button" id="statsButton" title="Statistiken">
@@ -18,7 +46,7 @@
             <div class="score-display">
                 <span class="score-item">Punkte: <span id="score">0</span></span>
                 <span class="score-divider">|</span>
-                <span class="score-item kpm-display">KPM: <span id="kpm">0</span></span>
+                <span class="score-item kpm-display">T/Min: <span id="kpm">0</span></span>
             </div>
         </header>
 
@@ -58,7 +86,7 @@
                 <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
                 <div class="title-screen-hint">
                     <div class="keyboard-icon">⌨️</div>
-                    <div class="arrow-down">↓</div>
+                    <div class="arrow-down">↑</div>
                     <div class="press-any-key-hint">Drücke eine Taste</div>
                 </div>
                 <div class="spacebar-hint">
@@ -114,7 +142,7 @@
                                 <th>Name</th>
                                 <th>Punkte</th>
                                 <th>Level</th>
-                                <th>KPM</th>
+                                <th>T/Min</th>
                                 <th>Finger</th>
                             </tr>
                         </thead>
@@ -209,7 +237,7 @@
                                 
                                 <div class="title-screen-keyboard" id="tutorialStep1Keyboard"></div>
                                 <div class="title-screen-hint" style="margin-top: 0;">
-                                    <div class="arrow-down">↓</div>
+                                    <div class="arrow-down">↑</div>
                                     <div class="press-any-key-hint">Drücke eine Taste</div>
                                 </div>
                             </div>
@@ -437,8 +465,8 @@
                                         <div class="interface-item-icon">
                                             <div class="tutorial-mini-score" id="tutorialMiniScore"></div>
                                         </div>
-                                        <div class="interface-item-label">Punkte & KPM</div>
-                                        <div class="interface-item-description">Punkte = gefressenes Futter. KPM = Tastenanschläge pro Minute.</div>
+                                        <div class="interface-item-label">Punkte & T/Min</div>
+                                        <div class="interface-item-description">Punkte = gefressenes Futter. T/Min = Tastenanschläge pro Minute.</div>
                                     </div>
                                     <div class="interface-item">
                                         <div class="interface-item-icon">
