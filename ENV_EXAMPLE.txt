@@ -1,0 +1,15 @@
+# Environment Variables for qwertZnake
+# Copy these to your deployment platform's environment variables
+
+# Server port (optional, defaults to 3000)
+PORT=3000
+
+# Admin password for level editor (REQUIRED - CHANGE THIS IN PRODUCTION!)
+ADMIN_PASSWORD=your_secure_password_here
+
+# Allowed origins for CORS (comma-separated)
+# For production, set this to your actual domain
+# Use * to allow all origins (not recommended for production)
+ALLOWED_ORIGINS=https://yourdomain.com
+
+

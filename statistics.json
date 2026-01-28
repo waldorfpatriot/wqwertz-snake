@@ -1,0 +1,91 @@
+{
+  "games": [
+    {
+      "name": "Jonathan",
+      "points": 17,
+      "kpm": 38,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 47
+      },
+      "duration": 77,
+      "id": 1767132588995,
+      "timestamp": "2025-12-30T22:09:48.995Z"
+    },
+    {
+      "name": "Pema",
+      "points": 21,
+      "kpm": 13,
+      "level": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 0
+      },
+      "duration": 52,
+      "id": 1767133000000,
+      "timestamp": "2025-12-30T22:16:40.000Z"
+    },
+    {
+      "name": "Jonathan",
+      "points": 15,
+      "kpm": 31,
+      "level": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 52
+      },
+      "duration": 106,
+      "id": 1767134217788,
+      "timestamp": "2025-12-30T22:36:57.788Z"
+    },
+    {
+      "name": "Jonathan",
+      "points": 10,
+      "kpm": 29,
+      "level": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 58
+      },
+      "duration": 122,
+      "id": 1767134876309,
+      "timestamp": "2025-12-30T22:47:56.309Z"
+    },
+    {
+      "name": "Pema",
+      "points": 5,
+      "kpm": 40,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 41
+      },
+      "duration": 258,
+      "id": 1767132452125,
+      "timestamp": "2025-12-30T22:07:32.125Z"
+    },
+    {
+      "name": "Anonym",
+      "points": 2,
+      "kpm": 14,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "duration": 46,
+      "id": 1767131748067,
+      "timestamp": "2025-12-30T21:55:48.067Z"
+    }
+  ]
+}

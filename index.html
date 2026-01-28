@@ -3,15 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QWERTZ Snake</title>
-    <link rel="stylesheet" href="style.css">
+    <title>qwertZnake</title>
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>QWERTZ Snake</h1>
+            <button class="stats-button" id="statsButton" title="Statistiken">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
+            </button>
+            <h1>qwertZnake</h1>
             <div class="score-display">
-                <span>Punkte: <span id="score">0</span></span>
+                <span class="score-item">Punkte: <span id="score">0</span></span>
+                <span class="score-divider">|</span>
+                <span class="score-item kpm-display">KPM: <span id="kpm">0</span></span>
             </div>
         </header>
 
@@ -20,22 +27,22 @@
                 <div class="direction-item">
                     <span class="direction-arrow">↑</span>
                     <span class="direction-label">Oben</span>
-                    <span class="direction-counter" id="counter-up">0/20</span>
+                    <span class="direction-counter" id="counter-up">0/10</span>
                 </div>
                 <div class="direction-item">
                     <span class="direction-arrow">↓</span>
                     <span class="direction-label">Unten</span>
-                    <span class="direction-counter" id="counter-down">0/20</span>
+                    <span class="direction-counter" id="counter-down">0/10</span>
                 </div>
                 <div class="direction-item">
                     <span class="direction-arrow">←</span>
                     <span class="direction-label">Links</span>
-                    <span class="direction-counter" id="counter-left">0/20</span>
+                    <span class="direction-counter" id="counter-left">0/10</span>
                 </div>
                 <div class="direction-item">
                     <span class="direction-arrow">→</span>
                     <span class="direction-label">Rechts</span>
-                    <span class="direction-counter" id="counter-right">0/20</span>
+                    <span class="direction-counter" id="counter-right">0/10</span>
                 </div>
             </div>
             <div class="virtual-keyboard" id="virtualKeyboard"></div>
@@ -47,14 +54,129 @@
 
         <div class="game-overlay" id="gameOverlay">
             <div class="overlay-content">
-                <h2 id="overlayTitle">QWERTZ Snake</h2>
-                <p id="overlayMessage">Drücke eine Taste zum Starten</p>
-                <button id="restartButton" class="restart-button">Neues Spiel</button>
+                <h2 id="overlayTitle">qwertZnake</h2>
+                <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
+                <div class="title-screen-hint">
+                    <div class="keyboard-icon">⌨️</div>
+                    <div class="arrow-down">↓</div>
+                    <div class="press-any-key-hint">Drücke eine Taste</div>
+                </div>
+                <p id="overlayMessage" style="display: none;">Drücke eine Taste zum Starten</p>
+                <p id="overlayMessage2" style="display: none;">Die ist eine Webapp zum 10-Finger-Schreiben üben. Du brauchst eine Tastatur mit QWERTZ-Layout.</p>
+                <div class="overlay-stats" id="overlayStats"></div>
+                <div class="name-input-section" id="nameInputSection">
+                    <input type="text" id="playerNameInput" placeholder="Dein Name" maxlength="20">
+                </div>
+                <div class="overlay-buttons">
+                    <button id="restartButton" class="restart-button">Neues Spiel</button>
+                    <button id="overlayStatsButton" class="stats-button-overlay">Statistiken</button>
+                </div>
+                <p class="save-hint" id="saveHint"></p>
+            </div>
+        </div>
+
+        <!-- Key Change Modal -->
+        <div class="key-change-modal" id="keyChangeModal">
+            <div class="confetti-container"></div>
+            <div class="key-change-content">
+                <div class="key-change-title">TASTENWECHSEL!</div>
+                <div class="key-change-direction" id="keyChangeDirection">OBEN</div>
+                <div class="key-change-keyboard" id="keyChangeKeyboard"></div>
+                <div class="finger-label" id="keyChangeFingerName">Zeigefinger</div>
+                <div class="key-change-hint">Drücke R zum Fortfahren</div>
+                <div class="sparkle-ring"></div>
+            </div>
+        </div>
+
+        <!-- Statistics Modal -->
+        <div class="stats-modal" id="statsModal">
+            <div class="stats-modal-content">
+                <button class="stats-close" id="statsClose">&times;</button>
+                <h2>🏆 Bestenliste</h2>
+                <div class="stats-legend">
+                    <span class="legend-item"><span class="finger-dot pinky"></span>Kleiner Finger</span>
+                    <span class="legend-item"><span class="finger-dot ring"></span>Ringfinger</span>
+                    <span class="legend-item"><span class="finger-dot middle"></span>Mittelfinger</span>
+                    <span class="legend-item"><span class="finger-dot index"></span>Zeigefinger</span>
+                </div>
+                <div class="stats-table-container">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Punkte</th>
+                                <th>Level</th>
+                                <th>KPM</th>
+                                <th>Finger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTableBody">
+                            <tr><td colspan="6">Lade Statistiken...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button class="admin-login-btn" id="adminLoginBtn">🔧 Level Editor</button>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div class="login-modal" id="loginModal">
+            <div class="login-modal-content">
+                <button class="login-close" id="loginClose">&times;</button>
+                <h2>🔐 Admin Login</h2>
+                <div class="login-form">
+                    <input type="password" id="loginPassword" placeholder="Passwort eingeben" autocomplete="off">
+                    <button id="loginSubmit" class="login-submit-btn">Einloggen</button>
+                </div>
+                <p class="login-error" id="loginError"></p>
+            </div>
+        </div>
+
+        <!-- Level Designer Modal -->
+        <div class="level-designer-modal" id="levelDesignerModal">
+            <div class="level-designer-content">
+                <button class="designer-close" id="designerClose">&times;</button>
+                <h2>🎨 Level Designer</h2>
+                <div class="level-designer-controls">
+                    <div class="level-name-input">
+                        <label for="levelNameInput">Level Name:</label>
+                        <input type="text" id="levelNameInput" placeholder="z.B. Labyrinth" maxlength="30">
+                    </div>
+                    <div class="level-tools">
+                        <button class="tool-btn active" id="toolBarrier" title="Barriere setzen">🧱</button>
+                        <button class="tool-btn" id="toolEraser" title="Löschen">🧹</button>
+                        <button class="tool-btn" id="toolClear" title="Alles löschen">🗑️</button>
+                    </div>
+                </div>
+                <div class="level-grid-container">
+                    <div class="level-grid" id="levelGrid"></div>
+                </div>
+                <div class="level-designer-actions">
+                    <button class="save-level-btn" id="saveLevelBtn">💾 Level Speichern</button>
+                </div>
+                <div class="saved-levels-section">
+                    <h3>📁 Gespeicherte Levels</h3>
+                    <div class="saved-levels-list" id="savedLevelsList">
+                        <p class="no-levels">Keine Levels vorhanden</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Change Modal -->
+        <div class="level-change-modal" id="levelChangeModal">
+            <div class="level-change-content">
+                <div class="level-confetti-container"></div>
+                <div class="level-change-icon">🎮</div>
+                <div class="level-change-title">NEUES LEVEL!</div>
+                <div class="level-change-name" id="levelChangeName">Labyrinth</div>
+                <div class="level-change-number">Level <span id="levelChangeNumber">2</span></div>
+                <div class="level-change-hint">Drücke Leertaste zum Fortfahren</div>
             </div>
         </div>
     </div>
 
-    <script src="game.js"></script>
+    <script src="game.js?v=2"></script>
 </body>
 </html>
-

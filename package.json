@@ -1,0 +1,17 @@
+{
+  "name": "qwertz-snake",
+  "version": "1.0.0",
+  "description": "A snake game that teaches 10-finger typing with QWERTZ keyboard",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "keywords": ["snake", "typing", "qwertz", "10-finger", "game"]
+}
+
