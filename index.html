@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <button class="stats-button" id="statsButton" title="Statistiken">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 20V10M12 20V4M6 20v-6"/>
                 </svg>
             </button>
@@ -48,11 +48,11 @@
             <div class="virtual-keyboard" id="virtualKeyboard"></div>
         </div>
 
-        <div class="game-area">
+        <div class="game-area" id="game" data-anchor="game">
             <canvas id="gameCanvas" width="400" height="400"></canvas>
         </div>
 
-        <div class="game-overlay" id="gameOverlay">
+        <div class="game-overlay" id="gameOverlay" data-anchor="start">
             <div class="overlay-content">
                 <h2 id="overlayTitle">qwertZnake</h2>
                 <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
@@ -60,6 +60,12 @@
                     <div class="keyboard-icon">⌨️</div>
                     <div class="arrow-down">↓</div>
                     <div class="press-any-key-hint">Drücke eine Taste</div>
+                </div>
+                <div class="spacebar-hint">
+                    <div class="spacebar-key-indicator">
+                        <div class="spacebar-key-visual">SPACE</div>
+                        <div class="spacebar-hint-text">Leertaste zum Fortfahren</div>
+                    </div>
                 </div>
                 <p id="overlayMessage" style="display: none;">Drücke eine Taste zum Starten</p>
                 <p id="overlayMessage2" style="display: none;">Die ist eine Webapp zum 10-Finger-Schreiben üben. Du brauchst eine Tastatur mit QWERTZ-Layout.</p>
@@ -70,6 +76,7 @@
                 <div class="overlay-buttons">
                     <button id="restartButton" class="restart-button">Neues Spiel</button>
                     <button id="overlayStatsButton" class="stats-button-overlay">Statistiken</button>
+                    <button id="overlayTutorialButton" class="tutorial-button-overlay">Tutorial</button>
                 </div>
                 <p class="save-hint" id="saveHint"></p>
             </div>
@@ -89,7 +96,7 @@
         </div>
 
         <!-- Statistics Modal -->
-        <div class="stats-modal" id="statsModal">
+        <div class="stats-modal" id="statsModal" data-anchor="statistics">
             <div class="stats-modal-content">
                 <button class="stats-close" id="statsClose">&times;</button>
                 <h2>🏆 Bestenliste</h2>
@@ -121,7 +128,7 @@
         </div>
 
         <!-- Login Modal -->
-        <div class="login-modal" id="loginModal">
+        <div class="login-modal" id="loginModal" data-anchor="login">
             <div class="login-modal-content">
                 <button class="login-close" id="loginClose">&times;</button>
                 <h2>🔐 Admin Login</h2>
@@ -134,7 +141,7 @@
         </div>
 
         <!-- Level Designer Modal -->
-        <div class="level-designer-modal" id="levelDesignerModal">
+        <div class="level-designer-modal" id="levelDesignerModal" data-anchor="level-editor">
             <div class="level-designer-content">
                 <button class="designer-close" id="designerClose">&times;</button>
                 <h2>🎨 Level Designer</h2>
@@ -173,6 +180,289 @@
                 <div class="level-change-name" id="levelChangeName">Labyrinth</div>
                 <div class="level-change-number">Level <span id="levelChangeNumber">2</span></div>
                 <div class="level-change-hint">Drücke Leertaste zum Fortfahren</div>
+            </div>
+        </div>
+
+        <!-- Tutorial Modal -->
+        <div class="tutorial-modal" id="tutorialModal">
+            <div class="tutorial-modal-content">
+                <button class="tutorial-close" id="tutorialClose">&times;</button>
+                <button class="tutorial-back" id="tutorialBack">←</button>
+                <div class="tutorial-header">
+                    <h2>📚 Tutorial</h2>
+                    <div class="tutorial-progress">
+                        <span>Schritt <span id="tutorialCurrentStep">1</span> von 6</span>
+                    </div>
+                </div>
+                <div class="tutorial-modal-content-inner">
+                    <div class="tutorial-content">
+                        <!-- Step 1: Warum dieses Spiel? -->
+                        <div class="tutorial-step" id="tutorial-step-1" data-step="1">
+                            <div class="tutorial-step-title">Warum dieses Spiel?</div>
+                            <div class="tutorial-step-content">
+                                <p>Durch das ständige Wechseln der Steuerungstasten wirst du gezwungen, verschiedene Finger zu verwenden. So lernst du automatisch das 10-Finger-Schreiben!</p>
+                                
+                                <div class="tutorial-game-demo">
+                                    <canvas id="tutorialGameCanvas" width="200" height="200"></canvas>
+                                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Mini-Demo: Die Schlange bewegt sich automatisch</p>
+                                </div>
+                                
+                                <div class="title-screen-keyboard" id="tutorialStep1Keyboard"></div>
+                                <div class="title-screen-hint" style="margin-top: 0;">
+                                    <div class="arrow-down">↓</div>
+                                    <div class="press-any-key-hint">Drücke eine Taste</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Spielprinzip -->
+                        <div class="tutorial-step" id="tutorial-step-2" data-step="2">
+                            <div class="tutorial-step-title">Spielprinzip</div>
+                            <div class="tutorial-step-content">
+                                <p>qwertZnake ist ein Snake-Spiel, bei dem du die Schlange mit den richtigen Fingern steuerst:</p>
+                                
+                                <ol style="text-align: left; max-width: 600px; margin: 20px auto; line-height: 1.8;">
+                                    <li><strong>Start:</strong> Drücke eine beliebige Taste oder die Leertaste, um zu starten.</li>
+                                    <li><strong>Steuerung:</strong> Die vier Richtungstasten (oben, unten, links, rechts) werden am Anfang zufällig zugewiesen.</li>
+                                    <li><strong>Futter sammeln:</strong> Bewege die Schlange zum roten Futter, um Punkte zu sammeln.</li>
+                                    <li><strong>Tastenwechsel:</strong> Nach 10 Mal Drücken einer Richtungstaste wechselt diese automatisch zu einer neuen Taste!</li>
+                                    <li><strong>Level:</strong> Alle 10 Punkte kommt ein neues Level mit Barrieren.</li>
+                                    <li><strong>Game Over:</strong> Das Spiel endet, wenn die Schlange sich selbst oder eine Barriere berührt.</li>
+                                </ol>
+                                
+                                <p><strong>Viel Erfolg beim Üben! 🎉</strong></p>
+                                
+                                <div class="home-row-instruction">
+                                    <div class="home-row-keys" id="jKey">J</div>
+                                    <div class="instruction-text">um weiterzumachen</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Fingerplatzierung und Grundreihe -->
+                        <div class="tutorial-step" id="tutorial-step-3" data-step="3">
+                            <div class="tutorial-step-title">Fingerplatzierung und Grundreihe</div>
+                            <div class="tutorial-step-content">
+                                <p>Beim 10-Finger-System legst du deine Finger auf der Grundreihe ab. Das ist die mittlere Reihe der Tastatur:</p>
+                                
+                                <div class="tutorial-home-row-demo">
+                                    <div class="home-row-keyboard" id="tutorialHomeRow"></div>
+                                    <p class="home-row-explanation">Deine Finger ruhen auf: <strong>A S D F</strong> (links) und <strong>J K L Ö</strong> (rechts)</p>
+                                </div>
+                                
+                                <p><strong>Wichtig:</strong> Die Daumen ruhen auf der Leertaste. Versuche, diese Position immer beizubehalten und die Finger nur kurz anzuheben, um andere Tasten zu drücken.</p>
+                                
+                                <div class="home-row-instruction">
+                                    <div class="home-row-keys">ASDFJKLÖ</div>
+                                    <div class="instruction-text">um weiterzumachen</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Fingerzuordnung -->
+                        <div class="tutorial-step" id="tutorial-step-4" data-step="4">
+                            <div class="tutorial-step-title">Fingerzuordnung</div>
+                            <div class="tutorial-step-content">
+                                <p>Jeder Finger ist für bestimmte Tasten zuständig. Hier siehst du, welcher Finger welche Tasten drückt:</p>
+                                
+                                <div class="tutorial-finger-placement">
+                                    <div class="finger-placement-header">
+                                        <div class="finger-placement-header-label">Links</div>
+                                        <div class="finger-placement-header-label">Rechts</div>
+                                    </div>
+                                    <div class="finger-placement-row">
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger index">👆</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Zeigefinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="r">R</span>
+                                                    <span class="key-box" data-key="f">F</span>
+                                                    <span class="key-box" data-key="v">V</span>
+                                                    <span class="key-box" data-key="t">T</span>
+                                                    <span class="key-box" data-key="g">G</span>
+                                                    <span class="key-box" data-key="b">B</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger index">👆</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Zeigefinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="z">Z</span>
+                                                    <span class="key-box" data-key="h">H</span>
+                                                    <span class="key-box" data-key="n">N</span>
+                                                    <span class="key-box" data-key="u">U</span>
+                                                    <span class="key-box" data-key="j">J</span>
+                                                    <span class="key-box" data-key="m">M</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="finger-placement-row">
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger ring">🖖</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Ringfinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="w">W</span>
+                                                    <span class="key-box" data-key="s">S</span>
+                                                    <span class="key-box" data-key="x">X</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger ring">🖖</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Ringfinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="o">O</span>
+                                                    <span class="key-box" data-key="l">L</span>
+                                                    <span class="key-box" data-key=".">.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="finger-placement-row">
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger middle">🖕</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Mittelfinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="e">E</span>
+                                                    <span class="key-box" data-key="d">D</span>
+                                                    <span class="key-box" data-key="c">C</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger middle">🖕</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Mittelfinger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="i">I</span>
+                                                    <span class="key-box" data-key="k">K</span>
+                                                    <span class="key-box" data-key=",">,</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="finger-placement-row">
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger pinky">🤙</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Kleiner Finger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="q">Q</span>
+                                                    <span class="key-box" data-key="a">A</span>
+                                                    <span class="key-box" data-key="y">Y</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="finger-placement-pair">
+                                            <div class="finger-placement-finger pinky">🤙</div>
+                                            <div class="finger-placement-info">
+                                                <div class="finger-placement-label">Kleiner Finger</div>
+                                                <div class="finger-placement-keys">
+                                                    <span class="key-box" data-key="p">P</span>
+                                                    <span class="key-box" data-key="ü">Ü</span>
+                                                    <span class="key-box" data-key="ö">Ö</span>
+                                                    <span class="key-box" data-key="ä">Ä</span>
+                                                    <span class="key-box" data-key="-">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="home-row-instruction">
+                                    <div class="home-row-keys" id="verstandenKeys">VERSTANDEN</div>
+                                    <div class="instruction-text">um weiterzumachen</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: Farbcodierung -->
+                        <div class="tutorial-step" id="tutorial-step-5" data-step="5">
+                            <div class="tutorial-step-title">Farbcodierung</div>
+                            <div class="tutorial-step-content">
+                                <p><strong>Tipp:</strong> Die Farben auf der Tastatur zeigen dir, welcher Finger welche Taste drücken soll. Versuche, immer den richtigen Finger zu verwenden!</p>
+                                
+                                <div class="tutorial-keyboard-demo">
+                                    <div class="virtual-keyboard" id="tutorialKeyboard1"></div>
+                                </div>
+                                
+                                <div class="home-row-instruction">
+                                    <div class="home-row-keys" id="zeigefingerKeys">ZEIGEFINGER</div>
+                                    <div class="instruction-text">um weiterzumachen</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 6: Die Benutzeroberfläche -->
+                        <div class="tutorial-step" id="tutorial-step-6" data-step="6">
+                            <div class="tutorial-step-title">Die Benutzeroberfläche</div>
+                            <div class="tutorial-step-content">
+                                <div class="tutorial-interface-explanation">
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <div class="tutorial-mini-keyboard" id="tutorialMiniKeyboard"></div>
+                                        </div>
+                                        <div class="interface-item-label">Virtuelle Tastatur</div>
+                                        <div class="interface-item-description">Zeigt alle Tasten mit Farbcodierung. Die aktiven Steuerungstasten haben einen Rahmen und einen Pfeil.</div>
+                                    </div>
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <div class="tutorial-mini-direction-info" id="tutorialMiniDirectionInfo"></div>
+                                        </div>
+                                        <div class="interface-item-label">Richtungsanzeige</div>
+                                        <div class="interface-item-description">Zeigt an, welche Tasten aktuell für die vier Richtungen verwendet werden.</div>
+                                    </div>
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <canvas class="tutorial-mini-game-canvas" id="tutorialMiniGameCanvas" width="80" height="80"></canvas>
+                                        </div>
+                                        <div class="interface-item-label">Spielfeld</div>
+                                        <div class="interface-item-description">Hier bewegt sich die Schlange.</div>
+                                    </div>
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <div class="tutorial-mini-counter" id="tutorialMiniCounter"></div>
+                                        </div>
+                                        <div class="interface-item-label">Zähler</div>
+                                        <div class="interface-item-description">Zeigt an, wie oft du eine Richtungstaste gedrückt hast. Nach 10 Mal wechselt die Taste!</div>
+                                    </div>
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <div class="tutorial-mini-score" id="tutorialMiniScore"></div>
+                                        </div>
+                                        <div class="interface-item-label">Punkte & KPM</div>
+                                        <div class="interface-item-description">Punkte = gefressenes Futter. KPM = Tastenanschläge pro Minute.</div>
+                                    </div>
+                                    <div class="interface-item">
+                                        <div class="interface-item-icon">
+                                            <div class="tutorial-mini-space-key">
+                                                <div class="keyboard-key keyboard-space tutorial-space-key">SPACE</div>
+                                            </div>
+                                        </div>
+                                        <div class="interface-item-label">Pause</div>
+                                        <div class="interface-item-description">Leertaste pausiert/startet das Spiel.</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="home-row-instruction">
+                                    <div class="home-row-keys" id="losgehtsKeys">LOS GEHTS</div>
+                                    <div class="instruction-text">um weiterzumachen</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="tutorial-navigation">
+                        <button id="tutorialNext" class="tutorial-nav-btn">Weiter →</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

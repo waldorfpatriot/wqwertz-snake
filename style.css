@@ -6,12 +6,12 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #000000;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #333;
+    color: #888;
 }
 
 .container {
@@ -25,24 +25,24 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     position: relative;
 }
 
 h1 {
-    color: #667eea;
-    font-size: 2.5em;
-    margin-bottom: 10px;
+    color: #888;
+    font-size: 0.9em;
+    margin-bottom: 4px;
 }
 
 .score-display {
-    font-size: 1.2em;
+    font-size: 0.7em;
     color: #555;
     font-weight: 600;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
 .score-item {
@@ -57,7 +57,7 @@ h1 {
 }
 
 .kpm-display {
-    color: #667eea;
+    color: #888;
 }
 
 .kpm-display #kpm {
@@ -71,27 +71,32 @@ h1 {
     position: absolute;
     top: 0;
     right: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #666;
     color: white;
     border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .stats-button:hover {
     transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .stats-button:active {
     transform: translateY(0) scale(0.98);
+}
+
+.stats-button svg {
+    width: 12px;
+    height: 12px;
 }
 
 .keyboard-section {
@@ -118,7 +123,7 @@ h1 {
 
 .direction-arrow {
     font-size: 1.2em;
-    color: #667eea;
+    color: #888;
     font-weight: bold;
 }
 
@@ -128,7 +133,7 @@ h1 {
 }
 
 .direction-counter {
-    color: #667eea;
+    color: #888;
     font-weight: 600;
     font-size: 0.9em;
 }
@@ -148,6 +153,10 @@ h1 {
     display: flex;
     gap: 4px;
     justify-content: center;
+}
+
+.keyboard-row-top {
+    transform: translateX(calc(-32px / 8));
 }
 
 .keyboard-key {
@@ -190,8 +199,8 @@ h1 {
 
 /* Active control keys */
 .keyboard-key.active-control {
-    border: 3px solid #667eea;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    border: 3px solid #888;
+    box-shadow: 0 0 0 2px rgba(136, 136, 136, 0.3);
     transform: scale(1.1);
     z-index: 10;
     position: relative;
@@ -204,7 +213,7 @@ h1 {
     right: -4px;
     width: 16px;
     height: 16px;
-    background: #667eea;
+    background: #888;
     border-radius: 50%;
     border: 2px solid white;
     display: flex;
@@ -219,8 +228,30 @@ h1 {
 /* Active state when key is pressed */
 .keyboard-key.active {
     transform: scale(1.15);
-    box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
+    box-shadow: 0 0 15px rgba(136, 136, 136, 0.6);
     z-index: 20;
+}
+
+/* Highlighted state for tutorial step 3 */
+.keyboard-key.key-highlighted {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(50, 205, 50, 0.8);
+    z-index: 20;
+    position: relative;
+    animation: keyboardKeyHighlightPulse 0.4s ease;
+    transition: all 0.6s ease;
+}
+
+@keyframes keyboardKeyHighlightPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.3);
+    }
+    100% {
+        transform: scale(1.2);
+    }
 }
 
 /* Wider keys for space and special keys */
@@ -247,7 +278,7 @@ h1 {
 }
 
 #gameCanvas {
-    border: 3px solid #667eea;
+    border: 3px solid #888;
     border-radius: 10px;
     background: #f8f9fa;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -280,7 +311,7 @@ h1 {
 }
 
 .overlay-content h2 {
-    color: #667eea;
+    color: #888;
     font-size: 2em;
     margin-bottom: 20px;
 }
@@ -309,6 +340,10 @@ h1 {
     display: flex;
     gap: 4px;
     justify-content: center;
+}
+
+.title-keyboard-row-top {
+    transform: translateX(calc(-36px / 8));
 }
 
 .title-keyboard-key {
@@ -364,8 +399,43 @@ h1 {
     }
     50% {
         transform: scale(1.15);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        box-shadow: 0 4px 12px rgba(136, 136, 136, 0.5);
     }
+}
+
+/* Smaller keyboard for tutorial step 1 */
+#tutorialStep1Keyboard {
+    transform: scale(0.5);
+    transform-origin: top center;
+    margin: 10px 0 0 0;
+    padding: 8px;
+}
+
+/* Reduce spacing for hint in tutorial step 1 - make it very close to keyboard */
+#tutorial-step-1 .title-screen-hint {
+    margin-top: -50px !important;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+
+#tutorialStep1Keyboard .title-keyboard-key {
+    min-width: 18px;
+    height: 20px;
+    font-size: 0.7em;
+    border-radius: 4px;
+}
+
+#tutorialStep1Keyboard .title-keyboard-key.title-keyboard-space {
+    min-width: 100px;
+    font-size: 0.6em;
+}
+
+#tutorialStep1Keyboard .title-keyboard-row {
+    gap: 2px;
+}
+
+#tutorialStep1Keyboard .title-keyboard-row-top {
+    transform: translateX(calc(-18px / 8));
 }
 
 /* Title Screen Hint */
@@ -393,7 +463,7 @@ h1 {
 
 .arrow-down {
     font-size: 2em;
-    color: #667eea;
+    color: #888;
     animation: arrowBounce 1s ease-in-out infinite;
 }
 
@@ -409,13 +479,93 @@ h1 {
 .press-any-key-hint {
     font-size: 1.3em;
     font-weight: 700;
-    color: #667eea;
+    color: #888;
     padding: 12px 24px;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: rgba(136, 136, 136, 0.1);
     border-radius: 25px;
-    border: 2px solid rgba(102, 126, 234, 0.3);
+    border: 2px solid rgba(136, 136, 136, 0.3);
     animation: hintPulse 2s ease-in-out infinite;
     letter-spacing: 1px;
+}
+
+/* Spacebar hint indicator */
+.spacebar-hint {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.spacebar-key-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.spacebar-key-visual {
+    min-width: 200px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #e0e0e0, #c0c0c0);
+    color: #333;
+    font-size: 0.9em;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 3px solid #888;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.2),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    animation: spacebarPulse 2s ease-in-out infinite;
+    letter-spacing: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.spacebar-key-visual::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: spacebarShine 3s ease-in-out infinite;
+}
+
+@keyframes spacebarPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 
+            0 4px 8px rgba(0, 0, 0, 0.2),
+            inset 0 2px 4px rgba(255, 255, 255, 0.3),
+            0 0 0 rgba(136, 136, 136, 0);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 
+            0 6px 12px rgba(0, 0, 0, 0.3),
+            inset 0 2px 4px rgba(255, 255, 255, 0.3),
+            0 0 20px rgba(136, 136, 136, 0.5);
+    }
+}
+
+@keyframes spacebarShine {
+    0% {
+        left: -100%;
+    }
+    50%, 100% {
+        left: 100%;
+    }
+}
+
+.spacebar-hint-text {
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 500;
+    font-style: italic;
 }
 
 #overlayMessage2 {
@@ -453,7 +603,7 @@ h1 {
 .overlay-stat-value {
     font-size: 1.4em;
     font-weight: 700;
-    color: #667eea;
+    color: #888;
 }
 
 .overlay-fingers-used {
@@ -507,7 +657,7 @@ h1 {
 
 .name-input-section input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #888;
 }
 
 .overlay-buttons {
@@ -518,7 +668,7 @@ h1 {
 }
 
 .restart-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #666;
     color: white;
     border: none;
     padding: 15px 40px;
@@ -531,7 +681,7 @@ h1 {
 
 .restart-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
 }
 
 .restart-button:active {
@@ -540,8 +690,8 @@ h1 {
 
 .stats-button-overlay {
     background: transparent;
-    color: #667eea;
-    border: 2px solid #667eea;
+    color: #888;
+    border: 2px solid #888;
     padding: 15px 30px;
     font-size: 1.1em;
     border-radius: 30px;
@@ -551,7 +701,24 @@ h1 {
 }
 
 .stats-button-overlay:hover {
-    background: #667eea;
+    background: #888;
+    color: white;
+}
+
+.tutorial-button-overlay {
+    background: transparent;
+    color: #888;
+    border: 2px solid #888;
+    padding: 15px 30px;
+    font-size: 1.1em;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.tutorial-button-overlay:hover {
+    background: #888;
     color: white;
 }
 
@@ -595,7 +762,7 @@ h1 {
 }
 
 .stats-modal-content h2 {
-    color: #667eea;
+    color: #888;
     font-size: 1.8em;
     margin-bottom: 15px;
     text-align: center;
@@ -615,7 +782,7 @@ h1 {
 }
 
 .stats-close:hover {
-    color: #667eea;
+    color: #888;
 }
 
 .stats-legend {
@@ -661,7 +828,7 @@ h1 {
 .stats-table thead {
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #666;
     color: white;
 }
 
@@ -684,7 +851,7 @@ h1 {
 .stats-table td:first-child {
     text-align: center;
     font-weight: 700;
-    color: #667eea;
+    color: #888;
 }
 
 .stats-table tbody tr:hover {
@@ -766,8 +933,8 @@ h1 {
     text-align: center;
     position: relative;
     box-shadow: 
-        0 0 60px rgba(102, 126, 234, 0.6),
-        0 0 100px rgba(118, 75, 162, 0.4),
+        0 0 60px rgba(136, 136, 136, 0.6),
+        0 0 100px rgba(102, 102, 102, 0.4),
         inset 0 2px 0 rgba(255, 255, 255, 0.1);
     border: 3px solid transparent;
     background-clip: padding-box;
@@ -780,7 +947,7 @@ h1 {
     position: absolute;
     inset: -3px;
     border-radius: 33px;
-    background: linear-gradient(45deg, #667eea, #764ba2, #ff6b6b, #ffd700, #32cd32, #667eea);
+    background: linear-gradient(45deg, #888, #666, #ff6b6b, #ffd700, #32cd32, #888);
     background-size: 400% 400%;
     z-index: -1;
     animation: borderGlow 2s ease infinite;
@@ -809,7 +976,7 @@ h1 {
     font-size: 1.8em;
     font-weight: 900;
     color: transparent;
-    background: linear-gradient(90deg, #ffd700, #ff6b6b, #667eea, #32cd32);
+    background: linear-gradient(90deg, #ffd700, #ff6b6b, #888, #32cd32);
     background-size: 200% auto;
     background-clip: text;
     -webkit-background-clip: text;
@@ -838,7 +1005,7 @@ h1 {
 .key-change-direction::before {
     content: attr(data-arrow);
     font-size: 1.5em;
-    color: #667eea;
+    color: #888;
     animation: arrowBounce 0.6s ease-in-out infinite;
 }
 
@@ -982,9 +1149,9 @@ h1 {
     font-weight: 600;
     color: rgba(255, 255, 255, 0.9);
     padding: 12px 25px;
-    background: rgba(102, 126, 234, 0.3);
+    background: rgba(136, 136, 136, 0.3);
     border-radius: 30px;
-    border: 2px solid rgba(102, 126, 234, 0.5);
+    border: 2px solid rgba(136, 136, 136, 0.5);
     animation: hintPulse 1.5s ease-in-out infinite;
     letter-spacing: 1px;
 }
@@ -992,11 +1159,11 @@ h1 {
 @keyframes hintPulse {
     0%, 100% {
         transform: scale(1);
-        box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 0 20px rgba(136, 136, 136, 0.4);
     }
     50% {
         transform: scale(1.05);
-        box-shadow: 0 0 35px rgba(102, 126, 234, 0.7);
+        box-shadow: 0 0 35px rgba(136, 136, 136, 0.7);
     }
 }
 
@@ -1045,7 +1212,7 @@ h1 {
     border-radius: 50%;
     background: 
         linear-gradient(#1a1a2e, #1a1a2e) padding-box,
-        linear-gradient(90deg, #667eea, #764ba2, #ff6b6b, #ffd700) border-box;
+        linear-gradient(90deg, #888, #666, #ff6b6b, #ffd700) border-box;
     opacity: 0;
     animation: ringExpand 1.5s ease-out forwards;
     pointer-events: none;
@@ -1112,7 +1279,7 @@ h1 {
     width: 90%;
     position: relative;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    border: 2px solid #667eea;
+    border: 2px solid #888;
 }
 
 .login-modal-content h2 {
@@ -1155,11 +1322,11 @@ h1 {
 
 .login-form input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #888;
 }
 
 .login-submit-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #666;
     color: white;
     border: none;
     padding: 14px;
@@ -1223,7 +1390,7 @@ h1 {
     position: absolute;
     inset: -3px;
     border-radius: 28px;
-    background: linear-gradient(45deg, #667eea, #764ba2, #32cd32, #667eea);
+    background: linear-gradient(45deg, #888, #666, #32cd32, #888);
     background-size: 300% 300%;
     z-index: -1;
     animation: borderGlow 3s ease infinite;
@@ -1287,7 +1454,7 @@ h1 {
 
 .level-name-input input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #888;
 }
 
 .level-tools {
@@ -1307,7 +1474,7 @@ h1 {
 }
 
 .tool-btn:hover {
-    border-color: #667eea;
+    border-color: #888;
     transform: scale(1.1);
 }
 
@@ -1355,7 +1522,7 @@ h1 {
 }
 
 .level-cell.spawn-zone {
-    background: rgba(102, 126, 234, 0.3);
+    background: rgba(136, 136, 136, 0.3);
     cursor: not-allowed;
 }
 
@@ -1421,7 +1588,7 @@ h1 {
 }
 
 .level-item:hover {
-    border-color: #667eea;
+    border-color: #888;
 }
 
 .level-item-name {
@@ -1449,7 +1616,7 @@ h1 {
 }
 
 .level-item-btn.edit {
-    background: #667eea;
+    background: #888;
 }
 
 .level-item-btn.delete {
@@ -1500,7 +1667,7 @@ h1 {
     position: absolute;
     inset: -4px;
     border-radius: 34px;
-    background: linear-gradient(45deg, #32cd32, #667eea, #ffd700, #32cd32);
+    background: linear-gradient(45deg, #32cd32, #888, #ffd700, #32cd32);
     background-size: 400% 400%;
     z-index: -1;
     animation: borderGlow 2s ease infinite;
@@ -1545,7 +1712,7 @@ h1 {
     font-size: 2.2em;
     font-weight: 900;
     color: transparent;
-    background: linear-gradient(90deg, #32cd32, #ffd700, #667eea, #32cd32);
+    background: linear-gradient(90deg, #32cd32, #ffd700, #888, #32cd32);
     background-size: 200% auto;
     background-clip: text;
     -webkit-background-clip: text;
@@ -1565,7 +1732,7 @@ h1 {
 
 .level-change-number {
     font-size: 1.3em;
-    color: #667eea;
+    color: #888;
     font-weight: 600;
     margin-bottom: 25px;
 }
@@ -1580,9 +1747,9 @@ h1 {
     font-size: 1em;
     color: rgba(255, 255, 255, 0.8);
     padding: 12px 25px;
-    background: rgba(102, 126, 234, 0.25);
+    background: rgba(136, 136, 136, 0.25);
     border-radius: 25px;
-    border: 2px solid rgba(102, 126, 234, 0.4);
+    border: 2px solid rgba(136, 136, 136, 0.4);
     animation: hintPulse 1.5s ease-in-out infinite;
 }
 
@@ -1598,6 +1765,1017 @@ h1 {
 .level-display.visible {
     display: inline-flex;
 }
+
+/* Tutorial Modal */
+.tutorial-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.tutorial-modal.visible {
+    display: flex;
+}
+
+.tutorial-modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.tutorial-modal-content-inner {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.tutorial-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+    z-index: 10;
+}
+
+.tutorial-close:hover {
+    color: #888;
+}
+
+.tutorial-back {
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+    z-index: 10;
+    display: none;
+}
+
+.tutorial-back:hover {
+    color: #888;
+}
+
+.tutorial-modal[data-current-step="2"] #tutorialBack,
+.tutorial-modal[data-current-step="3"] #tutorialBack,
+.tutorial-modal[data-current-step="4"] #tutorialBack,
+.tutorial-modal[data-current-step="5"] #tutorialBack,
+.tutorial-modal[data-current-step="6"] #tutorialBack {
+    display: block;
+}
+
+.tutorial-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.tutorial-header h2 {
+    color: #888;
+    font-size: 1.6em;
+    margin-bottom: 6px;
+}
+
+.tutorial-progress {
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 600;
+}
+
+.tutorial-content {
+    flex: 1;
+    margin-bottom: 15px;
+}
+
+.tutorial-step {
+    display: none;
+}
+
+/* Show step 1 by default */
+.tutorial-step[data-step="1"] {
+    display: block;
+}
+
+/* Show/hide steps based on data-current-step attribute */
+.tutorial-modal[data-current-step="1"] .tutorial-step[data-step="1"],
+.tutorial-modal[data-current-step="2"] .tutorial-step[data-step="2"],
+.tutorial-modal[data-current-step="3"] .tutorial-step[data-step="3"],
+.tutorial-modal[data-current-step="4"] .tutorial-step[data-step="4"],
+.tutorial-modal[data-current-step="5"] .tutorial-step[data-step="5"],
+.tutorial-modal[data-current-step="6"] .tutorial-step[data-step="6"] {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.tutorial-modal[data-current-step="1"] .tutorial-step:not([data-step="1"]),
+.tutorial-modal[data-current-step="2"] .tutorial-step:not([data-step="2"]),
+.tutorial-modal[data-current-step="3"] .tutorial-step:not([data-step="3"]),
+.tutorial-modal[data-current-step="4"] .tutorial-step:not([data-step="4"]),
+.tutorial-modal[data-current-step="5"] .tutorial-step:not([data-step="5"]),
+.tutorial-modal[data-current-step="6"] .tutorial-step:not([data-step="6"]) {
+    display: none;
+}
+
+.tutorial-step-title {
+    font-size: 1.5em;
+    color: #888;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tutorial-step-title {
+    font-size: 1.3em;
+    color: #888;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.tutorial-step-content {
+    color: #555;
+    line-height: 1.4;
+}
+
+.tutorial-step-content p {
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.tutorial-step-content h3 {
+    color: #888;
+    font-size: 1.2em;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.tutorial-keyboard-demo {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.tutorial-keyboard-demo .virtual-keyboard {
+    margin: 0;
+}
+
+.tutorial-home-row-demo {
+    background: #f8f9fa;
+    padding: 30px;
+    border-radius: 12px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.home-row-keyboard {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.home-row-keyboard-row {
+    display: flex;
+    gap: 6px;
+    background: #e8e8e8;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.home-row-key {
+    min-width: 45px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 700;
+    color: white;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.home-row-key.finger-pinky { background: #ff6b6b; }
+.home-row-key.finger-ring { background: #ffa500; }
+.home-row-key.finger-middle { background: #ffd700; color: #333; }
+.home-row-key.finger-index { background: #32cd32; }
+
+.home-row-key.home-row-resting {
+    border: 3px solid #888;
+    box-shadow: 0 0 0 3px rgba(136, 136, 136, 0.2), 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: scale(1.1);
+    z-index: 10;
+    position: relative;
+}
+
+.home-row-explanation {
+    font-size: 1.1em;
+    color: #666;
+    margin-top: 15px;
+    font-weight: 600;
+}
+
+.home-row-instruction {
+    text-align: center;
+    font-size: 1.1em;
+    color: #888;
+    margin-top: 20px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.home-row-keys {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    flex-wrap: wrap;
+}
+
+/* Smaller gap for step 5 to fit "ZEIGEFINGER" */
+.tutorial-modal[data-current-step="5"] .home-row-keys,
+#zeigefingerKeys {
+    gap: 1px;
+}
+
+/* Smaller gap for step 6 to fit "LOS GEHTS" */
+.tutorial-modal[data-current-step="6"] .home-row-keys,
+#losgehtsKeys {
+    gap: 1px;
+}
+
+.instruction-text {
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 500;
+}
+
+.home-row-key-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.home-row-key-animate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 36px;
+    padding: 0 8px;
+    background: #e8e8e8;
+    color: #333;
+    border-radius: 6px;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 2px solid #ccc;
+}
+
+/* Finger colors for tutorial keys */
+.home-row-key-animate.finger-pinky {
+    background: #ff6b6b;
+    color: white;
+    border-color: #ff4757;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+}
+
+.home-row-key-animate.finger-ring {
+    background: #ffa500;
+    color: white;
+    border-color: #ff8c00;
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
+}
+
+.home-row-key-animate.finger-middle {
+    background: #ffd700;
+    color: #333;
+    border-color: #f0c000;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+}
+
+.home-row-key-animate.finger-index {
+    background: #32cd32;
+    color: white;
+    border-color: #28a428;
+    box-shadow: 0 2px 8px rgba(50, 205, 50, 0.4);
+}
+
+.home-row-checkmark {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #32cd32;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Checkmark colors based on parent key finger class */
+.home-row-key-wrapper:has(.finger-pinky) .home-row-checkmark.checked {
+    background: #ff6b6b;
+}
+
+.home-row-key-wrapper:has(.finger-ring) .home-row-checkmark.checked {
+    background: #ffa500;
+}
+
+.home-row-key-wrapper:has(.finger-middle) .home-row-checkmark.checked {
+    background: #ffd700;
+    color: #333;
+}
+
+.home-row-key-wrapper:has(.finger-index) .home-row-checkmark.checked {
+    background: #32cd32;
+}
+
+.home-row-checkmark.checked {
+    opacity: 1;
+    transform: scale(1);
+    animation: checkmarkPop 0.3s ease;
+}
+
+@keyframes checkmarkPop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.home-row-key-animate.active {
+    transform: scale(1.3);
+    animation: keyPulse 0.5s ease;
+}
+
+/* Active state maintains finger colors with enhanced glow */
+.home-row-key-animate.active.finger-pinky {
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+    background: #ff8585;
+}
+
+.home-row-key-animate.active.finger-ring {
+    box-shadow: 0 0 20px rgba(255, 165, 0, 0.8);
+    background: #ffb84d;
+}
+
+.home-row-key-animate.active.finger-middle {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+    background: #ffe44d;
+}
+
+.home-row-key-animate.active.finger-index {
+    box-shadow: 0 0 20px rgba(50, 205, 50, 0.8);
+    background: #28d428;
+}
+
+.home-row-key-animate.pausing {
+    animation: keyPausePulse 0.6s ease-in-out infinite;
+}
+
+.home-row-key-animate.active.pausing {
+    animation: keyPausePulse 0.6s ease-in-out infinite;
+}
+
+@keyframes keyPulse {
+    0%, 100% {
+        transform: scale(1.3);
+    }
+    50% {
+        transform: scale(1.5);
+    }
+}
+
+@keyframes keyPausePulse {
+    0%, 100% {
+        transform: scale(1.3);
+    }
+    50% {
+        transform: scale(1.3);
+    }
+}
+
+/* Pause pulse maintains finger colors */
+.home-row-key-animate.pausing.finger-pinky,
+.home-row-key-animate.active.pausing.finger-pinky {
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.8), 0 0 30px rgba(255, 107, 107, 1);
+}
+
+.home-row-key-animate.pausing.finger-ring,
+.home-row-key-animate.active.pausing.finger-ring {
+    box-shadow: 0 0 20px rgba(255, 165, 0, 0.8), 0 0 30px rgba(255, 165, 0, 1);
+}
+
+.home-row-key-animate.pausing.finger-middle,
+.home-row-key-animate.active.pausing.finger-middle {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 1);
+}
+
+.home-row-key-animate.pausing.finger-index,
+.home-row-key-animate.active.pausing.finger-index {
+    box-shadow: 0 0 20px rgba(50, 205, 50, 0.8), 0 0 30px rgba(50, 205, 50, 1);
+}
+
+.tutorial-finger-placement {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.finger-placement-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 6px;
+}
+
+.finger-placement-header-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1em;
+    color: #888;
+    padding: 4px 8px;
+    background: #f0f0f0;
+    border-radius: 6px;
+}
+
+.finger-placement-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.finger-placement-pair {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.finger-placement-finger {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Center and mirror left-hand emojis programmatically */
+.finger-placement-row .finger-placement-pair:first-child {
+    justify-content: center;
+}
+
+.finger-placement-row .finger-placement-pair:first-child .finger-placement-finger {
+    transform: scaleX(-1);
+}
+
+/* Exception: pinky - mirror the right one instead of left */
+.finger-placement-row .finger-placement-pair:first-child .finger-placement-finger.pinky {
+    transform: none;
+}
+
+.finger-placement-row .finger-placement-pair:last-child .finger-placement-finger.pinky {
+    transform: scaleX(-1);
+}
+
+.finger-placement-finger.pinky { background: #ff6b6b; }
+.finger-placement-finger.ring { background: #ffa500; }
+.finger-placement-finger.middle { background: #ffd700; }
+.finger-placement-finger.index { background: #32cd32; }
+
+.finger-placement-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.finger-placement-label {
+    font-weight: 700;
+    color: #888;
+    font-size: 0.95em;
+}
+
+.finger-placement-keys {
+    color: #666;
+    font-size: 0.85em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.key-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    background: #e8e8e8;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #333;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.key-box.highlighted {
+    background: #32cd32;
+    color: white;
+    border-color: #28a428;
+    transform: scale(1.2);
+    box-shadow: 0 0 15px rgba(50, 205, 50, 0.6);
+    z-index: 10;
+    position: relative;
+    animation: keyHighlightPulse 0.4s ease;
+    transition: all 0.6s ease;
+}
+
+.key-box:not(.highlighted) {
+    transition: all 0.6s ease;
+}
+
+@keyframes keyHighlightPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.3);
+    }
+    100% {
+        transform: scale(1.2);
+    }
+}
+
+.tutorial-game-demo {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.tutorial-game-demo canvas {
+    border: 3px solid #888;
+    border-radius: 10px;
+    background: #f8f9fa;
+    margin: 10px 0;
+}
+
+.tutorial-interface-explanation {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+    align-items: stretch;
+}
+
+.interface-item {
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.interface-item:nth-child(-n+3) {
+    /* First row (items 1-3) */
+    min-height: 0;
+}
+
+.interface-item:nth-child(n+4) {
+    /* Second row (items 4-6) */
+    min-height: 0;
+}
+
+.interface-item-icon {
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    overflow: visible;
+    flex-shrink: 0;
+    padding: 0;
+    position: relative;
+}
+
+/* Ensure labels align at the same position */
+.interface-item:nth-child(-n+3) .interface-item-icon {
+    height: 100px;
+}
+
+.interface-item:nth-child(n+4) .interface-item-icon {
+    height: 100px;
+}
+
+.interface-item-label {
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 3px;
+    font-size: 0.95em;
+}
+
+.interface-item-description {
+    font-size: 0.85em;
+    color: #666;
+    line-height: 1.3;
+    flex: 1;
+}
+
+/* Mini components for tutorial step 4 */
+/* Mini keyboard */
+.tutorial-mini-keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: #f8f9fa;
+    padding: 6px;
+    border-radius: 6px;
+    transform: scale(0.45);
+    transform-origin: center;
+    margin: 0 auto;
+    width: fit-content;
+    height: fit-content;
+}
+
+.tutorial-mini-keyboard-row {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+}
+
+.tutorial-mini-keyboard-row-top {
+    transform: translateX(calc(-16px / 8));
+}
+
+.tutorial-mini-key {
+    min-width: 16px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-size: 0.5em;
+    font-weight: 600;
+    color: #333;
+    border: 1px solid transparent;
+}
+
+.tutorial-mini-key.keyboard-space {
+    min-width: 80px;
+    background: #e0e0e0;
+    color: #333;
+    font-size: 0.4em;
+}
+
+.tutorial-mini-key.finger-pinky {
+    background: #ff6b6b;
+    color: white;
+}
+
+.tutorial-mini-key.finger-ring {
+    background: #ffa500;
+    color: white;
+}
+
+.tutorial-mini-key.finger-middle {
+    background: #ffd700;
+    color: #333;
+}
+
+.tutorial-mini-key.finger-index {
+    background: #32cd32;
+    color: white;
+}
+
+.tutorial-mini-key.active-control {
+    border: 2px solid #888;
+    box-shadow: 0 0 0 1px rgba(136, 136, 136, 0.3);
+    transform: scale(1.1);
+    position: relative;
+}
+
+.tutorial-mini-key.active-control::after {
+    content: attr(data-arrow);
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
+    background: #888;
+    border-radius: 50%;
+    border: 1px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5px;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+}
+
+/* Mini direction info */
+.tutorial-mini-direction-info {
+    display: flex;
+    gap: 4px;
+    background: #f8f9fa;
+    padding: 4px 6px;
+    border-radius: 6px;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.tutorial-mini-direction-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tutorial-mini-direction-key {
+    min-width: 20px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 0.65em;
+    font-weight: 600;
+    color: white;
+    border: 2px solid #888;
+    box-shadow: 0 0 0 1px rgba(136, 136, 136, 0.3);
+    transform: scale(1.1);
+    position: relative;
+}
+
+.tutorial-mini-direction-key.finger-pinky {
+    background: #ff6b6b;
+}
+
+.tutorial-mini-direction-key.finger-ring {
+    background: #ffa500;
+}
+
+.tutorial-mini-direction-key.finger-middle {
+    background: #ffd700;
+    color: #333;
+}
+
+.tutorial-mini-direction-key.finger-index {
+    background: #32cd32;
+}
+
+.tutorial-mini-direction-key.active-control::after {
+    content: attr(data-arrow);
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 10px;
+    height: 10px;
+    background: #888;
+    border-radius: 50%;
+    border: 1px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 6px;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+}
+
+/* Mini counter */
+.tutorial-mini-counter {
+    display: flex;
+    gap: 4px;
+    background: #f8f9fa;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 0.7em;
+    margin: 0 auto;
+}
+
+.tutorial-mini-counter-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: #e8e8e8;
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
+.tutorial-mini-counter-arrow {
+    font-size: 0.9em;
+    color: #888;
+    font-weight: bold;
+}
+
+.tutorial-mini-counter-value {
+    color: #555;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+/* Mini game canvas */
+.tutorial-mini-game-canvas {
+    border: 2px solid #888;
+    border-radius: 6px;
+    background: #f8f9fa;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Mini score */
+.tutorial-mini-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7em;
+    font-weight: 600;
+    margin: 0 auto;
+}
+
+.tutorial-mini-score-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tutorial-mini-score-label {
+    color: #555;
+}
+
+.tutorial-mini-score-value {
+    color: #888;
+    font-weight: 700;
+}
+
+.tutorial-mini-score-divider {
+    color: #ccc;
+    font-weight: 300;
+}
+
+/* Mini space key */
+.tutorial-mini-space-key {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.tutorial-mini-space-key .keyboard-key.keyboard-space {
+    min-width: 80px;
+    height: 24px;
+    font-size: 0.6em;
+    padding: 2px 8px;
+}
+
+.tutorial-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #e0e0e0;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Hide navigation border on step 2 and 3 since back button is in header */
+.tutorial-modal[data-current-step="1"] .tutorial-navigation,
+.tutorial-modal[data-current-step="2"] .tutorial-navigation,
+.tutorial-modal[data-current-step="3"] .tutorial-navigation,
+.tutorial-modal[data-current-step="4"] .tutorial-navigation,
+.tutorial-modal[data-current-step="5"] .tutorial-navigation,
+.tutorial-modal[data-current-step="6"] .tutorial-navigation {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+}
+
+/* Navigation button visibility based on current step */
+.tutorial-modal[data-current-step="1"] #tutorialBack {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="1"] #tutorialNext {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="2"] #tutorialNext {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="3"] #tutorialNext {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="4"] #tutorialNext {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="5"] #tutorialNext {
+    display: none !important;
+}
+
+.tutorial-modal[data-current-step="6"] #tutorialNext {
+    display: none !important;
+}
+
+/* Hide old back button in navigation area - we use header button instead */
+.tutorial-navigation #tutorialPrev {
+    display: none !important;
+}
+
+.tutorial-nav-btn {
+    background: #666;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1em;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    flex: 1;
+}
+
+.tutorial-nav-btn:hover {
+    background: #555;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tutorial-nav-btn:active {
+    transform: translateY(0);
+}
+
 
 @media (max-width: 600px) {
     .container {
@@ -1634,6 +2812,16 @@ h1 {
 
     .overlay-content {
         padding: 25px;
+    }
+
+    .spacebar-key-visual {
+        min-width: 150px;
+        height: 40px;
+        font-size: 0.75em;
+    }
+
+    .spacebar-hint-text {
+        font-size: 0.8em;
     }
 
     .stats-modal-content {
@@ -1713,9 +2901,31 @@ h1 {
         font-size: 0.75em;
     }
 
+    .hand-overlay {
+        max-width: 300px;
+        max-height: 200px;
+        opacity: 0.5;
+    }
+
     .title-keyboard-key.title-keyboard-space {
         min-width: 150px;
         font-size: 0.65em;
+    }
+
+    #tutorialStep1Keyboard {
+        transform: scale(0.4);
+        padding: 5px;
+    }
+
+    #tutorialStep1Keyboard .title-keyboard-key {
+        min-width: 14px;
+        height: 16px;
+        font-size: 0.6em;
+    }
+
+    #tutorialStep1Keyboard .title-keyboard-key.title-keyboard-space {
+        min-width: 80px;
+        font-size: 0.5em;
     }
 
     .keyboard-icon {
@@ -1729,5 +2939,28 @@ h1 {
     .press-any-key-hint {
         font-size: 1em;
         padding: 10px 20px;
+    }
+
+    .tutorial-modal-content {
+        padding: 20px;
+        max-height: 95vh;
+    }
+
+    .tutorial-step-content {
+        min-height: 300px;
+    }
+
+    .tutorial-interface-explanation {
+        grid-template-columns: 1fr;
+    }
+
+    .finger-placement-row {
+        grid-template-columns: 1fr;
+    }
+
+    .finger-placement-finger {
+        width: 40px;
+        height: 40px;
+        font-size: 1.5em;
     }
 }

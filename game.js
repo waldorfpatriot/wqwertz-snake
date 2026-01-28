@@ -158,6 +158,12 @@ let statsButton, statsModal, statsClose, statsTableBody;
 let keyChangeModal, keyChangeDirection, keyChangeFingerName;
 let keyElements = {}; // Map of key characters to DOM elements
 
+// Tutorial elements
+let tutorialModal, tutorialClose, tutorialContent;
+let tutorialPrevBtn, tutorialNextBtn;
+let tutorialCurrentStepIndicator, tutorialTotalStepsIndicator;
+let tutorialCurrentStep = 1;
+
 // Level designer DOM elements
 let adminLoginBtn, loginModal, loginClose, loginPassword, loginSubmit, loginError;
 let levelDesignerModal, designerClose, levelNameInput, levelGrid;
@@ -170,6 +176,8 @@ let lastGameKPM = 0;
 
 // Track if game was paused by stats modal
 let pausedByStatsModal = false;
+let pausedByLoginModal = false;
+let pausedByLevelDesignerModal = false;
 
 // Load key sequence from file
 async function loadKeySequence() {
@@ -194,6 +202,9 @@ function renderKeyboard() {
     KEYBOARD_ROWS.forEach((row, rowIndex) => {
         const rowElement = document.createElement('div');
         rowElement.className = 'keyboard-row';
+        if (rowIndex === 0) {
+            rowElement.classList.add('keyboard-row-top');
+        }
 
         row.forEach(key => {
             const keyElement = document.createElement('div');
@@ -235,6 +246,9 @@ function renderTitleScreenKeyboard() {
     KEYBOARD_ROWS.forEach((row, rowIndex) => {
         const rowElement = document.createElement('div');
         rowElement.className = 'title-keyboard-row';
+        if (rowIndex === 0) {
+            rowElement.classList.add('title-keyboard-row-top');
+        }
 
         row.forEach(key => {
             const keyElement = document.createElement('div');
@@ -343,6 +357,15 @@ async function init() {
     levelChangeName = document.getElementById('levelChangeName');
     levelChangeNumber = document.getElementById('levelChangeNumber');
 
+    // Tutorial elements
+    tutorialModal = document.getElementById('tutorialModal');
+    tutorialClose = document.getElementById('tutorialClose');
+    tutorialContent = document.getElementById('tutorialContent');
+    tutorialPrevBtn = document.getElementById('tutorialBack');
+    tutorialNextBtn = document.getElementById('tutorialNext');
+    tutorialCurrentStepIndicator = document.getElementById('tutorialCurrentStep');
+    tutorialTotalStepsIndicator = document.getElementById('tutorialTotalSteps');
+
     // Set saved player name
     if (playerName) {
         playerNameInput.value = playerName;
@@ -366,6 +389,30 @@ async function init() {
         localStorage.setItem('qwertzsnake_name', playerName);
     });
 
+    // Tutorial event listeners
+    const overlayTutorialButton = document.getElementById('overlayTutorialButton');
+    if (overlayTutorialButton) {
+        overlayTutorialButton.addEventListener('click', () => openTutorial());
+    }
+    tutorialClose.addEventListener('click', closeTutorial);
+    tutorialModal.addEventListener('click', (e) => {
+        if (e.target === tutorialModal) closeTutorial();
+    });
+    if (tutorialPrevBtn) {
+        tutorialPrevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateTutorial(-1);
+        });
+    }
+    if (tutorialNextBtn) {
+        tutorialNextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateTutorial(1);
+        });
+    }
+
     // Level designer event listeners
     adminLoginBtn.addEventListener('click', openLoginModal);
     loginClose.addEventListener('click', closeLoginModal);
@@ -387,6 +434,71 @@ async function init() {
     
     // Start screen
     showOverlay('qwertZnake', 'Drücke eine Taste zum Starten', false);
+    
+    // Handle hash navigation
+    handleHashNavigation();
+    window.addEventListener('hashchange', handleHashNavigation);
+}
+
+// Handle hash-based navigation
+function handleHashNavigation() {
+    const hash = window.location.hash.substring(1); // Remove #
+    
+    if (!hash) {
+        // No hash - show start screen if game not running
+        if (!gameRunning) {
+            showOverlay('qwertZnake', 'Drücke eine Taste zum Starten', false);
+        }
+        return;
+    }
+    
+    // Handle tutorial steps
+    if (hash.startsWith('tutorial-step-')) {
+        const stepStr = hash.replace('tutorial-step-', '');
+        const step = parseInt(stepStr, 10);
+        if (!isNaN(step) && step >= 1 && step <= 6) {
+            if (!tutorialModal.classList.contains('visible')) {
+                openTutorial(step);
+            } else {
+                // Already open, just navigate to the step without updating hash
+                navigateTutorialToStep(step, false);
+            }
+            return;
+        } else {
+            // Invalid step in hash, reset to step 1
+            console.warn('Invalid tutorial step in hash:', stepStr);
+            window.location.hash = 'tutorial-step-1';
+            if (!tutorialModal.classList.contains('visible')) {
+                openTutorial(1);
+            } else {
+                navigateTutorialToStep(1, false);
+            }
+            return;
+        }
+    }
+    
+    // Handle modals and screens
+    switch(hash) {
+        case 'start':
+            if (!gameRunning) {
+                showOverlay('qwertZnake', 'Drücke eine Taste zum Starten', false);
+            }
+            break;
+        case 'game':
+            if (!gameRunning) {
+                startGame();
+            }
+            break;
+        case 'statistics':
+            openStatsModal();
+            break;
+        case 'login':
+            openLoginModal();
+            break;
+        case 'level-editor':
+            openLevelDesigner();
+            break;
+    }
 }
 
 // Reset game state
@@ -471,6 +583,7 @@ async function startGame() {
     pausedByStatsModal = false;
     gameStartTime = Date.now();
     hideOverlay();
+    window.location.hash = 'game';
     lastUpdate = Date.now();
     gameLoop = requestAnimationFrame(update);
     
@@ -588,6 +701,7 @@ function escapeHtml(text) {
 // Open statistics modal
 async function openStatsModal() {
     statsModal.classList.add('visible');
+    window.location.hash = 'statistics';
     statsTableBody.innerHTML = '<tr><td colspan="5">Lade Statistiken...</td></tr>';
     
     // Pause the game if it's running and not already paused
@@ -604,6 +718,10 @@ async function openStatsModal() {
 // Close statistics modal
 function closeStatsModal() {
     statsModal.classList.remove('visible');
+    // Clear hash if it's statistics
+    if (window.location.hash === '#statistics') {
+        window.location.hash = '';
+    }
     
     // Resume the game if it was paused by opening the stats modal
     if (gameRunning && pausedByStatsModal) {
@@ -620,20 +738,33 @@ function showOverlay(title, message, showStats = false, kpm = 0) {
     overlayTitleElement.textContent = title;
     overlayMessageElement.textContent = message;
     overlayElement.classList.remove('hidden');
+    // Update hash for start screen if not game over
+    if (!showStats && !gameRunning) {
+        window.location.hash = 'start';
+    }
     
     // Show title screen keyboard if it's the start screen
     const titleKeyboardElement = document.getElementById('titleScreenKeyboard');
     const titleScreenHint = document.querySelector('.title-screen-hint');
+    const spacebarHint = document.querySelector('.spacebar-hint');
     if (titleKeyboardElement && titleScreenHint) {
         if (!gameRunning && !showStats) {
             // Start screen - show keyboard visualization
             renderTitleScreenKeyboard();
             titleKeyboardElement.style.display = 'flex';
             titleScreenHint.style.display = 'flex';
+            // Hide spacebar hint on start screen
+            if (spacebarHint) {
+                spacebarHint.style.display = 'none';
+            }
         } else {
             // Game over or pause - hide keyboard visualization
             titleKeyboardElement.style.display = 'none';
             titleScreenHint.style.display = 'none';
+            // Show spacebar hint when paused or game over
+            if (spacebarHint) {
+                spacebarHint.style.display = 'flex';
+            }
         }
     }
     
@@ -807,7 +938,7 @@ function createConfetti() {
     const container = keyChangeModal.querySelector('.confetti-container');
     container.innerHTML = '';
     
-    const colors = ['#ff6b6b', '#ffa500', '#ffd700', '#32cd32', '#667eea', '#764ba2', '#ff69b4', '#00ced1'];
+    const colors = ['#ff6b6b', '#ffa500', '#ffd700', '#32cd32', '#888', '#666', '#ff69b4', '#00ced1'];
     const shapes = ['●', '■', '▲', '★', '♦', '❤'];
     
     for (let i = 0; i < 50; i++) {
@@ -959,10 +1090,10 @@ function draw() {
     snake.forEach((segment, index) => {
         if (index === 0) {
             // Head
-            ctx.fillStyle = '#667eea';
+            ctx.fillStyle = '#32cd32';
         } else {
             // Body
-            ctx.fillStyle = '#764ba2';
+            ctx.fillStyle = '#28a428';
         }
         ctx.fillRect(segment.x * CELL_SIZE + 1, segment.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
     });
@@ -997,11 +1128,167 @@ function handleKeyPress(event) {
         return;
     }
 
-    // Handle Escape to close stats modal
+    // Handle Escape to close modals
     if (key === 'escape') {
         if (statsModal.classList.contains('visible')) {
             closeStatsModal();
             return;
+        }
+        if (tutorialModal && tutorialModal.classList.contains('visible')) {
+            closeTutorial();
+            return;
+        }
+    }
+    
+    // Handle tutorial step 1 - check for any key (Warum dieses Spiel)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 1) {
+        // Accept any key to continue (except Escape which closes modals)
+        if (key && key !== 'Escape') {
+            event.preventDefault();
+            navigateTutorial(1);
+        }
+        return;
+    }
+
+    // Handle tutorial step 2 - check for "j" key (Spielprinzip)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 2) {
+        if (key === 'j') {
+            event.preventDefault();
+            navigateTutorial(1);
+        }
+        return;
+    }
+
+    // Handle tutorial step 3 - home row keys to continue (Fingerplatzierung)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 3) {
+        if (homeRowKeysSequence.includes(key)) {
+            event.preventDefault();
+            const expectedKey = homeRowKeysSequence[homeRowKeysPressed.length];
+            
+            if (key === expectedKey) {
+                // Correct key in sequence
+                homeRowKeysPressed.push(key);
+                updateHomeRowKeyCheckmarks();
+                
+                // Check if all keys have been pressed
+                if (homeRowKeysPressed.length === homeRowKeysSequence.length) {
+                    // All keys pressed in order - advance to next step
+                    setTimeout(() => {
+                        navigateTutorial(1);
+                    }, 500); // Small delay to show final checkmark
+                }
+            } else {
+                // Wrong key - reset
+                homeRowKeysPressed = [];
+                updateHomeRowKeyCheckmarks();
+            }
+            return;
+        }
+    }
+
+    // Handle tutorial step 4 - highlight keys when pressed and check for "verstanden" (Fingerzuordnung)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 4) {
+        // Find the key-box element with matching data-key attribute
+        const keyBox = document.querySelector(`.tutorial-step[data-step="4"] .key-box[data-key="${key}"]`);
+        if (keyBox) {
+            event.preventDefault();
+            // Remove highlight from all keys first
+            document.querySelectorAll('.tutorial-step[data-step="4"] .key-box').forEach(box => {
+                box.classList.remove('highlighted');
+            });
+            // Add highlight to the pressed key
+            keyBox.classList.add('highlighted');
+            // Remove highlight after animation
+            setTimeout(() => {
+                keyBox.classList.remove('highlighted');
+            }, 400);
+        }
+        
+        // Check for typing "verstanden"
+        const expectedKey = verstandenSequence[verstandenTyped.length];
+        if (key === expectedKey) {
+            event.preventDefault();
+            verstandenTyped.push(key);
+            updateVerstandenKeys();
+            
+            // Check if all keys have been pressed
+            if (verstandenTyped.length === verstandenSequence.length) {
+                // All keys pressed in order - advance to next step
+                setTimeout(() => {
+                    navigateTutorial(1);
+                }, 500);
+            }
+        } else if (verstandenSequence.includes(key)) {
+            // Wrong key in sequence - reset
+            event.preventDefault();
+            verstandenTyped = [];
+            updateVerstandenKeys();
+        }
+    }
+
+    // Handle tutorial step 5 - highlight keys when pressed and check for "zeigefinger" (Farbcodierung)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 5) {
+        // Find the keyboard key element with matching data-key attribute
+        const keyboardKey = document.querySelector(`.tutorial-step[data-step="5"] .keyboard-key[data-key="${key}"]`);
+        if (keyboardKey) {
+            event.preventDefault();
+            // Remove highlight from all keys first
+            document.querySelectorAll('.tutorial-step[data-step="5"] .keyboard-key').forEach(k => {
+                k.classList.remove('key-highlighted');
+            });
+            // Add highlight to the pressed key
+            keyboardKey.classList.add('key-highlighted');
+            // Remove highlight after animation
+            setTimeout(() => {
+                keyboardKey.classList.remove('key-highlighted');
+            }, 400);
+        }
+        
+        // Check for typing "zeigefinger"
+        const expectedKey = zeigefingerSequence[zeigefingerTyped.length];
+        if (key === expectedKey) {
+            event.preventDefault();
+            zeigefingerTyped.push(key);
+            updateZeigefingerKeys();
+            
+            // Check if all keys have been pressed
+            if (zeigefingerTyped.length === zeigefingerSequence.length) {
+                // All keys pressed in order - advance to next step
+                setTimeout(() => {
+                    navigateTutorial(1);
+                }, 500);
+            }
+        } else if (zeigefingerSequence.includes(key)) {
+            // Wrong key in sequence - reset
+            event.preventDefault();
+            zeigefingerTyped = [];
+            updateZeigefingerKeys();
+        }
+    }
+
+    // Handle tutorial step 6 - check for typing "los gehts" (Benutzeroberfläche)
+    if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 6) {
+        // Handle space key for "los gehts" sequence
+        const expectedKey = losgehtsSequence[losgehtsTyped.length];
+        const normalizedKey = (key === ' ' || event.code === 'Space') ? ' ' : key;
+        
+        if (normalizedKey === expectedKey) {
+            event.preventDefault();
+            losgehtsTyped.push(normalizedKey);
+            updateLosgehtsKeys();
+            
+            // Check if all keys have been pressed
+            if (losgehtsTyped.length === losgehtsSequence.length) {
+                // All keys pressed in order - close tutorial (last step)
+                setTimeout(() => {
+                    closeTutorial();
+                }, 500);
+            }
+        } else if (losgehtsSequence.includes(normalizedKey)) {
+            // Wrong key in sequence - reset
+            event.preventDefault();
+            losgehtsTyped = [];
+            updateLosgehtsKeys();
         }
     }
 
@@ -1267,7 +1554,7 @@ function showLevelChangeModal(level, levelNumber) {
     // Create confetti
     const container = levelChangeModal.querySelector('.level-confetti-container');
     container.innerHTML = '';
-    const colors = ['#32cd32', '#667eea', '#ffd700', '#ff6b6b', '#00ced1'];
+    const colors = ['#32cd32', '#888', '#ffd700', '#ff6b6b', '#00ced1'];
     const shapes = ['★', '●', '♦', '▲', '❤'];
     
     for (let i = 0; i < 40; i++) {
@@ -1310,7 +1597,14 @@ function hideLevelChangeModal() {
 
 function openLoginModal() {
     closeStatsModal();
+    // Pause the game if it's running and not already paused
+    if (gameRunning && !gamePaused) {
+        gamePaused = true;
+        pausedByLoginModal = true;
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    }
     loginModal.classList.add('visible');
+    window.location.hash = 'login';
     loginPassword.value = '';
     loginError.textContent = '';
     loginPassword.focus();
@@ -1318,6 +1612,18 @@ function openLoginModal() {
 
 function closeLoginModal() {
     loginModal.classList.remove('visible');
+    // Clear hash if it's login
+    if (window.location.hash === '#login') {
+        window.location.hash = '';
+    }
+    // Resume the game if it was paused by opening the login modal
+    if (gameRunning && pausedByLoginModal) {
+        gamePaused = false;
+        pausedByLoginModal = false;
+        lastUpdate = Date.now();
+        gameLoop = requestAnimationFrame(update);
+        kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    }
 }
 
 async function handleLogin() {
@@ -1356,7 +1662,14 @@ let designerBarriers = [];
 let isDrawing = false;
 
 function openLevelDesigner() {
+    // Pause the game if it's running and not already paused
+    if (gameRunning && !gamePaused) {
+        gamePaused = true;
+        pausedByLevelDesignerModal = true;
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    }
     levelDesignerModal.classList.add('visible');
+    window.location.hash = 'level-editor';
     designerBarriers = [];
     levelNameInput.value = '';
     renderLevelGrid();
@@ -1365,6 +1678,18 @@ function openLevelDesigner() {
 
 function closeLevelDesigner() {
     levelDesignerModal.classList.remove('visible');
+    // Clear hash if it's level-editor
+    if (window.location.hash === '#level-editor') {
+        window.location.hash = '';
+    }
+    // Resume the game if it was paused by opening the level designer modal
+    if (gameRunning && pausedByLevelDesignerModal) {
+        gamePaused = false;
+        pausedByLevelDesignerModal = false;
+        lastUpdate = Date.now();
+        gameLoop = requestAnimationFrame(update);
+        kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    }
 }
 
 function setDesignerTool(tool) {
@@ -1541,6 +1866,1362 @@ function editLevel(id) {
         designerBarriers = [...level.barriers];
         renderLevelGrid();
     }
+}
+
+// ============= TUTORIAL SYSTEM =============
+
+// Home row animation interval
+let homeRowAnimationInterval = null;
+// Tutorial demo animation timeout
+let tutorialDemoAnimationTimeout = null;
+// Track if game was paused by tutorial modal
+let pausedByTutorialModal = false;
+// Track home row key presses for step 1
+let homeRowKeysPressed = [];
+const homeRowKeysSequence = ['a', 's', 'd', 'f', 'j', 'k', 'l', 'ö'];
+
+// Track "verstanden" typing for step 2
+let verstandenTyped = [];
+const verstandenSequence = ['v', 'e', 'r', 's', 't', 'a', 'n', 'd', 'e', 'n'];
+
+// Track "zeigefinger" typing for step 3
+let zeigefingerTyped = [];
+const zeigefingerSequence = ['z', 'e', 'i', 'g', 'e', 'f', 'i', 'n', 'g', 'e', 'r'];
+
+// Track "los gehts" typing for step 4
+let losgehtsTyped = [];
+const losgehtsSequence = ['l', 'o', 's', ' ', 'g', 'e', 'h', 't', 's'];
+
+// Open tutorial modal
+function openTutorial(step = 1) {
+    // Ensure step is always a number
+    const stepNumber = typeof step === 'number' ? step : parseInt(step, 10);
+    if (isNaN(stepNumber) || stepNumber < 1 || stepNumber > 6) {
+        console.error('Invalid tutorial step:', step);
+        return;
+    }
+    
+    // Pause the game if it's running and not already paused
+    if (gameRunning && !gamePaused) {
+        gamePaused = true;
+        pausedByTutorialModal = true;
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    }
+    
+    tutorialModal.classList.add('visible');
+    tutorialCurrentStep = stepNumber;
+    setTutorialStep(stepNumber);
+    
+    // Update hash
+    window.location.hash = `tutorial-step-${stepNumber}`;
+    
+    // Reset home row key presses
+    homeRowKeysPressed = [];
+    verstandenTyped = [];
+    zeigefingerTyped = [];
+    losgehtsTyped = [];
+    
+    // Render keyboards for tutorial steps
+    setTimeout(() => {
+        renderTutorialHomeRow();
+        renderTutorialKeyboards();
+        renderTutorialGameDemo();
+        renderTutorialStep1Keyboard();
+        renderVerstandenKeys();
+        renderZeigefingerKeys();
+        renderLosgehtsKeys();
+        renderJKey();
+    }, 100);
+}
+
+// Close tutorial modal
+function closeTutorial() {
+    tutorialModal.classList.remove('visible');
+    // Clear hash if it's a tutorial hash
+    if (window.location.hash.startsWith('#tutorial-step-')) {
+        window.location.hash = '';
+    }
+    // Clear all animations
+    if (homeRowAnimationInterval) {
+        clearInterval(homeRowAnimationInterval);
+        homeRowAnimationInterval = null;
+    }
+    if (verstandenAnimationInterval) {
+        clearInterval(verstandenAnimationInterval);
+        verstandenAnimationInterval = null;
+    }
+    if (zeigefingerAnimationInterval) {
+        clearInterval(zeigefingerAnimationInterval);
+        zeigefingerAnimationInterval = null;
+    }
+    if (losgehtsAnimationInterval) {
+        clearInterval(losgehtsAnimationInterval);
+        losgehtsAnimationInterval = null;
+    }
+    if (tutorialMiniGameAnimation) {
+        clearInterval(tutorialMiniGameAnimation);
+        tutorialMiniGameAnimation = null;
+    }
+    // Clear tutorial demo animation
+    if (tutorialDemoAnimationTimeout) {
+        clearTimeout(tutorialDemoAnimationTimeout);
+        tutorialDemoAnimationTimeout = null;
+    }
+    
+    // Resume the game if it was paused by opening the tutorial modal
+    if (gameRunning && pausedByTutorialModal) {
+        gamePaused = false;
+        pausedByTutorialModal = false;
+        lastUpdate = Date.now();
+        gameLoop = requestAnimationFrame(update);
+        kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    }
+}
+
+// Set tutorial step (updates data attribute for CSS)
+function setTutorialStep(step) {
+    // Ensure step is always a number
+    const stepNumber = typeof step === 'number' ? step : parseInt(step, 10);
+    if (isNaN(stepNumber) || stepNumber < 1 || stepNumber > 6) {
+        console.error('Invalid tutorial step:', step);
+        return;
+    }
+    tutorialCurrentStep = stepNumber;
+    tutorialModal.setAttribute('data-current-step', stepNumber);
+    if (tutorialCurrentStepIndicator) {
+        tutorialCurrentStepIndicator.textContent = stepNumber;
+    }
+}
+
+// Navigate tutorial steps to a specific step (used by hash navigation)
+function navigateTutorialToStep(step, updateHash = true) {
+    // Ensure step is always a number
+    const stepNumber = typeof step === 'number' ? step : parseInt(step, 10);
+    if (isNaN(stepNumber) || stepNumber < 1 || stepNumber > 6) {
+        console.error('Invalid tutorial step:', step);
+        return;
+    }
+    
+    if (stepNumber >= 1 && stepNumber <= 6) {
+        // Update hash if requested
+        if (updateHash) {
+            window.location.hash = `tutorial-step-${stepNumber}`;
+        }
+        // Reset demo animation when leaving step 1 (Warum dieses Spiel)
+        if (tutorialCurrentStep === 1 && stepNumber !== 1) {
+            // Clear tutorial demo animation
+            if (tutorialDemoAnimationTimeout) {
+                clearTimeout(tutorialDemoAnimationTimeout);
+                tutorialDemoAnimationTimeout = null;
+            }
+        }
+        
+        // Clear home row animation if leaving step 3 (Fingerplatzierung)
+        if (tutorialCurrentStep === 3 && stepNumber !== 3) {
+            if (homeRowAnimationInterval) {
+                clearInterval(homeRowAnimationInterval);
+                homeRowAnimationInterval = null;
+            }
+            // Reset key presses when leaving step 3
+            homeRowKeysPressed = [];
+        }
+        
+        // Reset verstanden typing when leaving step 4 (Fingerzuordnung)
+        if (tutorialCurrentStep === 4 && stepNumber !== 4) {
+            if (verstandenAnimationInterval) {
+                clearInterval(verstandenAnimationInterval);
+                verstandenAnimationInterval = null;
+            }
+            verstandenTyped = [];
+            updateVerstandenKeys();
+        }
+        
+        // Reset zeigefinger typing when leaving step 5 (Farbcodierung)
+        if (tutorialCurrentStep === 5 && stepNumber !== 5) {
+            if (zeigefingerAnimationInterval) {
+                clearInterval(zeigefingerAnimationInterval);
+                zeigefingerAnimationInterval = null;
+            }
+            zeigefingerTyped = [];
+            updateZeigefingerKeys();
+        }
+        
+        // Reset los gehts typing when leaving step 6 (Benutzeroberfläche)
+        if (tutorialCurrentStep === 6 && stepNumber !== 6) {
+            if (losgehtsAnimationInterval) {
+                clearInterval(losgehtsAnimationInterval);
+                losgehtsAnimationInterval = null;
+            }
+            losgehtsTyped = [];
+            updateLosgehtsKeys();
+        }
+        
+        setTutorialStep(stepNumber);
+        
+        // Scroll to top of tutorial content
+        const contentInner = document.querySelector('.tutorial-modal-content-inner');
+        if (contentInner) {
+            contentInner.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Re-render keyboards if needed
+        if (stepNumber === 1) {
+            setTimeout(() => {
+                renderTutorialGameDemo();
+                renderTutorialStep1Keyboard();
+            }, 100);
+        } else if (stepNumber === 2) {
+            setTimeout(() => {
+                renderJKey();
+            }, 100);
+        } else if (stepNumber === 3) {
+            setTimeout(() => {
+                renderTutorialHomeRow();
+            }, 100);
+        } else if (stepNumber === 4) {
+            setTimeout(() => {
+                renderVerstandenKeys();
+            }, 100);
+        } else if (stepNumber === 5) {
+            setTimeout(() => {
+                renderTutorialKeyboards();
+                renderZeigefingerKeys();
+            }, 100);
+        } else if (stepNumber === 6) {
+            setTimeout(() => {
+                renderTutorialMiniComponents();
+                renderLosgehtsKeys();
+            }, 100);
+        }
+    }
+}
+
+// Navigate tutorial steps
+function navigateTutorial(direction) {
+    // Ensure direction is always a number
+    const directionNumber = typeof direction === 'number' ? direction : parseInt(direction, 10);
+    if (isNaN(directionNumber)) {
+        console.error('Invalid tutorial direction:', direction);
+        return;
+    }
+    
+    const newStep = tutorialCurrentStep + directionNumber;
+    navigateTutorialToStep(newStep, true);
+}
+
+// Render home row for tutorial step 1
+function renderTutorialHomeRow() {
+    const homeRowContainer = document.getElementById('tutorialHomeRow');
+    if (!homeRowContainer) return;
+    
+    homeRowContainer.innerHTML = '';
+    
+    // Get the home row (second row: a, s, d, f, g, h, j, k, l, ö, ä)
+    const homeRow = KEYBOARD_ROWS[1]; // ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ö', 'ä']
+    
+    const rowElement = document.createElement('div');
+    rowElement.className = 'home-row-keyboard-row';
+    
+    homeRow.forEach(key => {
+        const keyElement = document.createElement('div');
+        keyElement.className = `home-row-key ${getFingerClass(key)}`;
+        
+        // Highlight home row keys
+        if (['a', 's', 'd', 'f', 'j', 'k', 'l', 'ö'].includes(key)) {
+            keyElement.classList.add('home-row-resting');
+        }
+        
+        if (key.length === 1 && /[a-zäöü]/.test(key)) {
+            keyElement.textContent = key.toUpperCase();
+        } else {
+            keyElement.textContent = key;
+        }
+        
+        rowElement.appendChild(keyElement);
+    });
+    
+    homeRowContainer.appendChild(rowElement);
+    
+    // Set up key animation in instruction text
+    animateHomeRowKeys();
+}
+
+// Animate home row keys in instruction text
+function animateHomeRowKeys() {
+    // Clear any existing animation
+    if (homeRowAnimationInterval) {
+        clearInterval(homeRowAnimationInterval);
+        homeRowAnimationInterval = null;
+    }
+    
+    // Reset key presses
+    homeRowKeysPressed = [];
+    
+    // Find the instruction element specifically in step 3 (Fingerplatzierung)
+    const step1Element = document.querySelector('#tutorial-step-3');
+    if (!step1Element) return;
+    
+    const instructionElement = step1Element.querySelector('.home-row-keys');
+    if (!instructionElement) return;
+    
+    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
+    let currentKeyIndex = 0;
+    
+    // Create key elements with checkmark placeholders and finger color classes
+    instructionElement.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    
+    const keyElements = instructionElement.querySelectorAll('.home-row-key-animate');
+    
+    function highlightNextKey() {
+        // Only animate if we haven't completed the sequence
+        if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
+            // Remove active class from all keys
+            keyElements.forEach(el => el.classList.remove('active'));
+            
+            // Add active class to next expected key
+            const nextKeyIndex = homeRowKeysPressed.length;
+            if (keyElements[nextKeyIndex]) {
+                keyElements[nextKeyIndex].classList.add('active');
+            }
+        }
+    }
+    
+    function animateCycle() {
+        // Only cycle if no keys have been pressed yet
+        if (homeRowKeysPressed.length === 0) {
+            // Check if we're about to show Ö (last key, index 7)
+            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            
+            // Remove active class and pause class from all keys
+            keyElements.forEach(el => {
+                el.classList.remove('active', 'pausing');
+            });
+            
+            // Add active class to current key in cycle
+            if (keyElements[currentKeyIndex]) {
+                keyElements[currentKeyIndex].classList.add('active');
+            }
+            
+            // Move to next key in cycle
+            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            
+            // If we just showed Ö, signal to pause (keep Ö active)
+            if (aboutToShowLastKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function startPauseAnimation() {
+        // Find the Ö key (last key, index 7) and add pausing class
+        // It should already have active class from animateCycle
+        const lastKeyIndex = keys.length - 1;
+        if (keyElements[lastKeyIndex]) {
+            keyElements[lastKeyIndex].classList.add('pausing');
+        }
+    }
+    
+    function stopPauseAnimation() {
+        // Remove pausing class from all keys
+        keyElements.forEach(el => el.classList.remove('pausing'));
+    }
+    
+    // Start by highlighting the first key
+    highlightNextKey();
+    
+    // Start cycling animation (only runs when no keys pressed)
+    let cyclePaused = false;
+    let pauseEndTime = 0;
+    homeRowAnimationInterval = setInterval(() => {
+        if (tutorialCurrentStep !== 3 || !tutorialModal.classList.contains('visible')) {
+            clearInterval(homeRowAnimationInterval);
+            return;
+        }
+        // Only cycle if no keys have been pressed yet
+        if (homeRowKeysPressed.length === 0) {
+            if (cyclePaused) {
+                // Check if pause time has elapsed (2 seconds)
+                if (Date.now() >= pauseEndTime) {
+                    // Resume after pause - show A again
+                    stopPauseAnimation();
+                    cyclePaused = false;
+                    animateCycle();
+                }
+            } else {
+                const shouldPause = animateCycle();
+                if (shouldPause) {
+                    // Don't remove active class from Ö, just add pausing
+                    cyclePaused = true;
+                    pauseEndTime = Date.now() + 2000; // Pause for 2 seconds
+                    startPauseAnimation();
+                }
+            }
+        }
+    }, 400); // Cycle every 0.4 seconds
+}
+
+// Update checkmarks for pressed keys
+function updateHomeRowKeyCheckmarks() {
+    const checkmarks = document.querySelectorAll('.home-row-checkmark');
+    const keyElements = document.querySelectorAll('.home-row-key-animate');
+    
+    checkmarks.forEach((checkmark, index) => {
+        if (index < homeRowKeysPressed.length) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    
+    // Immediately highlight the next expected key
+    if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
+        // Remove active class from all keys
+        keyElements.forEach(el => el.classList.remove('active'));
+        
+        // Add active class to next expected key
+        const nextKeyIndex = homeRowKeysPressed.length;
+        if (keyElements[nextKeyIndex]) {
+            keyElements[nextKeyIndex].classList.add('active');
+        }
+    }
+}
+
+// Animation interval for verstanden keys
+let verstandenAnimationInterval = null;
+
+// Render "verstanden" keys for step 2
+function renderVerstandenKeys() {
+    const verstandenKeysElement = document.getElementById('verstandenKeys');
+    if (!verstandenKeysElement) return;
+    
+    const keys = ['V', 'E', 'R', 'S', 'T', 'A', 'N', 'D', 'E', 'N'];
+    
+    verstandenKeysElement.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    
+    // Set up animation
+    animateVerstandenKeys();
+}
+
+// Animate verstanden keys
+function animateVerstandenKeys() {
+    // Clear any existing animation
+    if (verstandenAnimationInterval) {
+        clearInterval(verstandenAnimationInterval);
+    }
+    
+    // Reset typing
+    verstandenTyped = [];
+    
+    const verstandenKeysElement = document.getElementById('verstandenKeys');
+    if (!verstandenKeysElement) return;
+    
+    const keys = ['V', 'E', 'R', 'S', 'T', 'A', 'N', 'D', 'E', 'N'];
+    let currentKeyIndex = 0;
+    const keyElements = verstandenKeysElement.querySelectorAll('.home-row-key-animate');
+    
+    function animateCycle() {
+        // Only cycle if no keys have been pressed yet
+        if (verstandenTyped.length === 0) {
+            // Check if we're about to show N (last key, index 9)
+            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            
+            // Remove active class and pause class from all keys
+            keyElements.forEach(el => {
+                el.classList.remove('active', 'pausing');
+            });
+            
+            // Add active class to current key in cycle
+            if (keyElements[currentKeyIndex]) {
+                keyElements[currentKeyIndex].classList.add('active');
+            }
+            
+            // Move to next key in cycle
+            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            
+            // If we just showed N, signal to pause
+            if (aboutToShowLastKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function startPauseAnimation() {
+        const lastKeyIndex = keys.length - 1;
+        if (keyElements[lastKeyIndex]) {
+            keyElements[lastKeyIndex].classList.add('pausing');
+        }
+    }
+    
+    function stopPauseAnimation() {
+        keyElements.forEach(el => el.classList.remove('pausing'));
+    }
+    
+    // Start by highlighting the first key
+    if (keyElements[0]) {
+        keyElements[0].classList.add('active');
+    }
+    
+    // Start cycling animation
+    let cyclePaused = false;
+    let pauseEndTime = 0;
+    verstandenAnimationInterval = setInterval(() => {
+        if (tutorialCurrentStep !== 4 || !tutorialModal.classList.contains('visible')) {
+            clearInterval(verstandenAnimationInterval);
+            return;
+        }
+        // Only cycle if no keys have been pressed yet
+        if (verstandenTyped.length === 0) {
+            if (cyclePaused) {
+                // Check if pause time has elapsed (2 seconds)
+                if (Date.now() >= pauseEndTime) {
+                    // Resume after pause - show V again
+                    stopPauseAnimation();
+                    cyclePaused = false;
+                    animateCycle();
+                }
+            } else {
+                const shouldPause = animateCycle();
+                if (shouldPause) {
+                    cyclePaused = true;
+                    pauseEndTime = Date.now() + 2000; // Pause for 2 seconds
+                    startPauseAnimation();
+                }
+            }
+        }
+    }, 400); // Cycle every 0.4 seconds
+}
+
+// Update "verstanden" keys display
+function updateVerstandenKeys() {
+    const checkmarks = document.querySelectorAll('#verstandenKeys .home-row-checkmark');
+    const keyElements = document.querySelectorAll('#verstandenKeys .home-row-key-animate');
+    
+    checkmarks.forEach((checkmark, index) => {
+        if (index < verstandenTyped.length) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    
+    // Immediately highlight the next expected key
+    if (verstandenTyped.length < verstandenSequence.length) {
+        // Remove active class from all keys
+        keyElements.forEach(el => el.classList.remove('active'));
+        
+        // Add active class to next expected key
+        const nextKeyIndex = verstandenTyped.length;
+        if (keyElements[nextKeyIndex]) {
+            keyElements[nextKeyIndex].classList.add('active');
+        }
+    }
+}
+
+// Animation interval for zeigefinger keys
+let zeigefingerAnimationInterval = null;
+
+// Render "zeigefinger" keys for step 3
+function renderZeigefingerKeys() {
+    const zeigefingerKeysElement = document.getElementById('zeigefingerKeys');
+    if (!zeigefingerKeysElement) return;
+    
+    const keys = ['Z', 'E', 'I', 'G', 'E', 'F', 'I', 'N', 'G', 'E', 'R'];
+    
+    zeigefingerKeysElement.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    
+    // Set up animation
+    animateZeigefingerKeys();
+}
+
+// Animate zeigefinger keys
+function animateZeigefingerKeys() {
+    // Clear any existing animation
+    if (zeigefingerAnimationInterval) {
+        clearInterval(zeigefingerAnimationInterval);
+    }
+    
+    // Reset typing
+    zeigefingerTyped = [];
+    
+    const zeigefingerKeysElement = document.getElementById('zeigefingerKeys');
+    if (!zeigefingerKeysElement) return;
+    
+    const keys = ['Z', 'E', 'I', 'G', 'E', 'F', 'I', 'N', 'G', 'E', 'R'];
+    let currentKeyIndex = 0;
+    const keyElements = zeigefingerKeysElement.querySelectorAll('.home-row-key-animate');
+    
+    function animateCycle() {
+        // Only cycle if no keys have been pressed yet
+        if (zeigefingerTyped.length === 0) {
+            // Check if we're about to show R (last key, index 10)
+            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            
+            // Remove active class and pause class from all keys
+            keyElements.forEach(el => {
+                el.classList.remove('active', 'pausing');
+            });
+            
+            // Add active class to current key in cycle
+            if (keyElements[currentKeyIndex]) {
+                keyElements[currentKeyIndex].classList.add('active');
+            }
+            
+            // Move to next key in cycle
+            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            
+            // If we just showed R, signal to pause
+            if (aboutToShowLastKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function startPauseAnimation() {
+        const lastKeyIndex = keys.length - 1;
+        if (keyElements[lastKeyIndex]) {
+            keyElements[lastKeyIndex].classList.add('pausing');
+        }
+    }
+    
+    function stopPauseAnimation() {
+        keyElements.forEach(el => el.classList.remove('pausing'));
+    }
+    
+    // Start by highlighting the first key
+    if (keyElements[0]) {
+        keyElements[0].classList.add('active');
+    }
+    
+    // Start cycling animation
+    let cyclePaused = false;
+    let pauseEndTime = 0;
+    zeigefingerAnimationInterval = setInterval(() => {
+        if (tutorialCurrentStep !== 5 || !tutorialModal.classList.contains('visible')) {
+            clearInterval(zeigefingerAnimationInterval);
+            return;
+        }
+        // Only cycle if no keys have been pressed yet
+        if (zeigefingerTyped.length === 0) {
+            if (cyclePaused) {
+                // Check if pause time has elapsed (2 seconds)
+                if (Date.now() >= pauseEndTime) {
+                    // Resume after pause - show Z again
+                    stopPauseAnimation();
+                    cyclePaused = false;
+                    animateCycle();
+                }
+            } else {
+                const shouldPause = animateCycle();
+                if (shouldPause) {
+                    cyclePaused = true;
+                    pauseEndTime = Date.now() + 2000; // Pause for 2 seconds
+                    startPauseAnimation();
+                }
+            }
+        }
+    }, 400); // Cycle every 0.4 seconds
+}
+
+// Update "zeigefinger" keys display
+function updateZeigefingerKeys() {
+    const checkmarks = document.querySelectorAll('#zeigefingerKeys .home-row-checkmark');
+    const keyElements = document.querySelectorAll('#zeigefingerKeys .home-row-key-animate');
+    
+    checkmarks.forEach((checkmark, index) => {
+        if (index < zeigefingerTyped.length) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    
+    // Immediately highlight the next expected key
+    if (zeigefingerTyped.length < zeigefingerSequence.length) {
+        // Remove active class from all keys
+        keyElements.forEach(el => el.classList.remove('active'));
+        
+        // Add active class to next expected key
+        const nextKeyIndex = zeigefingerTyped.length;
+        if (keyElements[nextKeyIndex]) {
+            keyElements[nextKeyIndex].classList.add('active');
+        }
+    }
+}
+
+// Animation interval for los gehts keys
+let losgehtsAnimationInterval = null;
+
+// Render "los gehts" keys for step 4
+function renderLosgehtsKeys() {
+    const losgehtsKeysElement = document.getElementById('losgehtsKeys');
+    if (!losgehtsKeysElement) return;
+    
+    const keys = ['L', 'O', 'S', ' ', 'G', 'E', 'H', 'T', 'S'];
+    
+    losgehtsKeysElement.innerHTML = keys.map((key, index) => {
+        if (key === ' ') {
+            return `<span class="home-row-key-wrapper">
+                <span class="home-row-key-animate keyboard-space" data-key=" " data-index="${index}">SPACE</span>
+                <span class="home-row-checkmark" data-index="${index}">✓</span>
+            </span>`;
+        }
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    
+    // Set up animation
+    animateLosgehtsKeys();
+}
+
+// Animate los gehts keys
+function animateLosgehtsKeys() {
+    // Clear any existing animation
+    if (losgehtsAnimationInterval) {
+        clearInterval(losgehtsAnimationInterval);
+    }
+    
+    // Reset typing
+    losgehtsTyped = [];
+    
+    const losgehtsKeysElement = document.getElementById('losgehtsKeys');
+    if (!losgehtsKeysElement) return;
+    
+    const keys = ['L', 'O', 'S', ' ', 'G', 'E', 'H', 'T', 'S'];
+    let currentKeyIndex = 0;
+    const keyElements = losgehtsKeysElement.querySelectorAll('.home-row-key-animate');
+    
+    function animateCycle() {
+        // Only cycle if no keys have been pressed yet
+        if (losgehtsTyped.length === 0) {
+            // Check if we're about to show S (last key, index 8)
+            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            
+            // Remove active class and pause class from all keys
+            keyElements.forEach(el => {
+                el.classList.remove('active', 'pausing');
+            });
+            
+            // Add active class to current key in cycle
+            if (keyElements[currentKeyIndex]) {
+                keyElements[currentKeyIndex].classList.add('active');
+            }
+            
+            // Move to next key in cycle
+            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            
+            // If we just showed S, signal to pause
+            if (aboutToShowLastKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function startPauseAnimation() {
+        const lastKeyIndex = keys.length - 1;
+        if (keyElements[lastKeyIndex]) {
+            keyElements[lastKeyIndex].classList.add('pausing');
+        }
+    }
+    
+    function stopPauseAnimation() {
+        keyElements.forEach(el => el.classList.remove('pausing'));
+    }
+    
+    // Start by highlighting the first key
+    if (keyElements[0]) {
+        keyElements[0].classList.add('active');
+    }
+    
+    // Start cycling animation
+    let cyclePaused = false;
+    let pauseEndTime = 0;
+    losgehtsAnimationInterval = setInterval(() => {
+        if (tutorialCurrentStep !== 6 || !tutorialModal.classList.contains('visible')) {
+            clearInterval(losgehtsAnimationInterval);
+            return;
+        }
+        // Only cycle if no keys have been pressed yet
+        if (losgehtsTyped.length === 0) {
+            if (cyclePaused) {
+                // Check if pause time has elapsed (2 seconds)
+                if (Date.now() >= pauseEndTime) {
+                    // Resume after pause - show L again
+                    stopPauseAnimation();
+                    cyclePaused = false;
+                    animateCycle();
+                }
+            } else {
+                const shouldPause = animateCycle();
+                if (shouldPause) {
+                    cyclePaused = true;
+                    pauseEndTime = Date.now() + 2000; // Pause for 2 seconds
+                    startPauseAnimation();
+                }
+            }
+        }
+    }, 400); // Cycle every 0.4 seconds
+}
+
+// Update "los gehts" keys display
+function updateLosgehtsKeys() {
+    const checkmarks = document.querySelectorAll('#losgehtsKeys .home-row-checkmark');
+    const keyElements = document.querySelectorAll('#losgehtsKeys .home-row-key-animate');
+    
+    checkmarks.forEach((checkmark, index) => {
+        if (index < losgehtsTyped.length) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    
+    // Immediately highlight the next expected key
+    if (losgehtsTyped.length < losgehtsSequence.length) {
+        // Remove active class from all keys
+        keyElements.forEach(el => el.classList.remove('active'));
+        
+        // Add active class to next expected key
+        const nextKeyIndex = losgehtsTyped.length;
+        if (keyElements[nextKeyIndex]) {
+            keyElements[nextKeyIndex].classList.add('active');
+        }
+    }
+}
+
+// Render keyboards for tutorial
+function renderTutorialKeyboards() {
+    // Render keyboard for step 1
+    const keyboard1 = document.getElementById('tutorialKeyboard1');
+    if (keyboard1) {
+        keyboard1.innerHTML = '';
+        KEYBOARD_ROWS.forEach((row, rowIndex) => {
+            const rowElement = document.createElement('div');
+            rowElement.className = 'keyboard-row';
+            if (rowIndex === 0) {
+                rowElement.classList.add('keyboard-row-top');
+            }
+            
+            row.forEach(key => {
+                const keyElement = document.createElement('div');
+                if (key === ' ') {
+                    keyElement.className = 'keyboard-key keyboard-space';
+                    keyElement.textContent = 'SPACE';
+                } else {
+                    keyElement.className = `keyboard-key ${getFingerClass(key)}`;
+                    keyElement.dataset.key = key; // Add data-key for highlighting
+                    if (key.length === 1 && /[a-zäöü]/.test(key)) {
+                        keyElement.textContent = key.toUpperCase();
+                    } else {
+                        keyElement.textContent = key;
+                    }
+                }
+                rowElement.appendChild(keyElement);
+            });
+            
+            keyboard1.appendChild(rowElement);
+        });
+    }
+    
+    // Render keyboard for step 2 with active controls
+    const keyboard2 = document.getElementById('tutorialKeyboard2');
+    if (keyboard2) {
+        keyboard2.innerHTML = '';
+        KEYBOARD_ROWS.forEach((row, rowIndex) => {
+            const rowElement = document.createElement('div');
+            rowElement.className = 'keyboard-row';
+            if (rowIndex === 0) {
+                rowElement.classList.add('keyboard-row-top');
+            }
+            
+            row.forEach(key => {
+                const keyElement = document.createElement('div');
+                if (key === ' ') {
+                    keyElement.className = 'keyboard-key keyboard-space';
+                    keyElement.textContent = 'SPACE';
+                } else {
+                    keyElement.className = `keyboard-key ${getFingerClass(key)}`;
+                    if (key.length === 1 && /[a-zäöü]/.test(key)) {
+                        keyElement.textContent = key.toUpperCase();
+                    } else {
+                        keyElement.textContent = key;
+                    }
+                    
+                    // Show example active controls (T, B, F, J)
+                    if (['t', 'b', 'f', 'j'].includes(key)) {
+                        keyElement.classList.add('active-control');
+                        const directionMap = {
+                            't': { dir: 'up', arrow: '↑' },
+                            'b': { dir: 'down', arrow: '↓' },
+                            'f': { dir: 'left', arrow: '←' },
+                            'j': { dir: 'right', arrow: '→' }
+                        };
+                        if (directionMap[key]) {
+                            keyElement.setAttribute('data-direction', directionMap[key].dir);
+                            keyElement.setAttribute('data-arrow', directionMap[key].arrow);
+                        }
+                    }
+                }
+                rowElement.appendChild(keyElement);
+            });
+            
+            keyboard2.appendChild(rowElement);
+        });
+    }
+}
+
+// Render mini components for tutorial step 4
+function renderTutorialMiniComponents() {
+    renderTutorialMiniKeyboard();
+    renderTutorialMiniDirectionInfo();
+    renderTutorialMiniCounter();
+    renderTutorialMiniGameCanvas();
+    renderTutorialMiniScore();
+}
+
+// Render mini keyboard for step 4
+function renderTutorialMiniKeyboard() {
+    const container = document.getElementById('tutorialMiniKeyboard');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    container.className = 'tutorial-mini-keyboard';
+    
+    // Render all rows to match the full keyboard
+    KEYBOARD_ROWS.forEach((row, rowIndex) => {
+        const rowElement = document.createElement('div');
+        rowElement.className = 'tutorial-mini-keyboard-row';
+        if (rowIndex === 0) {
+            rowElement.classList.add('tutorial-mini-keyboard-row-top');
+        }
+        
+            row.forEach(key => {
+            const keyElement = document.createElement('div');
+            
+            // Special handling for space key
+            if (key === ' ') {
+                keyElement.className = 'tutorial-mini-key keyboard-space';
+                keyElement.textContent = 'SPACE';
+            } else {
+                keyElement.className = `tutorial-mini-key ${getFingerClass(key)}`;
+                
+                if (key.length === 1 && /[a-zäöü]/.test(key)) {
+                    keyElement.textContent = key.toUpperCase();
+                } else {
+                    keyElement.textContent = key;
+                }
+                
+                // Show example active controls (T, B, F, J)
+                if (['t', 'b', 'f', 'j'].includes(key)) {
+                    keyElement.classList.add('active-control');
+                    const directionMap = {
+                        't': { dir: 'up', arrow: '↑' },
+                        'b': { dir: 'down', arrow: '↓' },
+                        'f': { dir: 'left', arrow: '←' },
+                        'j': { dir: 'right', arrow: '→' }
+                    };
+                    if (directionMap[key]) {
+                        keyElement.setAttribute('data-direction', directionMap[key].dir);
+                        keyElement.setAttribute('data-arrow', directionMap[key].arrow);
+                    }
+                }
+            }
+            
+            rowElement.appendChild(keyElement);
+        });
+        
+        container.appendChild(rowElement);
+    });
+}
+
+// Render mini direction info for step 4
+function renderTutorialMiniDirectionInfo() {
+    const container = document.getElementById('tutorialMiniDirectionInfo');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    container.className = 'tutorial-mini-direction-info';
+    
+    // Match the keys from tutorialKeyboard2: T (up), B (down), F (left), J (right)
+    const directions = [
+        { arrow: '↑', key: 'T', direction: 'up' },
+        { arrow: '↓', key: 'B', direction: 'down' },
+        { arrow: '←', key: 'F', direction: 'left' },
+        { arrow: '→', key: 'J', direction: 'right' }
+    ];
+    
+    directions.forEach(dir => {
+        const item = document.createElement('div');
+        item.className = 'tutorial-mini-direction-item';
+        // Create a mini key element that matches the keyboard style
+        const keyElement = document.createElement('div');
+        keyElement.className = `tutorial-mini-direction-key ${getFingerClass(dir.key.toLowerCase())} active-control`;
+        keyElement.setAttribute('data-direction', dir.direction);
+        keyElement.setAttribute('data-arrow', dir.arrow);
+        keyElement.textContent = dir.key;
+        item.appendChild(keyElement);
+        container.appendChild(item);
+    });
+}
+
+// Render mini counter for step 4
+function renderTutorialMiniCounter() {
+    const container = document.getElementById('tutorialMiniCounter');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    container.className = 'tutorial-mini-counter';
+    
+    const counters = [
+        { arrow: '↑', count: '3/10' },
+        { arrow: '↓', count: '7/10' },
+        { arrow: '←', count: '1/10' },
+        { arrow: '→', count: '5/10' }
+    ];
+    
+    counters.forEach(counter => {
+        const item = document.createElement('div');
+        item.className = 'tutorial-mini-counter-item';
+        item.innerHTML = `
+            <span class="tutorial-mini-counter-arrow">${counter.arrow}</span>
+            <span class="tutorial-mini-counter-value">${counter.count}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Render mini game canvas for step 4 with animation
+let tutorialMiniGameAnimation = null;
+let tutorialMiniSnake = [
+    { x: 4, y: 4 },
+    { x: 3, y: 4 },
+    { x: 2, y: 4 }
+];
+let tutorialMiniFood = { x: 6, y: 4 };
+let tutorialMiniDirection = { x: 1, y: 0 };
+
+function renderTutorialMiniGameCanvas() {
+    const canvas = document.getElementById('tutorialMiniGameCanvas');
+    if (!canvas) return;
+    
+    // Clear any existing animation
+    if (tutorialMiniGameAnimation) {
+        clearInterval(tutorialMiniGameAnimation);
+    }
+    
+    // Reset snake position
+    tutorialMiniSnake = [
+        { x: 4, y: 4 },
+        { x: 3, y: 4 },
+        { x: 2, y: 4 }
+    ];
+    tutorialMiniFood = { x: 6, y: 4 };
+    tutorialMiniDirection = { x: 1, y: 0 };
+    
+    const ctx = canvas.getContext('2d');
+    const gridSize = 8;
+    const cellSize = canvas.width / gridSize;
+    
+    function drawMiniGame() {
+        // Clear canvas
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw grid
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= gridSize; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * cellSize, 0);
+            ctx.lineTo(i * cellSize, canvas.height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, i * cellSize);
+            ctx.lineTo(canvas.width, i * cellSize);
+            ctx.stroke();
+        }
+        
+        // Move snake
+        const headX = tutorialMiniSnake[0].x + tutorialMiniDirection.x;
+        const headY = tutorialMiniSnake[0].y + tutorialMiniDirection.y;
+        
+        // Wrap around
+        const newHeadX = headX < 0 ? gridSize - 1 : (headX >= gridSize ? 0 : headX);
+        const newHeadY = headY < 0 ? gridSize - 1 : (headY >= gridSize ? 0 : headY);
+        
+        const newHead = { x: newHeadX, y: newHeadY };
+        
+        // Check if food eaten
+        if (newHead.x === tutorialMiniFood.x && newHead.y === tutorialMiniFood.y) {
+            tutorialMiniSnake.unshift(newHead);
+            // Spawn new food
+            do {
+                tutorialMiniFood = {
+                    x: Math.floor(Math.random() * gridSize),
+                    y: Math.floor(Math.random() * gridSize)
+                };
+            } while (tutorialMiniSnake.some(s => s.x === tutorialMiniFood.x && s.y === tutorialMiniFood.y));
+        } else {
+            tutorialMiniSnake.unshift(newHead);
+            tutorialMiniSnake.pop();
+        }
+        
+        // Draw mini snake
+        tutorialMiniSnake.forEach((segment, index) => {
+            if (index === 0) {
+                ctx.fillStyle = '#32cd32';
+            } else {
+                ctx.fillStyle = '#28a428';
+            }
+            ctx.fillRect(segment.x * cellSize + 1, segment.y * cellSize + 1, cellSize - 2, cellSize - 2);
+        });
+        
+        // Draw mini food
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(tutorialMiniFood.x * cellSize + 1, tutorialMiniFood.y * cellSize + 1, cellSize - 2, cellSize - 2);
+    }
+    
+    // Initial draw
+    drawMiniGame();
+    
+    // Animate
+    tutorialMiniGameAnimation = setInterval(() => {
+        // Only animate if tutorial step 6 is visible
+        if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 6) {
+            drawMiniGame();
+        } else {
+            clearInterval(tutorialMiniGameAnimation);
+            tutorialMiniGameAnimation = null;
+        }
+    }, 500); // Update every 500ms
+}
+
+// Render mini score display for step 4
+function renderTutorialMiniScore() {
+    const container = document.getElementById('tutorialMiniScore');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    container.className = 'tutorial-mini-score';
+    
+    container.innerHTML = `
+        <div class="tutorial-mini-score-item">
+            <span class="tutorial-mini-score-label">Punkte:</span>
+            <span class="tutorial-mini-score-value">42</span>
+        </div>
+        <div class="tutorial-mini-score-divider">|</div>
+        <div class="tutorial-mini-score-item">
+            <span class="tutorial-mini-score-label">KPM:</span>
+            <span class="tutorial-mini-score-value">120</span>
+        </div>
+    `;
+}
+
+// Render J key for tutorial step 2
+function renderJKey() {
+    const jKeyElement = document.getElementById('jKey');
+    if (!jKeyElement) return;
+    
+    const fingerClass = getFingerClass('j');
+    jKeyElement.innerHTML = `<span class="home-row-key-wrapper">
+        <span class="home-row-key-animate ${fingerClass}" data-key="j">J</span>
+    </span>`;
+}
+
+// Render animated keyboard for tutorial step 1
+function renderTutorialStep1Keyboard() {
+    const keyboardElement = document.getElementById('tutorialStep1Keyboard');
+    if (!keyboardElement) return;
+    
+    keyboardElement.innerHTML = '';
+    
+    // Show all rows including space bar
+    KEYBOARD_ROWS.forEach((row, rowIndex) => {
+        const rowElement = document.createElement('div');
+        rowElement.className = 'title-keyboard-row';
+        if (rowIndex === 0) {
+            rowElement.classList.add('title-keyboard-row-top');
+        }
+
+        row.forEach(key => {
+            const keyElement = document.createElement('div');
+            
+            // Special handling for space key
+            if (key === ' ') {
+                keyElement.className = 'title-keyboard-key title-keyboard-space';
+                keyElement.textContent = 'SPACE';
+            } else {
+                keyElement.className = `title-keyboard-key ${getFingerClass(key)}`;
+                // Display letter in uppercase
+                if (key.length === 1 && /[a-zäöü]/.test(key)) {
+                    keyElement.textContent = key.toUpperCase();
+                } else {
+                    keyElement.textContent = key;
+                }
+            }
+            
+            // Add pulsing animation to random keys to show interactivity
+            if (Math.random() > 0.7) {
+                keyElement.classList.add('pulse-hint');
+            }
+            
+            rowElement.appendChild(keyElement);
+        });
+
+        keyboardElement.appendChild(rowElement);
+    });
+}
+
+// Render game demo for tutorial step 1
+function renderTutorialGameDemo() {
+    const demoCanvas = document.getElementById('tutorialGameCanvas');
+    if (!demoCanvas) return;
+    
+    // Clear any existing animation before starting a new one
+    if (tutorialDemoAnimationTimeout) {
+        clearTimeout(tutorialDemoAnimationTimeout);
+        tutorialDemoAnimationTimeout = null;
+    }
+    
+    const demoCtx = demoCanvas.getContext('2d');
+    const demoGridSize = 10;
+    const demoCellSize = 20;
+    
+    // Demo snake - use let so it can be modified
+    let demoSnake = [
+        { x: 5, y: 5 },
+        { x: 4, y: 5 },
+        { x: 3, y: 5 }
+    ];
+    let demoFood = { x: 7, y: 5 };
+    let demoDirection = { x: 1, y: 0 };
+    
+    // Function to generate new food position (not on snake)
+    const generateNewFood = () => {
+        let newFood;
+        do {
+            newFood = {
+                x: Math.floor(Math.random() * demoGridSize),
+                y: Math.floor(Math.random() * demoGridSize)
+            };
+        } while (demoSnake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+        return newFood;
+    };
+    
+    // Function to draw everything
+    const drawDemo = () => {
+        // Clear canvas
+        demoCtx.fillStyle = '#f8f9fa';
+        demoCtx.fillRect(0, 0, demoCanvas.width, demoCanvas.height);
+        
+        // Draw grid
+        demoCtx.strokeStyle = '#e0e0e0';
+        demoCtx.lineWidth = 0.5;
+        for (let i = 0; i <= demoGridSize; i++) {
+            demoCtx.beginPath();
+            demoCtx.moveTo(i * demoCellSize, 0);
+            demoCtx.lineTo(i * demoCellSize, demoCanvas.height);
+            demoCtx.stroke();
+            demoCtx.beginPath();
+            demoCtx.moveTo(0, i * demoCellSize);
+            demoCtx.lineTo(demoCanvas.width, i * demoCellSize);
+            demoCtx.stroke();
+        }
+        
+        // Draw food
+        demoCtx.fillStyle = '#e74c3c';
+        demoCtx.fillRect(demoFood.x * demoCellSize + 2, demoFood.y * demoCellSize + 2, demoCellSize - 4, demoCellSize - 4);
+        
+        // Draw snake
+        demoSnake.forEach((segment, index) => {
+            if (index === 0) {
+                demoCtx.fillStyle = '#32cd32';
+            } else {
+                demoCtx.fillStyle = '#28a428';
+            }
+            demoCtx.fillRect(segment.x * demoCellSize + 1, segment.y * demoCellSize + 1, demoCellSize - 2, demoCellSize - 2);
+        });
+    };
+    
+    // Initial draw
+    drawDemo();
+    
+    // Animate demo
+    const animateDemo = () => {
+        // Check if tutorial modal is still visible and on step 1
+        if (!tutorialModal || !tutorialModal.classList.contains('visible') || tutorialCurrentStep !== 1) {
+            // Stop animation if not on step 1 or modal is closed
+            tutorialDemoAnimationTimeout = null;
+            return;
+        }
+        
+        // Move snake head
+        const newHead = {
+            x: demoSnake[0].x + demoDirection.x,
+            y: demoSnake[0].y + demoDirection.y
+        };
+        
+        // Wrap around edges
+        if (newHead.x >= demoGridSize) {
+            newHead.x = 0;
+        } else if (newHead.x < 0) {
+            newHead.x = demoGridSize - 1;
+        }
+        if (newHead.y >= demoGridSize) {
+            newHead.y = 0;
+        } else if (newHead.y < 0) {
+            newHead.y = demoGridSize - 1;
+        }
+        
+        // Check if snake ate food
+        const ateFood = newHead.x === demoFood.x && newHead.y === demoFood.y;
+        
+        // Update snake position
+        demoSnake.unshift(newHead);
+        if (!ateFood) {
+            demoSnake.pop();
+        } else {
+            // Snake grows, generate new food
+            demoFood = generateNewFood();
+        }
+        
+        // Redraw
+        drawDemo();
+        
+        // Schedule next animation frame and store timeout ID
+        tutorialDemoAnimationTimeout = setTimeout(animateDemo, 300);
+    };
+    
+    // Start animation after initial delay
+    tutorialDemoAnimationTimeout = setTimeout(animateDemo, 500);
 }
 
 // Initialize on load
