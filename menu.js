@@ -9,6 +9,7 @@
     const BURGER_ID = 'menuBurger';
     const SIDEBAR_OVERLAY_CLASS = 'sidebar-overlay-open';
     const BACKDROP_ID = 'sidebarBackdrop';
+    const NEUSTART_CONFIRM_ID = 'neustartConfirmOverlay';
 
     function buildMenuHTML() {
         return `
@@ -47,7 +48,7 @@
     }
 
     function dispatch(name, detail) {
-        window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
+        document.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
     }
 
     function isWide() {
@@ -102,6 +103,38 @@
             }
         }
 
+        function showNeustartConfirm(callback) {
+            var existing = document.getElementById(NEUSTART_CONFIRM_ID);
+            if (existing) return;
+            var overlay = document.createElement('div');
+            overlay.id = NEUSTART_CONFIRM_ID;
+            overlay.className = 'neustart-confirm-overlay';
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-labelledby', 'neustart-confirm-title');
+            overlay.innerHTML = '<div class="neustart-confirm-box">' +
+                '<p id="neustart-confirm-title" class="neustart-confirm-message">Möchtest du wirklich das Spiel von vorne beginnen, ohne dich in die Bestenliste einzutragen?</p>' +
+                '<div class="neustart-confirm-buttons">' +
+                '<button type="button" class="neustart-confirm-btn neustart-confirm-ja">Ja</button>' +
+                '<button type="button" class="neustart-confirm-btn neustart-confirm-abbrechen">Abbrechen</button>' +
+                '</div></div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) {
+                    overlay.remove();
+                    if (callback) callback(false);
+                }
+            });
+            overlay.querySelector('.neustart-confirm-ja').addEventListener('click', function () {
+                overlay.remove();
+                if (callback) callback(true);
+            });
+            overlay.querySelector('.neustart-confirm-abbrechen').addEventListener('click', function () {
+                overlay.remove();
+                if (callback) callback(false);
+            });
+        }
+
         burger.addEventListener('click', function () {
             toggleOverlay();
         });
@@ -117,8 +150,16 @@
             var action = item.getAttribute('data-action');
             var step = item.getAttribute('data-step');
 
-            if (action === 'stats' || action === 'admin' || action === 'restart') {
+            if (action === 'stats' || action === 'admin') {
                 closeOverlay();
+                return;
+            }
+            if (action === 'restart') {
+                e.preventDefault();
+                closeOverlay();
+                showNeustartConfirm(function (confirmed) {
+                    if (confirmed) dispatch('menu-restart');
+                });
                 return;
             }
             if (item.classList.contains('menu-action')) {

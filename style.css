@@ -260,6 +260,63 @@ body {
     width: 100%;
 }
 
+/* Neustart confirm overlay (in menu.js) */
+.neustart-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.neustart-confirm-box {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+.neustart-confirm-message {
+    margin: 0 0 20px 0;
+    font-size: 1.05em;
+    line-height: 1.5;
+    color: #333;
+}
+.neustart-confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.neustart-confirm-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    border: none;
+    transition: background 0.2s, transform 0.2s;
+}
+.neustart-confirm-btn:hover {
+    transform: translateY(-1px);
+}
+.neustart-confirm-ja {
+    background: #666;
+    color: white;
+}
+.neustart-confirm-ja:hover {
+    background: #555;
+}
+.neustart-confirm-abbrechen {
+    background: #e0e0e0;
+    color: #333;
+}
+.neustart-confirm-abbrechen:hover {
+    background: #d0d0d0;
+}
+
 header {
     text-align: center;
     margin-bottom: 10px;

@@ -8,7 +8,7 @@ echo "🐍 Deploying qwertZnake to $SERVER..."
 
 # Copy all necessary files
 echo "📦 Copying files..."
-scp index.html style.css game.js key_sequence.txt server.js package.json levels.json ecosystem.config.js $SERVER:$DEST/
+scp index.html style.css game.js menu.js tetris.html tetris.js key_sequence.txt server.js package.json levels.json ecosystem.config.js $SERVER:$DEST/
 
 # Restart the application
 echo "🔄 Restarting application..."
