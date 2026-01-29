@@ -9,6 +9,7 @@ body {
     background: #000000;
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     color: #888;
@@ -116,6 +117,140 @@ body {
     color: #32cd32;
 }
 
+/* App layout: sidebar + main content */
+.app-layout {
+    display: flex;
+    width: 100%;
+    max-width: 1400px;
+    min-height: 100vh;
+    margin: 0 auto;
+    flex: 1;
+}
+
+.sidebar {
+    flex-shrink: 0;
+    width: 220px;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    padding: 20px 0;
+    position: relative;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+}
+
+.sidebar-close {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+}
+
+.sidebar-nav {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar-nav > li {
+    margin: 0;
+    padding: 0;
+}
+
+.menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 10px 20px;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+}
+
+.menu-item:hover {
+    background: #333;
+    color: #fff;
+}
+
+.menu-item.disabled {
+    color: #666;
+    cursor: default;
+}
+
+.menu-item.menu-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.menu-item.menu-link:hover {
+    background: #333;
+    color: #fff;
+}
+
+.sidebar-sub {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+}
+
+.sidebar-sub.open {
+    max-height: 500px;
+}
+
+.sidebar-sub .menu-item {
+    padding-left: 32px;
+    font-size: 0.9em;
+}
+
+.menu-burger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    background: #666;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.menu-burger span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+}
+
+.menu-burger:hover {
+    background: #555;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    min-width: 0;
+}
+
 .container {
     background: white;
     border-radius: 20px;
@@ -123,7 +258,6 @@ body {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     max-width: 600px;
     width: 100%;
-    margin-left: 220px; /* Make room for debug menu */
 }
 
 header {
@@ -778,6 +912,28 @@ h1 {
     padding-top: 20px;
 }
 
+.other-games-link {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.tetris-link {
+    display: inline-block;
+    color: #888;
+    text-decoration: none;
+    font-size: 0.9em;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.tetris-link:hover {
+    color: #666;
+    border-color: #888;
+    background: rgba(136, 136, 136, 0.1);
+}
+
 .restart-button {
     background: #666;
     color: white;
@@ -1115,6 +1271,7 @@ h1 {
     align-items: center;
     z-index: 3000;
     pointer-events: none;
+    overflow: hidden;
 }
 
 .key-change-modal.visible {
@@ -1413,6 +1570,7 @@ h1 {
     height: 100%;
     pointer-events: none;
     overflow: hidden;
+    z-index: 1;
 }
 
 .confetti-particle {
@@ -3239,6 +3397,52 @@ h1 {
     transform: translateY(0);
 }
 
+
+/* Sidebar: narrow = burger + overlay */
+@media (max-width: 899px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 260px;
+        max-width: 85vw;
+        z-index: 4000;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    body.sidebar-overlay-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 3999;
+        cursor: pointer;
+    }
+
+    .sidebar-close {
+        display: block;
+    }
+
+    .menu-burger {
+        display: flex;
+    }
+}
+
+@media (min-width: 900px) {
+    .menu-burger {
+        display: none;
+    }
+
+    .sidebar-close {
+        display: none;
+    }
+}
 
 @media (max-width: 600px) {
     .debug-menu {

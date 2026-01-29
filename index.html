@@ -35,13 +35,11 @@
             <div class="debug-log-status" id="logStatus">Logging: OFF</div>
         </div>
     </div>
+    <div class="app-layout">
+        <nav id="app-menu" class="sidebar"></nav>
+        <main class="main-content">
     <div class="container">
         <header>
-            <button class="stats-button" id="statsButton" title="Statistiken">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 20V10M12 20V4M6 20v-6"/>
-                </svg>
-            </button>
             <h1>qwertZnake</h1>
             <div class="score-display">
                 <span class="score-item">Punkte: <span id="score">0</span></span>
@@ -105,6 +103,9 @@
                     <button id="restartButton" class="restart-button">Neues Spiel</button>
                     <button id="overlayStatsButton" class="stats-button-overlay">Statistiken</button>
                     <button id="overlayTutorialButton" class="tutorial-button-overlay">Tutorial</button>
+                </div>
+                <div class="other-games-link">
+                    <a href="tetris.html" class="tetris-link">🎮 qwertzis (Tetris)</a>
                 </div>
                 <p class="save-hint" id="saveHint"></p>
             </div>
@@ -203,7 +204,7 @@
         <div class="level-change-modal" id="levelChangeModal">
             <div class="level-change-content">
                 <div class="level-confetti-container"></div>
-                <div class="level-change-icon">🎮</div>
+                <div class="level-change-icon">⌨️</div>
                 <div class="level-change-title">NEUES LEVEL!</div>
                 <div class="level-change-name" id="levelChangeName">Labyrinth</div>
                 <div class="level-change-number">Level <span id="levelChangeNumber">2</span></div>
@@ -516,7 +517,10 @@
             </div>
         </div>
     </div>
+        </main>
+    </div>
 
+    <script src="menu.js"></script>
     <script src="game.js?v=2"></script>
 </body>
 </html>

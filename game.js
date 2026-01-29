@@ -258,6 +258,8 @@ let currentLevel = null;
 let barriers = [];
 let levelChangeModalVisible = false;
 let maxLevelReached = 0;
+let pointsInCurrentLevel = 0; // Track points collected in current level
+let pendingLevelChange = null; // Store pending level change info to show after practice
 
 // Track all keys pressed during gameplay for practice mode
 let keyPressSequence = [];
@@ -289,7 +291,7 @@ let counterUpElement, counterDownElement, counterLeftElement, counterRightElemen
 let virtualKeyboardElement;
 let overlayElement, overlayTitleElement, overlayMessageElement, restartButton;
 let overlayStatsElement, overlayStatsButton, nameInputSection, playerNameInput, saveHint;
-let statsButton, statsModal, statsClose, statsTableBody;
+let statsModal, statsClose, statsTableBody;
 let keyChangeModal, keyChangeDirection, keyChangeFingerName;
 let keyElements = {}; // Map of key characters to DOM elements
 
@@ -476,7 +478,6 @@ async function init() {
     nameInputSection = document.getElementById('nameInputSection');
     playerNameInput = document.getElementById('playerNameInput');
     saveHint = document.getElementById('saveHint');
-    statsButton = document.getElementById('statsButton');
     statsModal = document.getElementById('statsModal');
     statsClose = document.getElementById('statsClose');
     statsTableBody = document.getElementById('statsTableBody');
@@ -552,8 +553,14 @@ async function init() {
         }
         startGame();
     });
-    statsButton.addEventListener('click', openStatsModal);
     overlayStatsButton.addEventListener('click', openStatsModal);
+    document.addEventListener('menu-open-stats', openStatsModal);
+    document.addEventListener('menu-open-admin', openLoginModal);
+    document.addEventListener('menu-restart', () => startGame());
+    document.addEventListener('menu-open-tutorial', (e) => {
+        const step = (e.detail && e.detail.step) ? e.detail.step : 1;
+        openTutorial(step);
+    });
     statsClose.addEventListener('click', closeStatsModal);
     statsModal.addEventListener('click', (e) => {
         if (e.target === statsModal) closeStatsModal();
@@ -720,8 +727,20 @@ function handleHashNavigation() {
                 startGame();
             }
             break;
+        case 'neustart':
+            if (confirm('Möchtest du wirklich das Spiel von vorne beginnen, ohne dich in die Bestenliste einzutragen?')) {
+                startGame();
+            } else {
+                window.location.hash = '';
+            }
+            break;
         case 'statistics':
+        case 'statistik':
+        case 'bestenliste':
             openStatsModal();
+            break;
+        case 'admin':
+            openLoginModal();
             break;
         case 'login':
             openLoginModal();
@@ -750,6 +769,8 @@ function resetGame() {
     currentLevel = null;
     barriers = [];
     maxLevelReached = 0;
+    pointsInCurrentLevel = 0;
+    pendingLevelChange = null;
     
     spawnFood();
     
@@ -2208,16 +2229,23 @@ function getLevelForScore(score) {
     return availableLevels[levelIndex];
 }
 
-// Check for level change
+// Check for level change based on points in current level
 function checkLevelChange(oldScore, newScore) {
     if (availableLevels.length === 0) return;
     
-    const oldLevelIndex = Math.floor(oldScore / 10);
-    const newLevelIndex = Math.floor(newScore / 10);
+    // Points earned this update (could be from game or practice)
+    const pointsEarned = newScore - oldScore;
+    pointsInCurrentLevel += pointsEarned;
     
-    if (newLevelIndex > oldLevelIndex && newLevelIndex <= availableLevels.length) {
-        const newLevel = availableLevels[newLevelIndex - 1]; // -1 because level 1 starts at 10 points
+    // Check if we've collected 10 points in the current level
+    if (pointsInCurrentLevel >= 10 && currentLevelIndex < availableLevels.length) {
+        const newLevelIndex = currentLevelIndex + 1;
+        const newLevel = availableLevels[newLevelIndex - 1]; // -1 because array is 0-indexed
+        
         if (newLevel) {
+            // Reset points counter for new level
+            pointsInCurrentLevel = 0;
+            
             currentLevelIndex = newLevelIndex;
             currentLevel = newLevel;
             maxLevelReached = Math.max(maxLevelReached, newLevelIndex);
@@ -2231,10 +2259,23 @@ function checkLevelChange(oldScore, newScore) {
             // Draw the current frame first so player sees they ate the food
             draw();
             
-            // Then apply level and show modal after a short delay
+            // Apply level immediately (barriers, etc.)
+            applyLevel(newLevel);
+            
+            // Store pending level change to show after practice mode completes
+            pendingLevelChange = {
+                level: newLevel,
+                levelNumber: newLevelIndex
+            };
+            
+            // Show practice mode first, level change modal will show after practice completes
             setTimeout(() => {
-                applyLevel(newLevel);
-                showLevelChangeModal(newLevel, newLevelIndex);
+                if (keyPressSequence.length > 0) {
+                    showPracticeMode();
+                } else {
+                    // No practice available, show level change modal directly
+                    showLevelChangeModal(newLevel, newLevelIndex);
+                }
             }, 100);
         }
     }
@@ -2298,18 +2339,14 @@ function showLevelChangeModal(level, levelNumber) {
 function hideLevelChangeModal() {
     levelChangeModal.classList.remove('visible');
     levelChangeModalVisible = false;
+    pendingLevelChange = null; // Clear pending level change
     
-    // Show practice mode after level change
-    if (keyPressSequence.length > 0) {
-        showPracticeMode();
-    } else {
-        // Resume game if no practice mode
-        if (gameRunning) {
-            gamePaused = false;
-            lastUpdate = Date.now();
-            gameLoop = requestAnimationFrame(update);
-            kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
-        }
+    // Resume game
+    if (gameRunning) {
+        gamePaused = false;
+        lastUpdate = Date.now();
+        gameLoop = requestAnimationFrame(update);
+        kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
     }
 }
 
@@ -2513,8 +2550,9 @@ function handlePracticeBackspace() {
         return false; // Nothing to delete
     }
     
-    // Track keystroke
+    // Track keystroke (also count in main game for statistics)
     practiceKeystrokes++;
+    totalKeystrokes++; // Add to main game keystrokes for KPM calculation
     
     const lastIndex = practiceTyped.length - 1;
     const wasWrong = practiceWrongKeys.has(lastIndex);
@@ -2549,8 +2587,9 @@ function handlePracticeKey(key, event) {
     const expectedChar = combination[practiceTyped.length];
     const normalizedKey = (key === ' ' || (event && event.code === 'Space')) ? ' ' : key.toLowerCase();
     
-    // Track keystroke
+    // Track keystroke (also count in main game for statistics)
     practiceKeystrokes++;
+    totalKeystrokes++; // Add to main game keystrokes for KPM calculation
     
     if (normalizedKey === expectedChar.toLowerCase()) {
         // Correct key
@@ -2593,6 +2632,14 @@ function handlePracticeKey(key, event) {
                 // Award points for correct word (1 point per word)
                 practicePoints += 1;
                 document.getElementById('practicePoints').textContent = practicePoints;
+                
+                // Add practice points to main game score
+                const oldScore = score;
+                score += 1;
+                scoreElement.textContent = score;
+                
+                // Check for level change (points in current level are tracked in checkLevelChange)
+                checkLevelChange(oldScore, score);
             }
             
             // Update progress
@@ -2633,12 +2680,25 @@ function hidePracticeMode() {
         practiceKPMInterval = null;
     }
     
-    // Resume game
-    if (gameRunning) {
-        gamePaused = false;
-        lastUpdate = Date.now();
-        gameLoop = requestAnimationFrame(update);
-        kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    // Practice keystrokes are already added to totalKeystrokes during practice
+    // (they're added in handlePracticeKey and handlePracticeBackspace)
+    // So we just need to update the KPM display
+    if (gameRunning && !gamePaused) {
+        updateKPMDisplay();
+    }
+    
+    // If there's a pending level change, show it now (after practice completes)
+    if (pendingLevelChange) {
+        showLevelChangeModal(pendingLevelChange.level, pendingLevelChange.levelNumber);
+        pendingLevelChange = null;
+    } else {
+        // Resume game if no pending level change
+        if (gameRunning) {
+            gamePaused = false;
+            lastUpdate = Date.now();
+            gameLoop = requestAnimationFrame(update);
+            kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+        }
     }
 }
 
@@ -4469,6 +4529,9 @@ function goToLevel(targetLevel) {
         // Set score to match the level (10 points per level)
         score = (levelIndex + 1) * 10;
         scoreElement.textContent = score;
+        
+        // Reset points in current level when jumping to a level
+        pointsInCurrentLevel = 0;
         
         // Update debug menu level input
         const debugLevelInput = document.getElementById('debugLevel');

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qwertzis</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+    <div class="app-layout">
+        <nav id="app-menu" class="sidebar"></nav>
+        <main class="main-content">
+    <div class="container">
+        <header>
+            <h1>qwertzis</h1>
+            <div class="score-display">
+                <span class="score-item">Punkte: <span id="score">0</span></span>
+                <span class="score-divider">|</span>
+                <span class="score-item">Level: <span id="level">1</span></span>
+                <span class="score-divider">|</span>
+                <span class="score-item">Linien: <span id="lines">0</span></span>
+                <span class="score-divider">|</span>
+                <span class="score-item kpm-display">T/Min: <span id="kpm">0</span></span>
+            </div>
+        </header>
+
+        <div class="keyboard-section">
+            <div class="direction-info">
+                <div class="direction-item">
+                    <span class="direction-arrow">←</span>
+                    <span class="direction-label">Links</span>
+                    <span class="direction-counter" id="counter-left">0/10</span>
+                </div>
+                <div class="direction-item">
+                    <span class="direction-arrow">→</span>
+                    <span class="direction-label">Rechts</span>
+                    <span class="direction-counter" id="counter-right">0/10</span>
+                </div>
+                <div class="direction-item">
+                    <span class="direction-arrow">↓</span>
+                    <span class="direction-label">Schnell</span>
+                    <span class="direction-counter" id="counter-down">0/10</span>
+                </div>
+                <div class="direction-item">
+                    <span class="direction-arrow">↻</span>
+                    <span class="direction-label">Drehen</span>
+                    <span class="direction-counter" id="counter-rotate">0/10</span>
+                </div>
+            </div>
+            <div class="virtual-keyboard" id="virtualKeyboard"></div>
+        </div>
+
+        <div class="game-area" id="game" data-anchor="game">
+            <canvas id="gameCanvas" width="400" height="600"></canvas>
+        </div>
+
+        <div class="game-overlay" id="gameOverlay" data-anchor="start">
+            <div class="overlay-content">
+                <h2 id="overlayTitle">qwertzis</h2>
+                <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
+                <div class="title-screen-hint">
+                    <div class="keyboard-icon">⌨️</div>
+                    <div class="arrow-down">↑</div>
+                    <div class="press-any-key-hint">Drücke eine Taste</div>
+                </div>
+                <div class="spacebar-hint">
+                    <div class="spacebar-key-indicator">
+                        <div class="spacebar-key-visual">SPACE</div>
+                        <div class="spacebar-hint-text">Leertaste zum Fortfahren</div>
+                    </div>
+                </div>
+                <p id="overlayMessage" style="display: none;">Drücke eine Taste zum Starten</p>
+                <p id="overlayMessage2" style="display: none;">Tetris mit 10-Finger-Schreiben üben. Die Steuerungstasten wechseln nach 10 Mal Drücken!</p>
+                <div class="overlay-stats" id="overlayStats"></div>
+                <div class="name-input-section" id="nameInputSection">
+                    <input type="text" id="playerNameInput" placeholder="Dein Name" maxlength="20">
+                </div>
+                <div class="overlay-buttons">
+                    <button id="restartButton" class="restart-button">Neues Spiel</button>
+                    <button id="overlayStatsButton" class="stats-button-overlay">Statistiken</button>
+                </div>
+                <div class="other-games-link">
+                    <a href="index.html" class="tetris-link">🐍 qwertZnake (Snake)</a>
+                </div>
+                <p class="save-hint" id="saveHint"></p>
+            </div>
+        </div>
+
+        <!-- Key Change Modal -->
+        <div class="key-change-modal" id="keyChangeModal">
+            <div class="confetti-container"></div>
+            <div class="key-change-content">
+                <div class="key-change-title">TASTENWECHSEL!</div>
+                <div class="key-change-direction" id="keyChangeDirection">LINKS</div>
+                <div class="key-change-keyboard" id="keyChangeKeyboard"></div>
+                <div class="finger-label" id="keyChangeFingerName">Zeigefinger</div>
+                <div class="key-change-hint">Drücke R zum Fortfahren</div>
+                <div class="sparkle-ring"></div>
+            </div>
+        </div>
+
+        <!-- Statistics Modal -->
+        <div class="stats-modal" id="statsModal" data-anchor="statistics">
+            <div class="stats-modal-content">
+                <button class="stats-close" id="statsClose">&times;</button>
+                <h2>🏆 Bestenliste</h2>
+                <div class="stats-legend">
+                    <span class="legend-item"><span class="finger-dot pinky"></span>Kleiner Finger</span>
+                    <span class="legend-item"><span class="finger-dot ring"></span>Ringfinger</span>
+                    <span class="legend-item"><span class="finger-dot middle"></span>Mittelfinger</span>
+                    <span class="legend-item"><span class="finger-dot index"></span>Zeigefinger</span>
+                </div>
+                <div class="stats-table-container">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Punkte</th>
+                                <th>Level</th>
+                                <th>Linien</th>
+                                <th>T/Min</th>
+                                <th>Finger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTableBody">
+                            <tr><td colspan="7">Lade Statistiken...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+    <script src="tetris.js?v=1"></script>
+</body>
+</html>
