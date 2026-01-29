@@ -2003,6 +2003,119 @@ h1 {
     display: inline-flex;
 }
 
+/* Practice Modal */
+.practice-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 5000;
+}
+
+.practice-modal.visible {
+    display: flex;
+    animation: levelModalFadeIn 0.4s ease-out;
+}
+
+.practice-modal-content {
+    background: linear-gradient(145deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+    border-radius: 30px;
+    padding: 50px 70px;
+    text-align: center;
+    position: relative;
+    box-shadow: 
+        0 0 80px rgba(50, 205, 50, 0.5),
+        0 0 120px rgba(102, 126, 234, 0.3);
+    border: 4px solid transparent;
+    background-clip: padding-box;
+    animation: levelContentPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    max-width: 900px;
+    width: 90%;
+}
+
+.practice-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 34px;
+    background: linear-gradient(45deg, #32cd32, #888, #ffd700, #32cd32);
+    background-size: 400% 400%;
+    z-index: -1;
+    animation: borderGlow 2s ease infinite;
+}
+
+.practice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.practice-title {
+    font-size: 2.2em;
+    font-weight: 900;
+    color: transparent;
+    background: linear-gradient(90deg, #32cd32, #ffd700, #888, #32cd32);
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: textShimmer 1.5s linear infinite;
+    text-shadow: 0 0 40px rgba(50, 205, 50, 0.5);
+    letter-spacing: 3px;
+    margin: 0;
+}
+
+.practice-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1em;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.practice-stat-item {
+    font-weight: 600;
+}
+
+.practice-stat-item span {
+    color: #32cd32;
+    font-weight: 700;
+}
+
+.practice-stat-divider {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.practice-instruction {
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 40px;
+}
+
+.practice-modal .home-row-instruction {
+    margin: 40px 0;
+}
+
+.practice-progress {
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 30px;
+    font-weight: 600;
+}
+
+.practice-progress span:first-child {
+    color: #32cd32;
+    font-size: 1.3em;
+}
+
 /* Tutorial Modal */
 .tutorial-modal {
     position: fixed;
@@ -2392,6 +2505,92 @@ h1 {
     }
 }
 
+/* Corrected mark (yellow/orange cross for wrong but corrected keys) */
+.home-row-corrected-mark {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ff8c00;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+    z-index: 11;
+    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.4);
+    line-height: 1;
+}
+
+.home-row-corrected-mark.visible {
+    opacity: 1;
+    transform: scale(1);
+    animation: correctedMarkPop 0.3s ease;
+}
+
+@keyframes correctedMarkPop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Wrong mark (red cross for wrong keys) */
+.home-row-wrong-mark {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ff4444;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+    z-index: 12;
+    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.4);
+    line-height: 1;
+}
+
+.home-row-wrong-mark.visible {
+    opacity: 1;
+    transform: scale(1);
+    animation: wrongMarkPop 0.3s ease;
+}
+
+@keyframes wrongMarkPop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .home-row-key-animate.active {
     transform: scale(1.3);
     animation: keyPulse 0.5s ease;
@@ -2416,6 +2615,33 @@ h1 {
 .home-row-key-animate.active.finger-index {
     box-shadow: 0 0 20px rgba(50, 205, 50, 0.8);
     background: #28d428;
+}
+
+/* Wrong key styling - red background */
+.home-row-key-animate.wrong {
+    background: #ff4444 !important;
+    color: white !important;
+    border-color: #cc0000 !important;
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.8) !important;
+    animation: wrongKeyPulse 0.3s ease;
+}
+
+.home-row-key-animate.wrong.finger-pinky,
+.home-row-key-animate.wrong.finger-ring,
+.home-row-key-animate.wrong.finger-middle,
+.home-row-key-animate.wrong.finger-index {
+    background: #ff4444 !important;
+    color: white !important;
+    border-color: #cc0000 !important;
+}
+
+@keyframes wrongKeyPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
 }
 
 .home-row-key-animate.pausing {

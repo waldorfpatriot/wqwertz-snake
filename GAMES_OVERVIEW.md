@@ -11,6 +11,9 @@ This document provides an overview of all planned games in the qwertz typing pra
 5. **qwertz Pong** 📋 (Planned)
 6. **qwertz Pinball** 📋 (Planned)
 7. **qwertz Mario** 📋 (Planned)
+8. **qwertz-man** 📋 (Planned)
+9. **qwertzoids** 📋 (Planned)
+10. **frogqwertz** 📋 (Planned)
 
 ## Common Features
 
@@ -33,6 +36,9 @@ All games share:
 | **Pong** | Up, Down (per paddle) | 2-4 | Score points, prevent opponent scoring | Low-Medium |
 | **Pinball** | Left Flipper, Right Flipper, Launch | 2-3 | Score points, keep ball in play | Medium-High |
 | **Mario** | Left, Right, Jump, Run | 3-4 | Reach end, defeat enemies, collect coins | Medium-High |
+| **qwertz-man** | Left, Right, Up, Down | 4 | Eat dots, avoid ghosts, complete maze | Medium |
+| **qwertzoids** | Rotate Left, Rotate Right, Thrust, Shoot | 4 | Destroy asteroids, avoid collisions | Medium-High |
+| **frogqwertz** | Left, Right, Up, Down | 4 | Cross road and river, reach home | Medium |
 
 ## Implementation Priority
 
@@ -58,6 +64,11 @@ All games share:
 
 ### Phase 6: Platform Games
 6. **qwertz Mario** - Medium-High complexity (3-4 keys), side-scrolling platformer
+
+### Phase 7: Classic Arcade Games
+7. **qwertz-man** - Medium complexity (4 keys), maze navigation
+8. **qwertzoids** - Medium-High complexity (4 keys), physics-based space shooter
+9. **frogqwertz** - Medium complexity (4 keys), road/river crossing
 
 ## Code Reuse Strategy
 
@@ -90,6 +101,9 @@ Each game needs:
 ├── pong.html               # Pong game
 ├── pinball.html            # Pinball game
 ├── mario.html              # Mario game
+├── qwertzman.html          # qwertz-man game
+├── qwertzoids.html         # qwertzoids game
+├── frogqwertz.html         # frogqwertz game
 ├── game.js                  # Snake game logic
 ├── breakout.js             # Breakout game logic
 ├── invaders.js             # Invaders game logic
@@ -97,6 +111,9 @@ Each game needs:
 ├── pong.js                 # Pong game logic
 ├── pinball.js              # Pinball game logic
 ├── mario.js                # Mario game logic
+├── qwertzman.js            # qwertz-man game logic
+├── qwertzoids.js           # qwertzoids game logic
+├── frogqwertz.js           # frogqwertz game logic
 ├── shared.js                # Shared utilities (keyboard, key changing, etc.)
 ├── style.css               # Shared styles
 ├── server.js               # Backend (statistics, levels)
@@ -107,6 +124,9 @@ Each game needs:
     - PONG_PLAN.md
     - PINBALL_PLAN.md
     - MARIO_PLAN.md
+    - QWERTZMAN_PLAN.md
+    - QWERTZOIDS_PLAN.md
+    - FROGQWERTZ_PLAN.md
 ```
 
 ## Game Selector
@@ -175,6 +195,9 @@ Each game needs:
 - **Pong**: 2-4 actions (up, down per paddle)
 - **Pinball**: 2-3 actions (left flipper, right flipper, launch)
 - **Mario**: 3-4 actions (left, right, jump, run)
+- **qwertz-man**: 4 actions (left, right, up, down)
+- **qwertzoids**: 4 actions (rotate left, rotate right, thrust, shoot)
+- **frogqwertz**: 4 actions (left, right, up, down)
 
 ## Development Roadmap
 
@@ -280,6 +303,9 @@ Each game needs:
 - qwertz Centipede
 - qwertz Pinball ✅ (Planned)
 - qwertz Mario ✅ (Planned)
+- qwertz-man ✅ (Planned)
+- qwertzoids ✅ (Planned)
+- frogqwertz ✅ (Planned)
 
 ## Documentation
 
@@ -290,6 +316,9 @@ Each game has a detailed plan document:
 - `PONG_PLAN.md` - Pong game plan
 - `PINBALL_PLAN.md` - Pinball game plan
 - `MARIO_PLAN.md` - Mario game plan
+- `QWERTZMAN_PLAN.md` - qwertz-man game plan
+- `QWERTZOIDS_PLAN.md` - qwertzoids game plan
+- `FROGQWERTZ_PLAN.md` - frogqwertz game plan
 
 ## Questions & Decisions
 

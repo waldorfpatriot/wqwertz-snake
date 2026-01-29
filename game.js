@@ -259,6 +259,9 @@ let barriers = [];
 let levelChangeModalVisible = false;
 let maxLevelReached = 0;
 
+// Track all keys pressed during gameplay for practice mode
+let keyPressSequence = [];
+
 // Key sequence from file
 let keySequence = '';
 let keySequenceIndex = 0;
@@ -301,6 +304,18 @@ let adminLoginBtn, loginModal, loginClose, loginPassword, loginSubmit, loginErro
 let levelDesignerModal, designerClose, levelNameInput, levelGrid;
 let toolBarrier, toolEraser, toolClear, saveLevelBtn, savedLevelsList;
 let levelChangeModal, levelChangeName, levelChangeNumber;
+let practiceModal, practiceKeysElement, practiceModalVisible = false;
+let practiceCombinations = [];
+let currentPracticeIndex = 0;
+let practiceTyped = [];
+let practicePoints = 0;
+let practiceStartTime = 0;
+let practiceKeystrokes = 0;
+let practiceWrongKeys = new Set(); // Track wrong key indices in typed sequence
+let practiceCorrectedKeys = new Set(); // Track keys that were wrong but corrected
+let practiceDeletedWrongPositions = new Set(); // Track positions where wrong keys were deleted
+let practiceHadMistake = false; // Track if any mistake was ever made in current word
+let practiceKPMInterval = null;
 
 // Track if current game stats have been saved
 let gameStatsSaved = false;
@@ -488,6 +503,8 @@ async function init() {
     levelChangeModal = document.getElementById('levelChangeModal');
     levelChangeName = document.getElementById('levelChangeName');
     levelChangeNumber = document.getElementById('levelChangeNumber');
+    practiceModal = document.getElementById('practiceModal');
+    practiceKeysElement = document.getElementById('practiceKeys');
 
     // Tutorial elements
     tutorialModal = document.getElementById('tutorialModal');
@@ -768,6 +785,9 @@ function resetGame() {
         'finger-middle': 0,
         'finger-index': 0
     };
+    
+    // Reset key press sequence for practice mode
+    keyPressSequence = [];
     
     updateCounters();
 }
@@ -1474,6 +1494,21 @@ function handleKeyPress(event) {
         return; // Game over screen - no keyboard shortcuts
     }
     
+    // Handle practice mode
+    if (practiceModalVisible) {
+        event.preventDefault();
+        // Handle backspace/delete to remove wrong keys
+        if (key === 'Backspace' || key === 'Delete' || event.code === 'Backspace' || event.code === 'Delete') {
+            handlePracticeBackspace();
+            return;
+        }
+        // Handle letter keys and space for practice (only if no wrong key blocking)
+        if ((key.length === 1 && /[a-züöä]/.test(key)) || key === ' ' || event.code === 'Space') {
+            handlePracticeKey(key, event);
+        }
+        return;
+    }
+    
     // Handle level change modal - only space continues
     if (levelChangeModalVisible) {
         event.preventDefault();
@@ -1723,6 +1758,11 @@ function handleKeyPress(event) {
         const fingerType = getFingerClass(key);
         if (fingerType && fingerUsage[fingerType] !== undefined) {
             fingerUsage[fingerType]++;
+        }
+        
+        // Track key for practice mode (only track letter keys, not space)
+        if (key !== ' ' && key.length === 1 && /[a-züöä]/.test(key)) {
+            keyPressSequence.push(key);
         }
         
         keyPressCounters[directionChanged]++;
@@ -2258,6 +2298,340 @@ function showLevelChangeModal(level, levelNumber) {
 function hideLevelChangeModal() {
     levelChangeModal.classList.remove('visible');
     levelChangeModalVisible = false;
+    
+    // Show practice mode after level change
+    if (keyPressSequence.length > 0) {
+        showPracticeMode();
+    } else {
+        // Resume game if no practice mode
+        if (gameRunning) {
+            gamePaused = false;
+            lastUpdate = Date.now();
+            gameLoop = requestAnimationFrame(update);
+            kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+        }
+    }
+}
+
+// Extract letter combinations (2-8 characters) from key sequence
+function extractCombinations(sequence) {
+    const combinations = [];
+    const seen = new Set();
+    
+    // Extract combinations of length 2 to 8
+    for (let len = 2; len <= 8; len++) {
+        for (let i = 0; i <= sequence.length - len; i++) {
+            const combo = sequence.slice(i, i + len).join('');
+            // Only add unique combinations
+            if (!seen.has(combo)) {
+                seen.add(combo);
+                combinations.push(combo);
+            }
+        }
+    }
+    
+    // Shuffle and limit to 10 words
+    const shuffled = combinations.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(10, shuffled.length));
+}
+
+// Show practice mode
+function showPracticeMode() {
+    // Extract combinations from key sequence
+    practiceCombinations = extractCombinations(keyPressSequence);
+    
+    if (practiceCombinations.length === 0) {
+        // No combinations available, resume game
+        if (gameRunning) {
+            gamePaused = false;
+            lastUpdate = Date.now();
+            gameLoop = requestAnimationFrame(update);
+            kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+        }
+        return;
+    }
+    
+    // Reset practice state
+    currentPracticeIndex = 0;
+    practiceTyped = [];
+    practicePoints = 0;
+    practiceStartTime = Date.now();
+    practiceKeystrokes = 0;
+    practiceWrongKeys.clear();
+    practiceCorrectedKeys.clear();
+    practiceDeletedWrongPositions.clear();
+    practiceHadMistake = false;
+    
+    // Update progress and stats
+    document.getElementById('practiceProgress').textContent = '1';
+    document.getElementById('practiceTotal').textContent = practiceCombinations.length;
+    document.getElementById('practicePoints').textContent = '0';
+    document.getElementById('practiceKPM').textContent = '0';
+    
+    // Show practice modal
+    practiceModal.classList.add('visible');
+    practiceModalVisible = true;
+    
+    // Start practice with first combination
+    startPracticeCombination();
+    
+    // Start KPM update interval
+    practiceKPMInterval = setInterval(updatePracticeKPM, 500);
+}
+
+// Start practicing a combination
+function startPracticeCombination() {
+    if (currentPracticeIndex >= practiceCombinations.length) {
+        // All combinations completed
+        hidePracticeMode();
+        return;
+    }
+    
+    const combination = practiceCombinations[currentPracticeIndex];
+    
+    // Reset typing state for this word
+    practiceTyped = [];
+    practiceWrongKeys.clear();
+    practiceCorrectedKeys.clear();
+    practiceDeletedWrongPositions.clear();
+    practiceHadMistake = false;
+    
+    // Render keys using tutorial design
+    renderPracticeKeys(combination);
+    
+    // Update display
+    updatePracticeKeys();
+}
+
+// Update practice KPM display
+function updatePracticeKPM() {
+    if (!practiceModalVisible || practiceStartTime === 0) return;
+    
+    const elapsedMinutes = (Date.now() - practiceStartTime) / 60000;
+    if (elapsedMinutes < 0.01) {
+        document.getElementById('practiceKPM').textContent = '0';
+        return;
+    }
+    
+    const kpm = Math.round(practiceKeystrokes / elapsedMinutes);
+    document.getElementById('practiceKPM').textContent = kpm;
+}
+
+// Render practice keys using tutorial design
+function renderPracticeKeys(combination) {
+    if (!practiceKeysElement) return;
+    
+    const keys = combination.split('').map((key, index) => {
+        const keyUpper = key.toUpperCase();
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        
+        if (key === ' ') {
+            return `<span class="home-row-key-wrapper">
+                <span class="home-row-key-animate keyboard-space" data-key=" " data-index="${index}">SPACE</span>
+                <span class="home-row-checkmark" data-index="${index}">✓</span>
+                <span class="home-row-corrected-mark" data-index="${index}">✕</span>
+                <span class="home-row-wrong-mark" data-index="${index}">✕</span>
+            </span>`;
+        }
+        
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${keyUpper}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+            <span class="home-row-corrected-mark" data-index="${index}">✕</span>
+            <span class="home-row-wrong-mark" data-index="${index}">✕</span>
+        </span>`;
+    }).join('');
+    
+    practiceKeysElement.innerHTML = keys;
+}
+
+// Update practice keys display
+function updatePracticeKeys() {
+    const combination = practiceCombinations[currentPracticeIndex];
+    if (!combination || !practiceKeysElement) {
+        return;
+    }
+    
+    const checkmarks = practiceKeysElement.querySelectorAll('.home-row-checkmark');
+    const correctedMarks = practiceKeysElement.querySelectorAll('.home-row-corrected-mark');
+    const wrongMarks = practiceKeysElement.querySelectorAll('.home-row-wrong-mark');
+    const keyElements = practiceKeysElement.querySelectorAll('.home-row-key-animate');
+    
+    // Update checkmarks
+    checkmarks.forEach((checkmark, index) => {
+        if (index < practiceTyped.length && !practiceWrongKeys.has(index)) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    
+    // Update wrong marks (red cross) - show for wrong keys in typed sequence
+    wrongMarks.forEach((mark, index) => {
+        if (practiceWrongKeys.has(index) && index < practiceTyped.length) {
+            mark.classList.add('visible');
+        } else {
+            mark.classList.remove('visible');
+        }
+    });
+    
+    // Update corrected marks (yellow/orange cross)
+    correctedMarks.forEach((mark, index) => {
+        if (practiceCorrectedKeys.has(index)) {
+            mark.classList.add('visible');
+        } else {
+            mark.classList.remove('visible');
+        }
+    });
+    
+    // Remove wrong class from keys (we use red cross instead)
+    keyElements.forEach((keyEl) => {
+        keyEl.classList.remove('wrong');
+    });
+    
+    // Highlight the next expected key
+    if (practiceTyped.length < combination.length) {
+        // Remove active class from all keys
+        keyElements.forEach(el => el.classList.remove('active'));
+        
+        // Add active class to next expected key
+        const nextKeyIndex = practiceTyped.length;
+        if (keyElements[nextKeyIndex]) {
+            keyElements[nextKeyIndex].classList.add('active');
+        }
+    }
+}
+
+// Handle practice mode backspace/delete
+function handlePracticeBackspace() {
+    if (!practiceModalVisible || currentPracticeIndex >= practiceCombinations.length) {
+        return false;
+    }
+    
+    if (practiceTyped.length === 0) {
+        return false; // Nothing to delete
+    }
+    
+    // Track keystroke
+    practiceKeystrokes++;
+    
+    const lastIndex = practiceTyped.length - 1;
+    const wasWrong = practiceWrongKeys.has(lastIndex);
+    
+    // Remove the last character
+    practiceTyped.pop();
+    
+    // If it was a wrong key, remember this position had a wrong key that was deleted
+    if (wasWrong) {
+        practiceWrongKeys.delete(lastIndex);
+        // Remember this position - when correct key is typed here, show corrected mark
+        practiceDeletedWrongPositions.add(lastIndex);
+    } else {
+        // If it was a correct key, don't remove corrected mark (yellow crosses should persist)
+        // Just remove from deleted positions if it was there
+        practiceDeletedWrongPositions.delete(lastIndex);
+    }
+    
+    // Update display
+    updatePracticeKeys();
+    
+    return true;
+}
+
+// Handle practice mode key input
+function handlePracticeKey(key, event) {
+    if (!practiceModalVisible || currentPracticeIndex >= practiceCombinations.length) {
+        return false;
+    }
+    
+    const combination = practiceCombinations[currentPracticeIndex];
+    const expectedChar = combination[practiceTyped.length];
+    const normalizedKey = (key === ' ' || (event && event.code === 'Space')) ? ' ' : key.toLowerCase();
+    
+    // Track keystroke
+    practiceKeystrokes++;
+    
+    if (normalizedKey === expectedChar.toLowerCase()) {
+        // Correct key
+        const currentIndex = practiceTyped.length;
+        
+        // If this position had a wrong key that was deleted, mark it as corrected
+        if (practiceDeletedWrongPositions.has(currentIndex)) {
+            practiceCorrectedKeys.add(currentIndex);
+            practiceDeletedWrongPositions.delete(currentIndex);
+        }
+        
+        // If this position was still marked as wrong (user typed wrong then correct without deleting)
+        if (practiceWrongKeys.has(currentIndex)) {
+            // Mark as corrected since they typed the right key
+            practiceCorrectedKeys.add(currentIndex);
+            practiceWrongKeys.delete(currentIndex);
+        }
+        
+        // IMPORTANT: Once a position is marked as corrected, it stays corrected forever
+        // Yellow marks should never disappear, even if the key is deleted and retyped
+        // If this position was ever corrected (even if deleted), ensure it stays marked
+        // This handles the case where a corrected key is deleted and retyped
+        if (practiceCorrectedKeys.has(currentIndex)) {
+            // Position was already corrected - ensure it stays in the set
+            // This is redundant since we never remove from practiceCorrectedKeys,
+            // but makes the intent explicit: yellow marks persist forever
+            practiceCorrectedKeys.add(currentIndex); // No-op if already there, but explicit
+        }
+        
+        practiceTyped.push(normalizedKey);
+        
+        // Update display
+        updatePracticeKeys();
+        
+        // Check if combination is complete
+        if (practiceTyped.length >= combination.length) {
+            // Only award points if no mistakes were ever made (all keys typed correctly on first try)
+            // Check both the mistake flag and if any corrected marks exist
+            if (!practiceHadMistake && practiceCorrectedKeys.size === 0) {
+                // Award points for correct word (1 point per word)
+                practicePoints += 1;
+                document.getElementById('practicePoints').textContent = practicePoints;
+            }
+            
+            // Update progress
+            document.getElementById('practiceProgress').textContent = currentPracticeIndex + 1;
+            
+            // Move to next combination after short delay
+            setTimeout(() => {
+                currentPracticeIndex++;
+                startPracticeCombination();
+            }, 500);
+        }
+        
+        return true;
+    } else {
+        // Wrong key - add it to typed sequence and mark as wrong, but allow continuing
+        const currentIndex = practiceTyped.length;
+        if (currentIndex < combination.length) {
+            practiceTyped.push(normalizedKey);
+            practiceWrongKeys.add(currentIndex);
+            practiceHadMistake = true; // Mark that a mistake was made
+        }
+        
+        // Update display to show wrong key with red cross
+        updatePracticeKeys();
+        
+        return false;
+    }
+}
+
+// Hide practice mode
+function hidePracticeMode() {
+    practiceModal.classList.remove('visible');
+    practiceModalVisible = false;
+    
+    // Clear KPM interval
+    if (practiceKPMInterval) {
+        clearInterval(practiceKPMInterval);
+        practiceKPMInterval = null;
+    }
     
     // Resume game
     if (gameRunning) {
