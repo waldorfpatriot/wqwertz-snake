@@ -12,7 +12,7 @@
         <button class="debug-btn" id="simulateGameEnd">Simulate Game End</button>
         <div class="debug-control">
             <label>Speed (FPS):</label>
-            <input type="number" id="debugSpeed" value="4.65" min="1" max="20" step="0.1">
+            <input type="number" id="debugSpeed" value="6.05" min="1" max="20" step="0.1">
             <button class="debug-btn-small" id="applySpeed">Apply</button>
         </div>
         <div class="debug-control">
@@ -80,6 +80,7 @@
 
         <div class="game-overlay" id="gameOverlay" data-anchor="start">
             <div class="overlay-content">
+                <a href="#einstellungen" class="overlay-settings-link" id="overlaySettingsLink" aria-label="Einstellungen" title="Einstellungen">⚙</a>
                 <h2 id="overlayTitle">qwertZnake</h2>
                 <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
                 <div class="title-screen-hint">
@@ -101,11 +102,7 @@
                 </div>
                 <div class="overlay-buttons">
                     <button id="restartButton" class="restart-button">Neues Spiel</button>
-                    <button id="overlayStatsButton" class="stats-button-overlay">Statistiken</button>
                     <button id="overlayTutorialButton" class="tutorial-button-overlay">Tutorial</button>
-                </div>
-                <div class="other-games-link">
-                    <a href="tetris.html" class="tetris-link">🎮 qwertzis (Tetris)</a>
                 </div>
                 <p class="save-hint" id="saveHint"></p>
             </div>
@@ -124,11 +121,45 @@
             </div>
         </div>
 
+        <!-- Settings Modal -->
+        <div class="settings-modal" id="settingsModal" data-anchor="einstellungen">
+            <div class="settings-modal-content">
+                <button class="settings-close" id="settingsClose" aria-label="Schließen">&times;</button>
+                <h2 class="settings-title">⚙️ Einstellungen</h2>
+                <div class="settings-form">
+                    <div class="settings-field" role="group" aria-labelledby="settings-diff-label">
+                        <span class="settings-field-label" id="settings-diff-label">Schwierigkeit</span>
+                        <div class="settings-toggle" id="settingsDifficultyGroup">
+                            <button type="button" class="settings-toggle-option" data-value="simple" aria-pressed="false"><span class="settings-icon">🐢</span> Einfach</button>
+                            <button type="button" class="settings-toggle-option active" data-value="medium" aria-pressed="true"><span class="settings-icon">🏃</span> Mittel</button>
+                            <button type="button" class="settings-toggle-option" data-value="hard" aria-pressed="false"><span class="settings-icon">🚀</span> Schwer</button>
+                            <button type="button" class="settings-toggle-option" data-value="ultra" aria-pressed="false"><span class="settings-icon">⚡</span> Ultra</button>
+                        </div>
+                    </div>
+                    <div class="settings-field" role="group" aria-labelledby="settings-grid-label">
+                        <span class="settings-field-label" id="settings-grid-label">Spielfeldgröße</span>
+                        <div class="settings-toggle" id="settingsGridSizeGroup">
+                            <button type="button" class="settings-toggle-option" data-value="small" aria-pressed="false"><span class="settings-icon">▫️</span> Klein</button>
+                            <button type="button" class="settings-toggle-option active" data-value="medium" aria-pressed="true"><span class="settings-icon">◻️</span> Mittel</button>
+                            <button type="button" class="settings-toggle-option" data-value="big" aria-pressed="false"><span class="settings-icon">⬜</span> Groß</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="settings-done-btn" id="settingsDoneBtn" title="Änderungen starten das Spiel neu.">💾 Speichern und Neustart</button>
+            </div>
+        </div>
+
         <!-- Statistics Modal -->
         <div class="stats-modal" id="statsModal" data-anchor="statistics">
             <div class="stats-modal-content">
                 <button class="stats-close" id="statsClose">&times;</button>
                 <h2>🏆 Bestenliste</h2>
+                <div class="stats-difficulty-tabs" role="tablist">
+                    <button type="button" class="stats-tab active" data-difficulty="simple" role="tab" aria-selected="true">Einfach</button>
+                    <button type="button" class="stats-tab" data-difficulty="medium" role="tab" aria-selected="false">Mittel</button>
+                    <button type="button" class="stats-tab" data-difficulty="hard" role="tab" aria-selected="false">Schwer</button>
+                    <button type="button" class="stats-tab" data-difficulty="ultra" role="tab" aria-selected="false">Ultra</button>
+                </div>
                 <div class="stats-legend">
                     <span class="legend-item"><span class="finger-dot pinky"></span>Kleiner Finger</span>
                     <span class="legend-item"><span class="finger-dot ring"></span>Ringfinger</span>
@@ -144,11 +175,12 @@
                                 <th>Punkte</th>
                                 <th>Level</th>
                                 <th>T/Min</th>
+                                <th>Spielfeld</th>
                                 <th>Finger</th>
                             </tr>
                         </thead>
                         <tbody id="statsTableBody">
-                            <tr><td colspan="6">Lade Statistiken...</td></tr>
+                            <tr><td colspan="7">Lade Statistiken...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -215,21 +247,30 @@
         <!-- Practice Modal -->
         <div class="practice-modal" id="practiceModal">
             <div class="practice-modal-content">
-                <div class="practice-header">
-                    <div class="practice-title">10-Finger Übung</div>
-                    <div class="practice-stats">
-                        <span class="practice-stat-item">Punkte: <span id="practicePoints">0</span></span>
-                        <span class="practice-stat-divider">|</span>
-                        <span class="practice-stat-item">T/Min: <span id="practiceKPM">0</span></span>
+                <div class="practice-intro" id="practiceIntro">
+                    <p class="practice-intro-message" id="practiceIntroMessage">Level geschafft! Jetzt eine kurze 10-Finger-Übung, sammel so viele Punkte, wie möglich, indem du alles richtig schreibst. Zum bestätigen schreibe "punkte".</p>
+                    <div class="home-row-instruction">
+                        <div class="home-row-keys" id="practicePunkteKeys"></div>
+                        <div class="instruction-text">um zu starten</div>
                     </div>
                 </div>
-                <div class="practice-instruction">Tippe die Buchstabenkombinationen</div>
-                <div class="home-row-instruction">
-                    <div class="home-row-keys" id="practiceKeys"></div>
-                    <div class="instruction-text" id="practiceInstructionText">um weiterzumachen</div>
-                </div>
-                <div class="practice-progress">
-                    <span id="practiceProgress">0</span> / <span id="practiceTotal">0</span>
+                <div class="practice-main" id="practiceMain">
+                    <div class="practice-header">
+                        <div class="practice-title">10-Finger Übung</div>
+                        <div class="practice-stats">
+                            <span class="practice-stat-item">Punkte: <span id="practicePoints">0</span></span>
+                            <span class="practice-stat-divider">|</span>
+                            <span class="practice-stat-item">T/Min: <span id="practiceKPM">0</span></span>
+                        </div>
+                    </div>
+                    <div class="practice-instruction">Tippe die Buchstabenkombinationen</div>
+                    <div class="home-row-instruction">
+                        <div class="home-row-keys" id="practiceKeys"></div>
+                        <div class="instruction-text" id="practiceInstructionText">um weiterzumachen</div>
+                    </div>
+                    <div class="practice-progress">
+                        <span id="practiceProgress">0</span> / <span id="practiceTotal">0</span>
+                    </div>
                 </div>
             </div>
         </div>

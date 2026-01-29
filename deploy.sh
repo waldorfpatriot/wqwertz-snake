@@ -1,6 +1,10 @@
 #!/bin/bash
 # qwertZnake Deployment Script
 
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 SERVER="root@82.165.153.24"
 DEST="/var/www/qwertznake.de"
 
@@ -10,8 +14,8 @@ echo "🐍 Deploying qwertZnake to $SERVER..."
 echo "📦 Copying files..."
 scp index.html style.css game.js menu.js tetris.html tetris.js key_sequence.txt server.js package.json levels.json ecosystem.config.js $SERVER:$DEST/
 
-# Restart the application
-echo "🔄 Restarting application..."
+# Restart the application on the server
+echo "🔄 Restarting application on server..."
 ssh $SERVER "cd $DEST && pm2 restart ecosystem.config.js --update-env"
 
 echo "✅ Deployment complete!"

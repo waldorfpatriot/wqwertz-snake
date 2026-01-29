@@ -16,6 +16,21 @@
       }
     },
     {
+      "id": 1769720933417,
+      "timestamp": "2026-01-29T21:08:53.417Z",
+      "name": "jonathan",
+      "points": 32,
+      "kpm": 50,
+      "level": 2,
+      "duration": 260,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 91
+      }
+    },
+    {
       "id": 1769639330504,
       "timestamp": "2026-01-28T22:28:50.504Z",
       "name": "jonathan",
@@ -120,6 +135,36 @@
       "timestamp": "2025-12-30T22:47:56.309Z"
     },
     {
+      "id": 1769722457364,
+      "timestamp": "2026-01-29T21:34:17.364Z",
+      "name": "testjonathan",
+      "points": 8,
+      "kpm": 58,
+      "level": 0,
+      "duration": 44,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 39
+      }
+    },
+    {
+      "id": 1769722710313,
+      "timestamp": "2026-01-29T21:38:30.313Z",
+      "name": "testjonathan",
+      "points": 8,
+      "kpm": 51,
+      "level": 0,
+      "duration": 47,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 35
+      }
+    },
+    {
       "id": 1769639135194,
       "timestamp": "2026-01-28T22:25:35.194Z",
       "name": "jonathan",
@@ -149,6 +194,40 @@
       "timestamp": "2025-12-30T22:07:32.125Z"
     },
     {
+      "id": 1769723342941,
+      "timestamp": "2026-01-29T21:49:02.941Z",
+      "name": "testjonathan",
+      "points": 4,
+      "kpm": 55,
+      "level": 0,
+      "duration": 45,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 39
+      },
+      "difficulty": "ultra",
+      "gridSize": "small"
+    },
+    {
+      "id": 1769723226576,
+      "timestamp": "2026-01-29T21:47:06.576Z",
+      "name": "testjonathan",
+      "points": 3,
+      "kpm": 75,
+      "level": 0,
+      "duration": 16,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 18
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
       "name": "Anonym",
       "points": 2,
       "kpm": 14,
@@ -161,6 +240,57 @@
       "duration": 46,
       "id": 1767131748067,
       "timestamp": "2025-12-30T21:55:48.067Z"
+    },
+    {
+      "id": 1769721437524,
+      "timestamp": "2026-01-29T21:17:17.524Z",
+      "name": "jonathan",
+      "points": 2,
+      "kpm": 87,
+      "level": 0,
+      "duration": 13,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769722801345,
+      "timestamp": "2026-01-29T21:40:01.345Z",
+      "name": "testjonathan",
+      "points": 2,
+      "kpm": 56,
+      "level": 0,
+      "duration": 14,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769721694891,
+      "timestamp": "2026-01-29T21:21:34.891Z",
+      "name": "testjonathan",
+      "points": 1,
+      "kpm": 34,
+      "level": 0,
+      "duration": 23,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 10
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
     }
   ]
 }

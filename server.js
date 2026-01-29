@@ -51,15 +51,22 @@ function saveLevels(levels) {
 function loadStats() {
     try {
         const data = fs.readFileSync(STATS_FILE, 'utf8');
-        return JSON.parse(data);
+        const stats = JSON.parse(data);
+        const count = (stats && stats.games) ? stats.games.length : 0;
+        console.log('[stats] loadStats: read', STATS_FILE, '->', count, 'games');
+        return stats;
     } catch (error) {
+        console.log('[stats] loadStats: error', error.message, '-> returning { games: [] }');
         return { games: [] };
     }
 }
 
 // Save statistics to file
 function saveStats(stats) {
+    const count = (stats && stats.games) ? stats.games.length : 0;
+    console.log('[stats] saveStats: writing', count, 'games to', STATS_FILE);
     fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+    console.log('[stats] saveStats: done');
 }
 
 // MIME types for static files
@@ -143,45 +150,56 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    const pathname = (req.url || '').split('?')[0];
+
     // API endpoints
-    if (req.url === '/api/statistics' && req.method === 'GET') {
-        // Get all statistics
+    if (pathname === '/api/statistics' && req.method === 'GET') {
+        console.log('[stats] GET /api/statistics', pathname);
         const stats = loadStats();
-        // Sort by points (descending) and return top 50
-        stats.games.sort((a, b) => b.points - a.points);
-        const topGames = stats.games.slice(0, 50);
-        
+        const games = (stats.games || []).map(function (g) {
+            return Object.assign({}, g, { difficulty: g.difficulty || 'medium' });
+        });
+        console.log('[stats] GET sending', games.length, 'games');
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(topGames));
+        res.end(JSON.stringify(games));
         return;
     }
 
-    if (req.url === '/api/statistics' && req.method === 'POST') {
-        // Add new game statistics
+    if (pathname === '/api/statistics' && req.method === 'POST') {
+        console.log('[stats] POST /api/statistics', pathname);
         readBody(req).then(body => {
             try {
+                console.log('[stats] POST body length:', body.length, 'bytes');
                 const gameData = JSON.parse(body);
-                
+                console.log('[stats] POST parsed gameData:', { name: gameData.name, points: gameData.points, kpm: gameData.kpm, difficulty: gameData.difficulty, gridSize: gameData.gridSize });
+
                 // Input validation
                 if (typeof gameData.name !== 'string' || gameData.name.length > 50) {
+                    console.log('[stats] POST validation failed: invalid name');
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Invalid name' }));
                     return;
                 }
                 if (typeof gameData.points !== 'number' || gameData.points < 0 || gameData.points > 10000) {
+                    console.log('[stats] POST validation failed: invalid points');
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Invalid points' }));
                     return;
                 }
                 if (typeof gameData.kpm !== 'number' || gameData.kpm < 0 || gameData.kpm > 1000) {
+                    console.log('[stats] POST validation failed: invalid kpm');
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Invalid kpm' }));
                     return;
                 }
-                
+
                 const stats = loadStats();
-                
-                // Sanitize and add only allowed fields
+                console.log('[stats] POST loadStats: had', stats.games.length, 'games');
+
+                const allowedDifficulty = ['simple', 'medium', 'hard', 'ultra'].includes(gameData.difficulty) ? gameData.difficulty : 'medium';
+                const allowedGridSize = ['small', 'medium', 'big'].includes(gameData.gridSize) ? gameData.gridSize : 'medium';
+                console.log('[stats] POST allowedDifficulty:', allowedDifficulty, 'allowedGridSize:', allowedGridSize);
+
                 const sanitizedData = {
                     id: Date.now(),
                     timestamp: new Date().toISOString(),
@@ -190,24 +208,30 @@ const server = http.createServer((req, res) => {
                     kpm: Math.floor(gameData.kpm),
                     level: typeof gameData.level === 'number' ? Math.floor(gameData.level) : 0,
                     duration: typeof gameData.duration === 'number' ? Math.floor(gameData.duration) : 0,
-                    fingersUsed: gameData.fingersUsed || {}
+                    fingersUsed: gameData.fingersUsed && typeof gameData.fingersUsed === 'object' ? gameData.fingersUsed : {},
+                    difficulty: allowedDifficulty,
+                    gridSize: allowedGridSize
                 };
-                
+                console.log('[stats] POST sanitizedData:', { id: sanitizedData.id, name: sanitizedData.name, difficulty: sanitizedData.difficulty, gridSize: sanitizedData.gridSize });
+
                 stats.games.push(sanitizedData);
-                
-                // Keep only top 1000 games to prevent file from growing too large
+                console.log('[stats] POST after push:', stats.games.length, 'games');
+
                 stats.games.sort((a, b) => b.points - a.points);
                 stats.games = stats.games.slice(0, 1000);
-                
+
                 saveStats(stats);
-                
+
                 res.writeHead(201, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, id: sanitizedData.id }));
+                console.log('[stats] POST response 201, id:', sanitizedData.id);
             } catch (error) {
+                console.log('[stats] POST error:', error.message);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Invalid JSON' }));
             }
         }).catch(error => {
+            console.log('[stats] POST readBody error:', error.message);
             res.writeHead(413, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Request too large' }));
         });
@@ -215,7 +239,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Level API endpoints
-    if (req.url === '/api/levels' && req.method === 'GET') {
+    if (pathname === '/api/levels' && req.method === 'GET') {
         // Get all levels
         const levelsData = loadLevels();
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -224,7 +248,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Password verification endpoint
-    if (req.url === '/api/verify-password' && req.method === 'POST') {
+    if (pathname === '/api/verify-password' && req.method === 'POST') {
         readBody(req).then(body => {
             try {
                 const { password } = JSON.parse(body);
@@ -245,7 +269,7 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    if (req.url === '/api/levels' && req.method === 'POST') {
+    if (pathname === '/api/levels' && req.method === 'POST') {
         // Add new level
         readBody(req).then(body => {
             try {
@@ -308,8 +332,8 @@ const server = http.createServer((req, res) => {
     }
 
     // Delete level endpoint
-    if (req.url.startsWith('/api/levels/') && req.method === 'DELETE') {
-        const levelId = parseInt(req.url.split('/').pop());
+    if (pathname.startsWith('/api/levels/') && req.method === 'DELETE') {
+        const levelId = parseInt(pathname.split('/').pop(), 10);
         const levelsData = loadLevels();
         
         const index = levelsData.levels.findIndex(l => l.id === levelId);
@@ -328,7 +352,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Logs endpoint
-    if (req.url === '/api/logs' && req.method === 'POST') {
+    if (pathname === '/api/logs' && req.method === 'POST') {
         readBody(req, MAX_BODY_SIZE).then(body => {
             try {
                 let logData;
@@ -385,7 +409,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Serve static files with path traversal protection
-    let requestedPath = req.url === '/' ? 'index.html' : sanitizePath(req.url);
+    let requestedPath = pathname === '/' ? 'index.html' : sanitizePath(pathname);
     
     // Only allow specific file extensions
     const extname = path.extname(requestedPath).toLowerCase();

@@ -1,7 +1,14 @@
 // Game configuration
-const GRID_SIZE = 20;
-const CELL_SIZE = 20;
-let FPS = 4.65; // 25% slower than 6.2 FPS
+const LEVEL_EDITOR_GRID = 40; // levels always 40x40
+const DIFFICULTY_FPS = { simple: 4.65, medium: 6.05, hard: 11.8, ultra: 17.7 }; // ultra = 50% faster than hard
+const GRID_SIZE_OPTIONS = { small: 20, medium: 30, big: 40 }; // small 20x20, medium 30x30, big 40x40
+const GRID_SIZE_LABELS = { small: 'Klein (20×20)', medium: 'Mittel (30×30)', big: 'Groß (40×40)' };
+const DIFFICULTY_LABELS = { simple: 'Einfach', medium: 'Mittel', hard: 'Schwer', ultra: 'Ultra' };
+let GRID_SIZE = GRID_SIZE_OPTIONS.medium;
+let CELL_SIZE = 400 / GRID_SIZE;
+let FPS = DIFFICULTY_FPS.medium;
+let currentDifficulty = 'medium';
+let gridSizeOption = 'medium';
 let PRESSES_PER_CHANGE = 10;
 const MIN_SCORE_FOR_KEY_CHANGE = 3;
 
@@ -291,7 +298,9 @@ let counterUpElement, counterDownElement, counterLeftElement, counterRightElemen
 let virtualKeyboardElement;
 let overlayElement, overlayTitleElement, overlayMessageElement, restartButton;
 let overlayStatsElement, overlayStatsButton, nameInputSection, playerNameInput, saveHint;
-let statsModal, statsClose, statsTableBody;
+let statsModal, statsClose, statsTableBody, settingsModal, settingsClose, settingsDoneBtn;
+let lastFetchedStats = null;
+let statsActiveDifficulty = 'medium';
 let keyChangeModal, keyChangeDirection, keyChangeFingerName;
 let keyElements = {}; // Map of key characters to DOM elements
 
@@ -307,6 +316,9 @@ let levelDesignerModal, designerClose, levelNameInput, levelGrid;
 let toolBarrier, toolEraser, toolClear, saveLevelBtn, savedLevelsList;
 let levelChangeModal, levelChangeName, levelChangeNumber;
 let practiceModal, practiceKeysElement, practiceModalVisible = false;
+let practiceIntroElement, practiceMainElement, practicePunkteKeysElement;
+let practiceAwaitingPunkte = false; // True when user must type "punkte" to start exercise
+let practicePunkteTyped = []; // Track typed chars for "punkte" confirmation
 let practiceCombinations = [];
 let currentPracticeIndex = 0;
 let practiceTyped = [];
@@ -318,6 +330,7 @@ let practiceCorrectedKeys = new Set(); // Track keys that were wrong but correct
 let practiceDeletedWrongPositions = new Set(); // Track positions where wrong keys were deleted
 let practiceHadMistake = false; // Track if any mistake was ever made in current word
 let practiceKPMInterval = null;
+let practicePunkteAnimationInterval = null; // Cycling animation (same as verstandenKeys)
 
 // Track if current game stats have been saved
 let gameStatsSaved = false;
@@ -474,13 +487,16 @@ async function init() {
     overlayMessageElement = document.getElementById('overlayMessage');
     restartButton = document.getElementById('restartButton');
     overlayStatsElement = document.getElementById('overlayStats');
-    overlayStatsButton = document.getElementById('overlayStatsButton');
+    overlayStatsButton = document.getElementById('overlayStatsButton'); // optional: removed from start screen
     nameInputSection = document.getElementById('nameInputSection');
     playerNameInput = document.getElementById('playerNameInput');
     saveHint = document.getElementById('saveHint');
     statsModal = document.getElementById('statsModal');
     statsClose = document.getElementById('statsClose');
     statsTableBody = document.getElementById('statsTableBody');
+    settingsModal = document.getElementById('settingsModal');
+    settingsClose = document.getElementById('settingsClose');
+    settingsDoneBtn = document.getElementById('settingsDoneBtn');
     keyChangeModal = document.getElementById('keyChangeModal');
     keyChangeDirection = document.getElementById('keyChangeDirection');
     keyChangeFingerName = document.getElementById('keyChangeFingerName');
@@ -506,6 +522,9 @@ async function init() {
     levelChangeNumber = document.getElementById('levelChangeNumber');
     practiceModal = document.getElementById('practiceModal');
     practiceKeysElement = document.getElementById('practiceKeys');
+    practiceIntroElement = document.getElementById('practiceIntro');
+    practiceMainElement = document.getElementById('practiceMain');
+    practicePunkteKeysElement = document.getElementById('practicePunkteKeys');
 
     // Tutorial elements
     tutorialModal = document.getElementById('tutorialModal');
@@ -524,7 +543,49 @@ async function init() {
     renderKeyboard();
     updateCounters();
     resetGame();
-    
+
+    // Settings modal (toggles synced when opening in openSettingsModal)
+    if (settingsModal) {
+        if (settingsClose) settingsClose.addEventListener('click', closeSettingsModal);
+        if (settingsDoneBtn) settingsDoneBtn.addEventListener('click', function () {
+            applySettingsAndRestart();
+            closeSettingsModal();
+        });
+        // Toggle options: click selects one, apply only on "Speichern und Neustart"
+        document.querySelectorAll('#settingsDifficultyGroup .settings-toggle-option').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('#settingsDifficultyGroup .settings-toggle-option').forEach(function (b) {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-pressed', 'false');
+                });
+                this.classList.add('active');
+                this.setAttribute('aria-pressed', 'true');
+            });
+        });
+        document.querySelectorAll('#settingsGridSizeGroup .settings-toggle-option').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('#settingsGridSizeGroup .settings-toggle-option').forEach(function (b) {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-pressed', 'false');
+                });
+                this.classList.add('active');
+                this.setAttribute('aria-pressed', 'true');
+            });
+        });
+    }
+
+    // Stats difficulty tabs
+    document.querySelectorAll('.stats-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            statsActiveDifficulty = this.getAttribute('data-difficulty');
+            document.querySelectorAll('.stats-tab').forEach(function (b) {
+                b.classList.toggle('active', b.getAttribute('data-difficulty') === statsActiveDifficulty);
+                b.setAttribute('aria-selected', b.getAttribute('data-difficulty') === statsActiveDifficulty);
+            });
+            if (lastFetchedStats) renderStatisticsTable(lastFetchedStats, statsActiveDifficulty);
+        });
+    });
+
     // Update debug menu after levels are loaded
     updateDebugMenu();
     
@@ -533,6 +594,7 @@ async function init() {
     restartButton.addEventListener('click', async () => {
         // If game over screen is showing, save statistics first
         if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
+            console.log('[stats] Restart button: saving statistics', { lastGameScore, lastGameKPM, currentDifficulty, gridSizeOption });
             // Get name from input field in the table
             const nameInput = document.querySelector('.game-over-name-input');
             if (nameInput) {
@@ -553,7 +615,7 @@ async function init() {
         }
         startGame();
     });
-    overlayStatsButton.addEventListener('click', openStatsModal);
+    if (overlayStatsButton) overlayStatsButton.addEventListener('click', openStatsModal);
     document.addEventListener('menu-open-stats', openStatsModal);
     document.addEventListener('menu-open-admin', openLoginModal);
     document.addEventListener('menu-restart', () => startGame());
@@ -739,6 +801,9 @@ function handleHashNavigation() {
         case 'bestenliste':
             openStatsModal();
             break;
+        case 'einstellungen':
+            openSettingsModal();
+            break;
         case 'admin':
             openLoginModal();
             break;
@@ -753,10 +818,11 @@ function handleHashNavigation() {
 
 // Reset game state
 function resetGame() {
+    const c = Math.floor(GRID_SIZE / 2);
     snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: c, y: c },
+        { x: c - 1, y: c },
+        { x: c - 2, y: c }
     ];
     direction = { x: 1, y: 0 };
     nextDirection = { x: 1, y: 0 };
@@ -841,8 +907,9 @@ const LOG_BUFFER_SIZE = 50; // Send logs in batches
 async function startGame() {
     // Save statistics from previous game if not saved yet
     if (!gameStatsSaved && lastGameScore > 0) {
-        await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage);
-        gameStatsSaved = true;
+        console.log('[stats] startGame: saving previous game statistics', { lastGameScore, lastGameKPM, currentDifficulty, gridSizeOption });
+        const saved = await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage);
+        if (saved) gameStatsSaved = true;
     }
     
     resetGame();
@@ -902,7 +969,7 @@ function gameOver() {
     showOverlay('Game Over!', `Punkte: ${score}`, true, lastGameKPM);
 }
 
-// Submit statistics to server
+// Submit statistics to server. Returns true if saved successfully.
 async function submitStatistics(kpm, gameScore, gameFingersUsed) {
     const name = playerName || 'Anonym';
     
@@ -912,54 +979,78 @@ async function submitStatistics(kpm, gameScore, gameFingersUsed) {
         kpm: kpm,
         level: maxLevelReached,
         fingersUsed: gameFingersUsed,
-        duration: Math.round((Date.now() - gameStartTime) / 1000)
+        duration: Math.round((Date.now() - gameStartTime) / 1000),
+        difficulty: currentDifficulty,
+        gridSize: gridSizeOption
     };
     
+    console.log('[stats] submitStatistics called', { gameData: gameData, url: window.location.origin + '/api/statistics' });
     try {
         const response = await fetch('/api/statistics', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(gameData)
         });
+        const responseText = await response.text();
+        console.log('[stats] POST /api/statistics response', { status: response.status, ok: response.ok, body: responseText });
         if (response.ok) {
-            console.log('Statistics saved successfully');
+            console.log('[stats] Statistics saved successfully');
+            return true;
         }
+        console.error('[stats] Failed to submit statistics:', response.status, responseText);
+        return false;
     } catch (error) {
-        console.error('Failed to submit statistics:', error);
+        console.error('[stats] Failed to submit statistics (network/error):', error);
+        return false;
     }
 }
 
 // Fetch statistics from server
 async function fetchStatistics() {
+    console.log('[stats] fetchStatistics called', { url: window.location.origin + '/api/statistics' });
     try {
         const response = await fetch('/api/statistics');
-        return await response.json();
+        const text = await response.text();
+        console.log('[stats] GET /api/statistics response', { status: response.status, bodyLength: text.length });
+        const data = text ? JSON.parse(text) : [];
+        const games = Array.isArray(data) ? data : (data && data.games ? data.games : []);
+        console.log('[stats] fetchStatistics result', { gamesCount: games.length, sample: games[0] ? { id: games[0].id, name: games[0].name, difficulty: games[0].difficulty, gridSize: games[0].gridSize } : null });
+        return data;
     } catch (error) {
-        console.error('Failed to fetch statistics:', error);
+        console.error('[stats] Failed to fetch statistics:', error);
         return [];
     }
 }
 
-// Render statistics table
-function renderStatisticsTable(stats) {
-    if (!stats || stats.length === 0) {
-        statsTableBody.innerHTML = '<tr><td colspan="6" class="no-stats">Noch keine Statistiken vorhanden</td></tr>';
+// Render statistics table (filtered by difficulty)
+function renderStatisticsTable(stats, difficultyFilter) {
+    const filter = difficultyFilter || statsActiveDifficulty;
+    const list = stats || [];
+    const filtered = list.filter(function (g) {
+        const d = g.difficulty || 'medium';
+        return d === filter;
+    });
+    filtered.sort(function (a, b) { return (b.points || 0) - (a.points || 0); });
+    console.log('[stats] renderStatisticsTable', { statsCount: list.length, filter: filter, filteredCount: filtered.length });
+
+    if (filtered.length === 0) {
+        statsTableBody.innerHTML = '<tr><td colspan="7" class="no-stats">Noch keine Statistiken für diese Schwierigkeit</td></tr>';
         return;
     }
-    
-    statsTableBody.innerHTML = stats.map((game, index) => {
+
+    statsTableBody.innerHTML = filtered.map(function (game, index) {
         const fingerDots = renderFingerDots(game.fingersUsed);
-        const levelDisplay = game.level ? `Level ${game.level}` : '-';
-        return `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${escapeHtml(game.name)}</td>
-                <td>${game.points}</td>
-                <td>${levelDisplay}</td>
-                <td>${game.kpm}</td>
-                <td>${fingerDots}</td>
-            </tr>
-        `;
+        const levelDisplay = game.level ? 'Level ' + game.level : '-';
+        const gridLabel = game.gridSize ? (GRID_SIZE_LABELS[game.gridSize] || game.gridSize) : '-';
+        return '<tr>' +
+            '<td>' + (index + 1) + '</td>' +
+            '<td>' + escapeHtml(game.name) + '</td>' +
+            '<td>' + game.points + '</td>' +
+            '<td>' + levelDisplay + '</td>' +
+            '<td>' + game.kpm + '</td>' +
+            '<td>' + escapeHtml(gridLabel) + '</td>' +
+            '<td>' + fingerDots + '</td>' +
+            '</tr>';
     }).join('');
 }
 
@@ -992,17 +1083,24 @@ function escapeHtml(text) {
 async function openStatsModal() {
     statsModal.classList.add('visible');
     window.location.hash = 'statistics';
-    statsTableBody.innerHTML = '<tr><td colspan="5">Lade Statistiken...</td></tr>';
-    
-    // Pause the game if it's running and not already paused
+    statsActiveDifficulty = currentDifficulty;
+    document.querySelectorAll('.stats-tab').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-difficulty') === statsActiveDifficulty);
+        b.setAttribute('aria-selected', b.getAttribute('data-difficulty') === statsActiveDifficulty);
+    });
+    statsTableBody.innerHTML = '<tr><td colspan="7">Lade Statistiken...</td></tr>';
+
     if (gameRunning && !gamePaused) {
         gamePaused = true;
         pausedByStatsModal = true;
         if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
     }
-    
+
+    console.log('[stats] openStatsModal: fetching statistics');
     const stats = await fetchStatistics();
-    renderStatisticsTable(stats);
+    lastFetchedStats = Array.isArray(stats) ? stats : (stats && stats.games ? stats.games : []);
+    console.log('[stats] openStatsModal: got', lastFetchedStats.length, 'games, rendering with difficulty', statsActiveDifficulty);
+    renderStatisticsTable(lastFetchedStats, statsActiveDifficulty);
 }
 
 // Close statistics modal
@@ -1020,6 +1118,32 @@ function closeStatsModal() {
         lastUpdate = Date.now();
         gameLoop = requestAnimationFrame(update);
         kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    }
+}
+
+// Open settings modal (sync toggle selection to current settings)
+function openSettingsModal() {
+    if (!settingsModal) return;
+    document.querySelectorAll('#settingsDifficultyGroup .settings-toggle-option').forEach(function (b) {
+        var isActive = b.getAttribute('data-value') === currentDifficulty;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', isActive);
+    });
+    document.querySelectorAll('#settingsGridSizeGroup .settings-toggle-option').forEach(function (b) {
+        var isActive = b.getAttribute('data-value') === gridSizeOption;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', isActive);
+    });
+    settingsModal.classList.add('visible');
+    window.location.hash = 'einstellungen';
+}
+
+// Close settings modal
+function closeSettingsModal() {
+    if (!settingsModal) return;
+    settingsModal.classList.remove('visible');
+    if (window.location.hash === '#einstellungen') {
+        window.location.hash = '';
     }
 }
 
@@ -1069,7 +1193,10 @@ async function showOverlay(title, message, showStats = false, kpm = 0) {
     if (showStats && score > 0) {
         nameInputSection.classList.remove('visible'); // Hide the old name input section
         // Fetch statistics and render table with new score
+        console.log('[stats] Game over overlay: fetching statistics for table');
         const stats = await fetchStatistics();
+        const statsList = Array.isArray(stats) ? stats : (stats && stats.games ? stats.games : []);
+        console.log('[stats] Game over overlay: got', statsList.length, 'games, rendering table');
         overlayStatsElement.innerHTML = renderGameOverStatsTable(stats, kpm);
         
         // Set up event listener for the name input in the table
@@ -1098,68 +1225,55 @@ async function showOverlay(title, message, showStats = false, kpm = 0) {
     }
 }
 
-// Render game over statistics table with new score inserted
+// Render game over statistics table with new score inserted (filtered by current difficulty)
 function renderGameOverStatsTable(stats, kpm) {
-    // Create new score entry
     const newScore = {
         name: playerName || 'Anonym',
         points: score,
         kpm: kpm,
         level: maxLevelReached,
         fingersUsed: lastGameFingerUsage,
+        difficulty: currentDifficulty,
+        gridSize: gridSizeOption,
         isNew: true
     };
-    
-    // Combine existing stats with new score and sort by points descending
-    const allStats = [...stats, newScore].sort((a, b) => b.points - a.points);
-    
-    // Find position of new score
-    const newScoreIndex = allStats.findIndex(s => s.isNew);
-    
-    // Show top 10 entries, but always include the new score if it's not in top 10
+
+    const sameDifficulty = (stats || []).filter(function (g) {
+        return (g.difficulty || 'medium') === currentDifficulty;
+    });
+    const allStats = sameDifficulty.concat([newScore]).sort(function (a, b) { return b.points - a.points; });
+    const newScoreIndex = allStats.findIndex(function (s) { return s.isNew; });
+
     let displayStats = allStats.slice(0, 10);
     if (newScoreIndex >= 10) {
-        // Replace last entry with new score if it's not in top 10
-        displayStats = [...allStats.slice(0, 9), newScore];
+        displayStats = allStats.slice(0, 9).concat([newScore]);
     }
-    
-    // Get saved name for placeholder
+
     const savedName = localStorage.getItem('qwertzsnake_name') || '';
     const placeholderName = savedName || 'Anonym';
-    
-    let html = `
-        <div class="game-over-stats-container">
-            <table class="game-over-stats-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Punkte</th>
-                        <th>Level</th>
-                        <th>T/Min</th>
-                        <th>Finger</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    displayStats.forEach((game) => {
+
+    let html = '<div class="game-over-stats-container">' +
+        '<table class="game-over-stats-table">' +
+        '<thead><tr>' +
+        '<th>#</th><th>Name</th><th>Punkte</th><th>Level</th><th>T/Min</th><th>Spielfeld</th><th>Finger</th>' +
+        '</tr></thead><tbody>';
+
+    displayStats.forEach(function (game) {
         const actualIndex = allStats.indexOf(game);
         const fingerDots = game.isNew ? renderFingerDots(newScore.fingersUsed) : renderFingerDots(game.fingersUsed);
-        const levelDisplay = game.level ? `Level ${game.level}` : '-';
+        const levelDisplay = game.level ? 'Level ' + game.level : '-';
+        const gridLabel = game.gridSize ? (GRID_SIZE_LABELS[game.gridSize] || game.gridSize) : '-';
         const isNewRow = game.isNew;
         const rowClass = isNewRow ? 'new-score-row blinking' : '';
-        
-        html += `
-            <tr class="${rowClass}">
-                <td>${actualIndex + 1}</td>
-                <td>${isNewRow ? `<input type="text" class="game-over-name-input" placeholder="${placeholderName}" value="${playerName || ''}" maxlength="20">` : escapeHtml(game.name)}</td>
-                <td>${game.points}</td>
-                <td>${levelDisplay}</td>
-                <td>${game.kpm}</td>
-                <td>${fingerDots}</td>
-            </tr>
-        `;
+        html += '<tr class="' + rowClass + '">' +
+            '<td>' + (actualIndex + 1) + '</td>' +
+            '<td>' + (isNewRow ? '<input type="text" class="game-over-name-input" placeholder="' + placeholderName + '" value="' + (playerName || '') + '" maxlength="20">' : escapeHtml(game.name)) + '</td>' +
+            '<td>' + game.points + '</td>' +
+            '<td>' + levelDisplay + '</td>' +
+            '<td>' + game.kpm + '</td>' +
+            '<td>' + escapeHtml(gridLabel) + '</td>' +
+            '<td>' + fingerDots + '</td>' +
+            '</tr>';
     });
     
     html += `
@@ -1473,9 +1587,15 @@ function draw() {
         ctx.fillRect(barrier.x * CELL_SIZE + 4, barrier.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
     });
 
-    // Draw food
+    // Draw food (classic 4/9 N,E,S,W for all modes)
+    const cx = food.x * CELL_SIZE;
+    const cy = food.y * CELL_SIZE;
+    const third = CELL_SIZE / 3;
     ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(food.x * CELL_SIZE + 2, food.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+    ctx.fillRect(cx + third, cy, third, third);           // North
+    ctx.fillRect(cx + third * 2, cy + third, third, third); // East
+    ctx.fillRect(cx + third, cy + third * 2, third, third); // South
+    ctx.fillRect(cx, cy + third, third, third);           // West
 
     // Draw snake
     snake.forEach((segment, index) => {
@@ -2229,15 +2349,15 @@ function getLevelForScore(score) {
     return availableLevels[levelIndex];
 }
 
-// Check for level change based on points in current level
+// Check for level change based on points in current level.
+// Only called when eating food; practice points do not count (pointsInCurrentLevel = game points per level).
 function checkLevelChange(oldScore, newScore) {
     if (availableLevels.length === 0) return;
     
-    // Points earned this update (could be from game or practice)
     const pointsEarned = newScore - oldScore;
     pointsInCurrentLevel += pointsEarned;
     
-    // Check if we've collected 10 points in the current level
+    // Check if we've collected 10 points in the current level (from snake game only)
     if (pointsInCurrentLevel >= 10 && currentLevelIndex < availableLevels.length) {
         const newLevelIndex = currentLevelIndex + 1;
         const newLevel = availableLevels[newLevelIndex - 1]; // -1 because array is 0-indexed
@@ -2281,23 +2401,24 @@ function checkLevelChange(oldScore, newScore) {
     }
 }
 
-// Apply level barriers and reset snake
+// Apply level barriers and reset snake (levels are 40x40; filter to current grid)
 function applyLevel(level) {
     if (level && level.barriers) {
-        barriers = level.barriers;
+        barriers = level.barriers.filter(b => b.x < GRID_SIZE && b.y < GRID_SIZE);
     } else {
         barriers = [];
     }
     
     // Reset snake to starting size and position
+    const c = Math.floor(GRID_SIZE / 2);
     snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: c, y: c },
+        { x: c - 1, y: c },
+        { x: c - 2, y: c }
     ];
     direction = { x: 1, y: 0 };
     nextDirection = { x: 1, y: 0 };
-    
+
     // Spawn new food avoiding barriers and snake
     spawnFood();
 }
@@ -2399,7 +2520,14 @@ function showPracticeMode() {
     practiceDeletedWrongPositions.clear();
     practiceHadMistake = false;
     
-    // Update progress and stats
+    // Show "Level geschafft" intro: user must type "punkte" to start (same UI/function as tutorial)
+    practiceAwaitingPunkte = true;
+    practicePunkteTyped = [];
+    if (practiceIntroElement) practiceIntroElement.style.display = 'block';
+    if (practiceMainElement) practiceMainElement.classList.remove('visible');
+    renderPracticePunkteKeys();
+    
+    // Update progress and stats (for when main practice is shown)
     document.getElementById('practiceProgress').textContent = '1';
     document.getElementById('practiceTotal').textContent = practiceCombinations.length;
     document.getElementById('practicePoints').textContent = '0';
@@ -2409,11 +2537,107 @@ function showPracticeMode() {
     practiceModal.classList.add('visible');
     practiceModalVisible = true;
     
-    // Start practice with first combination
-    startPracticeCombination();
-    
-    // Start KPM update interval
+    // Start KPM update interval (will be used once main practice starts)
     practiceKPMInterval = setInterval(updatePracticeKPM, 500);
+}
+
+// Render "PUNKTE" keys for intro (same structure, classes and animation as tutorial #verstandenKeys)
+function renderPracticePunkteKeys() {
+    if (!practicePunkteKeysElement) return;
+    const keys = ['P', 'U', 'N', 'K', 'T', 'E'];
+    practicePunkteKeysElement.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    animatePracticePunkteKeys();
+}
+
+// Animate PUNKTE keys (same as animateVerstandenKeys: cycle active key, pause on last, then repeat)
+function animatePracticePunkteKeys() {
+    if (practicePunkteAnimationInterval) {
+        clearInterval(practicePunkteAnimationInterval);
+        practicePunkteAnimationInterval = null;
+    }
+    practicePunkteTyped = [];
+    if (!practicePunkteKeysElement) return;
+    const keys = ['P', 'U', 'N', 'K', 'T', 'E'];
+    let currentKeyIndex = 0;
+    const keyElements = practicePunkteKeysElement.querySelectorAll('.home-row-key-animate');
+    function animateCycle() {
+        if (practicePunkteTyped.length === 0) {
+            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            keyElements.forEach(el => {
+                el.classList.remove('active', 'pausing');
+            });
+            if (keyElements[currentKeyIndex]) {
+                keyElements[currentKeyIndex].classList.add('active');
+            }
+            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            if (aboutToShowLastKey) return true;
+        }
+        return false;
+    }
+    function startPauseAnimation() {
+        const lastKeyIndex = keys.length - 1;
+        if (keyElements[lastKeyIndex]) keyElements[lastKeyIndex].classList.add('pausing');
+    }
+    function stopPauseAnimation() {
+        keyElements.forEach(el => el.classList.remove('pausing'));
+    }
+    if (keyElements[0]) keyElements[0].classList.add('active');
+    let cyclePaused = false;
+    let pauseEndTime = 0;
+    practicePunkteAnimationInterval = setInterval(() => {
+        if (!practiceModalVisible || !practiceAwaitingPunkte) {
+            if (practicePunkteAnimationInterval) {
+                clearInterval(practicePunkteAnimationInterval);
+                practicePunkteAnimationInterval = null;
+            }
+            return;
+        }
+        if (practicePunkteTyped.length === 0) {
+            if (cyclePaused) {
+                if (Date.now() >= pauseEndTime) {
+                    stopPauseAnimation();
+                    cyclePaused = false;
+                    animateCycle();
+                }
+            } else {
+                const shouldPause = animateCycle();
+                if (shouldPause) {
+                    cyclePaused = true;
+                    pauseEndTime = Date.now() + 2000;
+                    startPauseAnimation();
+                }
+            }
+        }
+    }, 400);
+}
+
+// Update "PUNKTE" checkmarks and active key (same design/animations as tutorial)
+function updatePracticePunkteKeys() {
+    if (!practicePunkteKeysElement) return;
+    const checkmarks = practicePunkteKeysElement.querySelectorAll('.home-row-checkmark');
+    const keyElements = practicePunkteKeysElement.querySelectorAll('.home-row-key-animate');
+    checkmarks.forEach((checkmark, index) => {
+        if (index < practicePunkteTyped.length) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
+    // Highlight next expected key (same as tutorial: active = keyPulse animation)
+    keyElements.forEach((el, index) => {
+        if (index === practicePunkteTyped.length) {
+            el.classList.add('active');
+        } else {
+            el.classList.remove('active');
+        }
+    });
 }
 
 // Start practicing a combination
@@ -2467,7 +2691,7 @@ function renderPracticeKeys(combination) {
             return `<span class="home-row-key-wrapper">
                 <span class="home-row-key-animate keyboard-space" data-key=" " data-index="${index}">SPACE</span>
                 <span class="home-row-checkmark" data-index="${index}">✓</span>
-                <span class="home-row-corrected-mark" data-index="${index}">✕</span>
+                <span class="home-row-corrected-mark" data-index="${index}">✓</span>
                 <span class="home-row-wrong-mark" data-index="${index}">✕</span>
             </span>`;
         }
@@ -2475,7 +2699,7 @@ function renderPracticeKeys(combination) {
         return `<span class="home-row-key-wrapper">
             <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${keyUpper}</span>
             <span class="home-row-checkmark" data-index="${index}">✓</span>
-            <span class="home-row-corrected-mark" data-index="${index}">✕</span>
+            <span class="home-row-corrected-mark" data-index="${index}">✓</span>
             <span class="home-row-wrong-mark" data-index="${index}">✕</span>
         </span>`;
     }).join('');
@@ -2542,13 +2766,18 @@ function updatePracticeKeys() {
 
 // Handle practice mode backspace/delete
 function handlePracticeBackspace() {
-    if (!practiceModalVisible || currentPracticeIndex >= practiceCombinations.length) {
-        return false;
+    if (!practiceModalVisible) return false;
+    
+    // Intro: type "punkte" to start
+    if (practiceAwaitingPunkte) {
+        if (practicePunkteTyped.length === 0) return false;
+        practicePunkteTyped.pop();
+        updatePracticePunkteKeys();
+        return true;
     }
     
-    if (practiceTyped.length === 0) {
-        return false; // Nothing to delete
-    }
+    if (currentPracticeIndex >= practiceCombinations.length) return false;
+    if (practiceTyped.length === 0) return false;
     
     // Track keystroke (also count in main game for statistics)
     practiceKeystrokes++;
@@ -2579,9 +2808,31 @@ function handlePracticeBackspace() {
 
 // Handle practice mode key input
 function handlePracticeKey(key, event) {
-    if (!practiceModalVisible || currentPracticeIndex >= practiceCombinations.length) {
+    if (!practiceModalVisible) return false;
+    
+    // Intro: type "punkte" to start (same as tutorial confirmation)
+    if (practiceAwaitingPunkte) {
+        const normalizedKey = (key === ' ' || (event && event.code === 'Space')) ? ' ' : key.toLowerCase();
+        const expected = 'punkte'[practicePunkteTyped.length];
+        if (normalizedKey === expected) {
+            practicePunkteTyped.push(normalizedKey);
+            updatePracticePunkteKeys();
+            if (practicePunkteTyped.length >= 6) {
+                practiceAwaitingPunkte = false;
+                if (practicePunkteAnimationInterval) {
+                    clearInterval(practicePunkteAnimationInterval);
+                    practicePunkteAnimationInterval = null;
+                }
+                if (practiceIntroElement) practiceIntroElement.style.display = 'none';
+                if (practiceMainElement) practiceMainElement.classList.add('visible'); /* same fadeIn as tutorial "next page" */
+                startPracticeCombination();
+            }
+            return true;
+        }
         return false;
     }
+    
+    if (currentPracticeIndex >= practiceCombinations.length) return false;
     
     const combination = practiceCombinations[currentPracticeIndex];
     const expectedChar = combination[practiceTyped.length];
@@ -2633,13 +2884,13 @@ function handlePracticeKey(key, event) {
                 practicePoints += 1;
                 document.getElementById('practicePoints').textContent = practicePoints;
                 
-                // Add practice points to main game score
-                const oldScore = score;
+                // Add practice points to main game score (overall points)
                 score += 1;
                 scoreElement.textContent = score;
                 
-                // Check for level change (points in current level are tracked in checkLevelChange)
-                checkLevelChange(oldScore, score);
+                // Do NOT call checkLevelChange here: only points from the snake game (eating food)
+                // count toward the 10 points needed per level. pointsInCurrentLevel is only
+                // updated when eating food, so the level advances only after 10 game points.
             }
             
             // Update progress
@@ -2674,7 +2925,10 @@ function hidePracticeMode() {
     practiceModal.classList.remove('visible');
     practiceModalVisible = false;
     
-    // Clear KPM interval
+    if (practicePunkteAnimationInterval) {
+        clearInterval(practicePunkteAnimationInterval);
+        practicePunkteAnimationInterval = null;
+    }
     if (practiceKPMInterval) {
         clearInterval(practiceKPMInterval);
         practiceKPMInterval = null;
@@ -2815,11 +3069,11 @@ function setDesignerTool(tool) {
 function renderLevelGrid() {
     levelGrid.innerHTML = '';
     
-    // Define spawn zone (only the 3 cells where snake starts: x 8-10, y 10)
-    const spawnZone = ['8,10', '9,10', '10,10'];
+    // Level editor always 40x40; spawn zone center of 40x40
+    const spawnZone = ['18,20', '19,20', '20,20'];
     
-    for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
+    for (let y = 0; y < LEVEL_EDITOR_GRID; y++) {
+        for (let x = 0; x < LEVEL_EDITOR_GRID; x++) {
             const cell = document.createElement('div');
             cell.className = 'level-cell';
             cell.dataset.x = x;
@@ -2872,7 +3126,7 @@ function handleCellClick(x, y, isSpawnZone) {
 
 function updateGridCell(x, y) {
     const cells = levelGrid.querySelectorAll('.level-cell');
-    const index = y * GRID_SIZE + x;
+    const index = y * LEVEL_EDITOR_GRID + x;
     const cell = cells[index];
     
     if (cell && !cell.classList.contains('spawn-zone')) {
@@ -4479,6 +4733,40 @@ function simulateGameEndWithRandomData() {
     } else {
         // If game is running, just trigger game over normally
         gameOver();
+    }
+}
+
+// Apply difficulty (simple / medium / hard) – speed only
+function applyDifficulty(mode) {
+    if (DIFFICULTY_FPS[mode] != null) {
+        FPS = DIFFICULTY_FPS[mode];
+        currentDifficulty = mode;
+        const debugSpeedInput = document.getElementById('debugSpeed');
+        if (debugSpeedInput) debugSpeedInput.value = FPS;
+    }
+}
+
+// Apply grid size (small / medium / big)
+function applyGridSize(option) {
+    if (GRID_SIZE_OPTIONS[option] != null) {
+        GRID_SIZE = GRID_SIZE_OPTIONS[option];
+        CELL_SIZE = 400 / GRID_SIZE;
+        gridSizeOption = option;
+    }
+}
+
+// Apply settings and restart game (call after clicking Speichern und Neustart)
+function applySettingsAndRestart() {
+    const diffActive = document.querySelector('#settingsDifficultyGroup .settings-toggle-option.active');
+    const gridActive = document.querySelector('#settingsGridSizeGroup .settings-toggle-option.active');
+    if (diffActive) applyDifficulty(diffActive.getAttribute('data-value'));
+    if (gridActive) applyGridSize(gridActive.getAttribute('data-value'));
+    resetGame();
+    if (gameRunning) {
+        gameRunning = false;
+        if (gameLoop) cancelAnimationFrame(gameLoop);
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+        showOverlay('qwertZnake', '', false);
     }
 }
 

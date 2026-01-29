@@ -215,6 +215,34 @@ body {
     font-size: 0.9em;
 }
 
+.menu-difficulty {
+    padding: 10px 20px;
+}
+
+.menu-difficulty .menu-label {
+    display: block;
+    padding: 0 0 6px 0;
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+.menu-difficulty-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.menu-difficulty-select:hover,
+.menu-difficulty-select:focus {
+    border-color: #666;
+    outline: none;
+}
+
 .menu-burger {
     display: none;
     flex-direction: column;
@@ -591,11 +619,29 @@ h1 {
     z-index: 1000;
 }
 
+.overlay-settings-link {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 1.4em;
+    color: #888;
+    text-decoration: none;
+    z-index: 10;
+    padding: 6px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.overlay-settings-link:hover {
+    color: #fff;
+}
+
 .game-overlay.hidden {
     display: none;
 }
 
 .overlay-content {
+    position: relative;
     background: white;
     border-radius: 20px;
     padding: 40px;
@@ -1143,6 +1189,171 @@ h1 {
     color: #999;
 }
 
+/* Settings Modal */
+.settings-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.settings-modal.visible {
+    display: flex;
+    animation: settingsFadeIn 0.25s ease;
+}
+
+@keyframes settingsFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.settings-modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 480px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: settingsSlideIn 0.3s ease;
+}
+
+@keyframes settingsSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.settings-modal-content .settings-title {
+    color: #888;
+    font-size: 1.8em;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.settings-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.settings-close:hover {
+    color: #888;
+    transform: scale(1.1);
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-bottom: 24px;
+}
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-field-label {
+    font-size: 0.95em;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Toggle selector (pill / segmented control) */
+.settings-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #f0f0f0;
+    padding: 6px;
+    border-radius: 14px;
+    border: 2px solid #e0e0e0;
+}
+
+.settings-toggle-option {
+    flex: 1;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #666;
+    font-size: 0.95em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.settings-toggle-option:hover {
+    background: rgba(136, 136, 136, 0.15);
+    color: #555;
+    transform: translateY(-1px);
+}
+
+.settings-toggle-option.active {
+    background: #32cd32;
+    color: white;
+    box-shadow: 0 2px 8px rgba(50, 205, 50, 0.4);
+    transform: translateY(-1px);
+}
+
+.settings-toggle-option:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.settings-icon {
+    font-size: 1.15em;
+    line-height: 1;
+}
+
+.settings-done-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: #32cd32;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.settings-done-btn:hover {
+    background: #28a428;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(50, 205, 50, 0.4);
+}
+
+.settings-done-btn:active {
+    transform: translateY(0);
+}
+
 /* Statistics Modal */
 .stats-modal {
     position: fixed;
@@ -1197,6 +1408,35 @@ h1 {
 
 .stats-close:hover {
     color: #888;
+}
+
+.stats-difficulty-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.stats-tab {
+    padding: 8px 16px;
+    border: 2px solid #ddd;
+    background: #f5f5f5;
+    color: #666;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: all 0.2s;
+}
+
+.stats-tab:hover {
+    border-color: #888;
+    color: #888;
+}
+
+.stats-tab.active {
+    border-color: #32cd32;
+    background: rgba(50, 205, 50, 0.15);
+    color: #333;
 }
 
 .stats-legend {
@@ -1947,8 +2187,8 @@ h1 {
 
 .level-grid {
     display: grid;
-    grid-template-columns: repeat(20, 20px);
-    grid-template-rows: repeat(20, 20px);
+    grid-template-columns: repeat(40, 10px);
+    grid-template-rows: repeat(40, 10px);
     gap: 1px;
     background: #333;
     border-radius: 8px;
@@ -1957,8 +2197,8 @@ h1 {
 }
 
 .level-cell {
-    width: 20px;
-    height: 20px;
+    width: 10px;
+    height: 10px;
     background: #2d2d4a;
     cursor: pointer;
     transition: background 0.15s;
@@ -2218,51 +2458,38 @@ h1 {
     display: inline-flex;
 }
 
-/* Practice Modal */
+/* Practice Modal – same style as tutorial / level-beendet (writing challenge convention) */
 .practice-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(0, 0, 0, 0.85);
     display: none;
     justify-content: center;
     align-items: center;
     z-index: 5000;
+    padding: 20px;
 }
 
 .practice-modal.visible {
     display: flex;
-    animation: levelModalFadeIn 0.4s ease-out;
 }
 
 .practice-modal-content {
-    background: linear-gradient(145deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-    border-radius: 30px;
-    padding: 50px 70px;
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
     text-align: center;
     position: relative;
-    box-shadow: 
-        0 0 80px rgba(50, 205, 50, 0.5),
-        0 0 120px rgba(102, 126, 234, 0.3);
-    border: 4px solid transparent;
-    background-clip: padding-box;
-    animation: levelContentPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    overflow: hidden;
-    max-width: 900px;
-    width: 90%;
-}
-
-.practice-modal-content::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 34px;
-    background: linear-gradient(45deg, #32cd32, #888, #ffd700, #32cd32);
-    background-size: 400% 400%;
-    z-index: -1;
-    animation: borderGlow 2s ease infinite;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .practice-header {
@@ -2275,16 +2502,10 @@ h1 {
 }
 
 .practice-title {
-    font-size: 2.2em;
-    font-weight: 900;
-    color: transparent;
-    background: linear-gradient(90deg, #32cd32, #ffd700, #888, #32cd32);
-    background-size: 200% auto;
-    background-clip: text;
-    -webkit-background-clip: text;
-    animation: textShimmer 1.5s linear infinite;
-    text-shadow: 0 0 40px rgba(50, 205, 50, 0.5);
-    letter-spacing: 3px;
+    font-size: 1.5em;
+    font-weight: 700;
+    color: #333;
+    letter-spacing: 0.5px;
     margin: 0;
 }
 
@@ -2292,8 +2513,8 @@ h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1.1em;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 1em;
+    color: #555;
 }
 
 .practice-stat-item {
@@ -2301,34 +2522,91 @@ h1 {
 }
 
 .practice-stat-item span {
-    color: #32cd32;
+    color: #2e7d32;
     font-weight: 700;
 }
 
 .practice-stat-divider {
-    color: rgba(255, 255, 255, 0.5);
+    color: #999;
 }
 
 .practice-instruction {
-    font-size: 1.2em;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 40px;
+    font-size: 1em;
+    color: #555;
+    margin-bottom: 24px;
+}
+
+/* Practice intro: same design and animations as tutorial #verstandenKeys (step 4) */
+.practice-intro {
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Match tutorial step 4 key area: light background like .tutorial-step-content */
+.practice-intro .home-row-instruction {
+    background: #f8f9fa;
+    padding: 30px;
+    border-radius: 12px;
+    margin: 20px 0;
+    color: #555;
+}
+
+.practice-intro .home-row-instruction .instruction-text {
+    color: #666;
+}
+
+/* Same .home-row-keys layout as #verstandenKeys */
+.practice-intro .home-row-keys {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    flex-wrap: wrap;
+}
+
+.practice-intro-message {
+    font-size: 1em;
+    color: #555;
+    line-height: 1.6;
+    max-width: 520px;
+    margin: 0 auto 30px;
+}
+
+.practice-intro .instruction-text {
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 500;
 }
 
 .practice-modal .home-row-instruction {
     margin: 40px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Practice main: same fadeIn as tutorial "next page" when transitioning from intro */
+.practice-main {
+    display: none;
+}
+
+.practice-main.visible {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
 }
 
 .practice-progress {
-    font-size: 1.2em;
-    color: rgba(255, 255, 255, 0.8);
-    margin-top: 30px;
+    font-size: 1em;
+    color: #555;
+    margin-top: 24px;
     font-weight: 600;
 }
 
 .practice-progress span:first-child {
-    color: #32cd32;
-    font-size: 1.3em;
+    color: #2e7d32;
+    font-size: 1.1em;
 }
 
 /* Tutorial Modal */
@@ -2720,7 +2998,7 @@ h1 {
     }
 }
 
-/* Corrected mark (yellow/orange cross for wrong but corrected keys) */
+/* Corrected mark (yellow check mark for wrong but corrected keys) */
 .home-row-corrected-mark {
     position: absolute;
     top: -8px;
@@ -2731,15 +3009,15 @@ h1 {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #ff8c00;
-    color: white;
+    background: #ffd700;
+    color: #333;
     font-size: 12px;
     font-weight: 700;
     opacity: 0;
     transform: scale(0);
     transition: all 0.3s ease;
     z-index: 11;
-    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.4);
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.4);
     line-height: 1;
 }
 

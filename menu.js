@@ -16,10 +16,11 @@
 <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Menü schließen">&times;</button>
 <ul class="sidebar-nav">
   <li><a href="#bestenliste" class="menu-item menu-link menu-action" data-action="stats">Bestenliste</a></li>
+  <li><a href="#einstellungen" class="menu-item menu-link menu-action" data-action="settings">Einstellungen</a></li>
   <li><a href="#admin" class="menu-item menu-link menu-action" data-action="admin">Admin</a></li>
   <li><a href="#neustart" class="menu-item menu-link menu-action" data-action="restart">Neustart</a></li>
   <li>
-    <button type="button" class="menu-item menu-item-with-sub" data-action="tutorial" aria-expanded="true">Hilfe</button>
+    <button type="button" class="menu-item menu-item-with-sub" data-action="tutorial" aria-expanded="false">Hilfe</button>
     <ul class="sidebar-sub open">
       <li><a href="#tutorial-step-1" class="menu-item sub menu-link">Warum dieses Spiel?</a></li>
       <li><a href="#tutorial-step-2" class="menu-item sub menu-link">Spielprinzip</a></li>
@@ -30,7 +31,7 @@
     </ul>
   </li>
   <li>
-    <button type="button" class="menu-item menu-item-with-sub" aria-expanded="true">qwertzpiele</button>
+    <button type="button" class="menu-item menu-item-with-sub" aria-expanded="false">qwertzpiele</button>
     <ul class="sidebar-sub open">
       <li><a href="index.html" class="menu-item sub menu-link">qwertznake</a></li>
       <li><a href="tetris.html" class="menu-item sub menu-link">qwertzris</a></li>
@@ -146,11 +147,13 @@
             var item = e.target.closest('.menu-item');
             if (!item || item.classList.contains('disabled')) return;
             if (item.classList.contains('menu-link') && !item.classList.contains('menu-action')) return;
+            /* Don’t close overlay when only expanding/collapsing a submenu */
+            if (item.classList.contains('menu-item-with-sub')) return;
 
             var action = item.getAttribute('data-action');
             var step = item.getAttribute('data-step');
 
-            if (action === 'stats' || action === 'admin') {
+            if (action === 'stats' || action === 'admin' || action === 'settings') {
                 closeOverlay();
                 return;
             }
@@ -164,10 +167,6 @@
             }
             if (item.classList.contains('menu-action')) {
                 e.preventDefault();
-            }
-
-            if (action === 'tutorial') {
-                closeOverlay();
             }
         });
 
@@ -190,7 +189,7 @@
 
         window.addEventListener('hashchange', function () {
             var h = window.location.hash.substring(1);
-            if (h === 'bestenliste' || h === 'admin' || h === 'neustart' || h.indexOf('tutorial-step-') === 0) closeOverlay();
+            if (h === 'bestenliste' || h === 'einstellungen' || h === 'admin' || h === 'neustart' || h.indexOf('tutorial-step-') === 0) closeOverlay();
         });
     }
 
