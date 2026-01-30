@@ -279,17 +279,18 @@ let playerName = localStorage.getItem('qwertzsnake_name') || '';
 // Accuracy tracking
 let totalInputs = 0;  // Total character inputs (mapped + unmapped)
 let incorrectInputs = 0;  // Inputs that are not mapped to any arrow
-let fingerInputs = {
-    'finger-pinky': { total: 0, incorrect: 0 },
-    'finger-ring': { total: 0, incorrect: 0 },
-    'finger-middle': { total: 0, incorrect: 0 },
-    'finger-index': { total: 0, incorrect: 0 }
-};
 
-// Hand-based accuracy tracking (left and right)
-let handInputs = {
-    'links': { total: 0, incorrect: 0 },
-    'rechts': { total: 0, incorrect: 0 }
+// Track accuracy for each of the 8 fingers separately (finger + hand combination)
+// Format: 'finger-type-hand' e.g., 'finger-pinky-links', 'finger-index-rechts'
+let fingerInputs = {
+    'finger-pinky-links': { total: 0, incorrect: 0 },
+    'finger-ring-links': { total: 0, incorrect: 0 },
+    'finger-middle-links': { total: 0, incorrect: 0 },
+    'finger-index-links': { total: 0, incorrect: 0 },
+    'finger-index-rechts': { total: 0, incorrect: 0 },
+    'finger-middle-rechts': { total: 0, incorrect: 0 },
+    'finger-ring-rechts': { total: 0, incorrect: 0 },
+    'finger-pinky-rechts': { total: 0, incorrect: 0 }
 };
 
 // Base FPS (stored to calculate speed adjustments)
@@ -380,10 +381,16 @@ let practiceDeletedWrongPositions = new Set(); // Track positions where wrong ke
 let practiceHadMistake = false; // Track if any mistake was ever made in current word
 let practiceKPMInterval = null;
 
-// Practice mode accuracy tracking (left and right hands)
-let practiceHandInputs = {
-    'links': { total: 0, incorrect: 0 },
-    'rechts': { total: 0, incorrect: 0 }
+// Practice mode accuracy tracking (8 separate fingers)
+let practiceFingerInputs = {
+    'finger-pinky-links': { total: 0, incorrect: 0 },
+    'finger-ring-links': { total: 0, incorrect: 0 },
+    'finger-middle-links': { total: 0, incorrect: 0 },
+    'finger-index-links': { total: 0, incorrect: 0 },
+    'finger-index-rechts': { total: 0, incorrect: 0 },
+    'finger-middle-rechts': { total: 0, incorrect: 0 },
+    'finger-ring-rechts': { total: 0, incorrect: 0 },
+    'finger-pinky-rechts': { total: 0, incorrect: 0 }
 };
 
 // Practice mode base speed (for speed adjustments)
@@ -956,16 +963,14 @@ function resetGame() {
     totalInputs = 0;
     incorrectInputs = 0;
     fingerInputs = {
-        'finger-pinky': { total: 0, incorrect: 0 },
-        'finger-ring': { total: 0, incorrect: 0 },
-        'finger-middle': { total: 0, incorrect: 0 },
-        'finger-index': { total: 0, incorrect: 0 }
-    };
-    
-    // Reset hand-based accuracy tracking
-    handInputs = {
-        'links': { total: 0, incorrect: 0 },
-        'rechts': { total: 0, incorrect: 0 }
+        'finger-pinky-links': { total: 0, incorrect: 0 },
+        'finger-ring-links': { total: 0, incorrect: 0 },
+        'finger-middle-links': { total: 0, incorrect: 0 },
+        'finger-index-links': { total: 0, incorrect: 0 },
+        'finger-index-rechts': { total: 0, incorrect: 0 },
+        'finger-middle-rechts': { total: 0, incorrect: 0 },
+        'finger-ring-rechts': { total: 0, incorrect: 0 },
+        'finger-pinky-rechts': { total: 0, incorrect: 0 }
     };
     
     // Reset FPS to base (remove speed adjustments)
@@ -1011,44 +1016,50 @@ function calculateAccuracy() {
     return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
 }
 
-// Calculate accuracy percentage for a specific finger
-function calculateFingerAccuracy(fingerType) {
-    const finger = fingerInputs[fingerType];
+// Calculate accuracy percentage for a specific finger (finger+hand combination)
+// fingerKey format: 'finger-pinky-links', 'finger-index-rechts', etc.
+function calculateFingerAccuracy(fingerKey) {
+    const finger = fingerInputs[fingerKey];
     if (!finger || finger.total === 0) return 100;
     const accuracy = ((finger.total - finger.incorrect) / finger.total) * 100;
     return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
 }
 
-// Calculate accuracy percentage for a specific hand (left or right)
-function calculateHandAccuracy(hand) {
-    const handData = handInputs[hand];
-    if (!handData || handData.total === 0) return 100;
-    const accuracy = ((handData.total - handData.incorrect) / handData.total) * 100;
+// Calculate accuracy percentage for practice mode finger (finger+hand combination)
+function calculatePracticeFingerAccuracy(fingerKey) {
+    const finger = practiceFingerInputs[fingerKey];
+    if (!finger || finger.total === 0) return 100;
+    const accuracy = ((finger.total - finger.incorrect) / finger.total) * 100;
     return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
 }
 
-// Calculate accuracy percentage for practice mode hand (left or right)
-function calculatePracticeHandAccuracy(hand) {
-    const handData = practiceHandInputs[hand];
-    if (!handData || handData.total === 0) return 100;
-    const accuracy = ((handData.total - handData.incorrect) / handData.total) * 100;
-    return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
-}
-
-// Adjust game speed based on hand accuracy (10% faster if >95%, 10% slower if <95%)
+// Adjust game speed based on finger accuracy (10% faster if >95%, 10% slower if <95%)
+// Uses average accuracy across all 8 fingers
 function adjustGameSpeedBasedOnAccuracy() {
     if (!gameRunning || gamePaused) return;
     
-    const leftAccuracy = calculateHandAccuracy('links');
-    const rightAccuracy = calculateHandAccuracy('rechts');
+    // Calculate accuracy for all 8 fingers
+    const fingerKeys = [
+        'finger-pinky-links', 'finger-ring-links', 'finger-middle-links', 'finger-index-links',
+        'finger-index-rechts', 'finger-middle-rechts', 'finger-ring-rechts', 'finger-pinky-rechts'
+    ];
     
-    // Only adjust if both hands have enough inputs (at least 10 each)
-    if (handInputs['links'].total < 10 || handInputs['rechts'].total < 10) {
+    const fingerAccuracies = fingerKeys.map(key => calculateFingerAccuracy(key));
+    
+    // Count how many fingers have at least 10 inputs
+    const fingersWithData = fingerKeys.filter(key => fingerInputs[key] && fingerInputs[key].total >= 10);
+    
+    // Only adjust if at least 4 fingers (half) have enough data
+    if (fingersWithData.length < 4) {
         return; // Not enough data yet
     }
     
-    // Calculate average accuracy
-    const avgAccuracy = (leftAccuracy + rightAccuracy) / 2;
+    // Calculate average accuracy for fingers with data
+    const accuraciesWithData = fingerKeys
+        .filter(key => fingerInputs[key] && fingerInputs[key].total >= 10)
+        .map(key => calculateFingerAccuracy(key));
+    
+    const avgAccuracy = accuraciesWithData.reduce((sum, acc) => sum + acc, 0) / accuraciesWithData.length;
     
     // Adjust speed: +10% if accuracy > 95%, -10% if accuracy < 95%
     let speedMultiplier = 1.0;
@@ -1067,22 +1078,33 @@ function adjustGameSpeedBasedOnAccuracy() {
     }
 }
 
-// Adjust practice mode speed based on hand accuracy (10% faster if >95%, 10% slower if <95%)
+// Adjust practice mode speed based on finger accuracy (10% faster if >95%, 10% slower if <95%)
+// Uses average accuracy across all 8 fingers
 // Note: Practice mode doesn't have a direct speed mechanism, but this function tracks accuracy
 // and could be used to adjust animation speeds or other practice mode parameters
 function adjustPracticeSpeedBasedOnAccuracy() {
     if (!practiceModalVisible) return;
     
-    const leftAccuracy = calculatePracticeHandAccuracy('links');
-    const rightAccuracy = calculatePracticeHandAccuracy('rechts');
+    // Calculate accuracy for all 8 fingers
+    const fingerKeys = [
+        'finger-pinky-links', 'finger-ring-links', 'finger-middle-links', 'finger-index-links',
+        'finger-index-rechts', 'finger-middle-rechts', 'finger-ring-rechts', 'finger-pinky-rechts'
+    ];
     
-    // Only adjust if both hands have enough inputs (at least 10 each)
-    if (practiceHandInputs['links'].total < 10 || practiceHandInputs['rechts'].total < 10) {
+    // Count how many fingers have at least 10 inputs
+    const fingersWithData = fingerKeys.filter(key => practiceFingerInputs[key] && practiceFingerInputs[key].total >= 10);
+    
+    // Only adjust if at least 4 fingers (half) have enough data
+    if (fingersWithData.length < 4) {
         return; // Not enough data yet
     }
     
-    // Calculate average accuracy
-    const avgAccuracy = (leftAccuracy + rightAccuracy) / 2;
+    // Calculate average accuracy for fingers with data
+    const accuraciesWithData = fingerKeys
+        .filter(key => practiceFingerInputs[key] && practiceFingerInputs[key].total >= 10)
+        .map(key => calculatePracticeFingerAccuracy(key));
+    
+    const avgAccuracy = accuraciesWithData.reduce((sum, acc) => sum + acc, 0) / accuraciesWithData.length;
     
     // Adjust speed: +10% if accuracy > 95%, -10% if accuracy < 95%
     if (avgAccuracy > 95) {
@@ -1179,10 +1201,14 @@ function gameOver() {
     lastGameAccuracy = calculateAccuracy();
     lastGameWPM = calculateWPM();
     const lastGameFingerAccuracy = {
-        'finger-pinky': calculateFingerAccuracy('finger-pinky'),
-        'finger-ring': calculateFingerAccuracy('finger-ring'),
-        'finger-middle': calculateFingerAccuracy('finger-middle'),
-        'finger-index': calculateFingerAccuracy('finger-index')
+        'finger-pinky-links': calculateFingerAccuracy('finger-pinky-links'),
+        'finger-ring-links': calculateFingerAccuracy('finger-ring-links'),
+        'finger-middle-links': calculateFingerAccuracy('finger-middle-links'),
+        'finger-index-links': calculateFingerAccuracy('finger-index-links'),
+        'finger-index-rechts': calculateFingerAccuracy('finger-index-rechts'),
+        'finger-middle-rechts': calculateFingerAccuracy('finger-middle-rechts'),
+        'finger-ring-rechts': calculateFingerAccuracy('finger-ring-rechts'),
+        'finger-pinky-rechts': calculateFingerAccuracy('finger-pinky-rechts')
     };
     gameStatsSaved = false;
     
@@ -1505,16 +1531,21 @@ function renderGameOverStatsTable(stats, kpm, accuracy = 100, wpm = 0, fingerAcc
     if (fingerAccuracy) {
         accuracySummaryHtml += '<div class="accuracy-summary-fingers">';
         const fingerLabels = {
-            'finger-index': 'Zeigefinger',
-            'finger-middle': 'Mittelfinger',
-            'finger-ring': 'Ringfinger',
-            'finger-pinky': 'Kleiner Finger'
+            'finger-pinky-links': 'Kleiner Finger (L)',
+            'finger-ring-links': 'Ringfinger (L)',
+            'finger-middle-links': 'Mittelfinger (L)',
+            'finger-index-links': 'Zeigefinger (L)',
+            'finger-index-rechts': 'Zeigefinger (R)',
+            'finger-middle-rechts': 'Mittelfinger (R)',
+            'finger-ring-rechts': 'Ringfinger (R)',
+            'finger-pinky-rechts': 'Kleiner Finger (R)'
         };
-        Object.keys(fingerAccuracy).forEach(fingerType => {
-            const acc = fingerAccuracy[fingerType];
-            if (fingerInputs[fingerType] && fingerInputs[fingerType].total > 0) {
+        Object.keys(fingerAccuracy).forEach(fingerKey => {
+            const acc = fingerAccuracy[fingerKey];
+            if (fingerInputs[fingerKey] && fingerInputs[fingerKey].total > 0) {
+                const fingerType = fingerKey.split('-')[1]; // Extract finger type for CSS class
                 accuracySummaryHtml += '<div class="accuracy-finger-item">' +
-                    '<span class="finger-label-' + fingerType.split('-')[1] + '">' + fingerLabels[fingerType] + ':</span> ' +
+                    '<span class="finger-label-' + fingerType + '">' + (fingerLabels[fingerKey] || fingerKey) + ':</span> ' +
                     acc + '%</div>';
             }
         });
@@ -2286,22 +2317,15 @@ function handleKeyPress(event) {
         const fingerType = getFingerClass(key);
         const hand = getFingerHand(key);
         
-        // Track per finger
-        if (fingerType && fingerInputs[fingerType]) {
-            fingerInputs[fingerType].total++;
+        // Track per finger+hand combination (8 separate fingers)
+        const fingerKey = fingerType && hand ? `${fingerType}-${hand}` : null;
+        if (fingerKey && fingerInputs[fingerKey]) {
+            fingerInputs[fingerKey].total++;
             
             // If key is not mapped to any arrow, count as incorrect
             if (!isMappedKey) {
                 incorrectInputs++;
-                fingerInputs[fingerType].incorrect++;
-            }
-        }
-        
-        // Track per hand (left/right)
-        if (hand && handInputs[hand]) {
-            handInputs[hand].total++;
-            if (!isMappedKey) {
-                handInputs[hand].incorrect++;
+                fingerInputs[fingerKey].incorrect++;
             }
         }
         
@@ -3025,9 +3049,15 @@ function showPracticeMode() {
     practiceHadMistake = false;
     
     // Reset practice accuracy tracking
-    practiceHandInputs = {
-        'links': { total: 0, incorrect: 0 },
-        'rechts': { total: 0, incorrect: 0 }
+    practiceFingerInputs = {
+        'finger-pinky-links': { total: 0, incorrect: 0 },
+        'finger-ring-links': { total: 0, incorrect: 0 },
+        'finger-middle-links': { total: 0, incorrect: 0 },
+        'finger-index-links': { total: 0, incorrect: 0 },
+        'finger-index-rechts': { total: 0, incorrect: 0 },
+        'finger-middle-rechts': { total: 0, incorrect: 0 },
+        'finger-ring-rechts': { total: 0, incorrect: 0 },
+        'finger-pinky-rechts': { total: 0, incorrect: 0 }
     };
     practiceBaseSpeed = 1.0;
     
@@ -3310,14 +3340,16 @@ function handlePracticeKey(key, event) {
     practiceKeystrokes++;
     totalKeystrokes++; // Add to main game keystrokes for KPM calculation
     
-    // Track accuracy by hand in practice mode
+    // Track accuracy by finger in practice mode (8 separate fingers)
+    const fingerType = getFingerClass(normalizedKey);
     const hand = getFingerHand(normalizedKey);
     const isCorrect = normalizedKey === expectedChar.toLowerCase();
     
-    if (hand && practiceHandInputs[hand]) {
-        practiceHandInputs[hand].total++;
+    const fingerKey = fingerType && hand ? `${fingerType}-${hand}` : null;
+    if (fingerKey && practiceFingerInputs[fingerKey]) {
+        practiceFingerInputs[fingerKey].total++;
         if (!isCorrect) {
-            practiceHandInputs[hand].incorrect++;
+            practiceFingerInputs[fingerKey].incorrect++;
         }
         // Adjust practice speed based on accuracy
         adjustPracticeSpeedBasedOnAccuracy();
