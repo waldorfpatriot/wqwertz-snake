@@ -218,22 +218,13 @@ const FINGER_NAMES = {
     'finger-index': 'Zeige'
 };
 
-// Key pools for each direction
-// Rules:
-// - left: only keys from left hand (hand: 'links')
-// - right: only keys from right hand (hand: 'rechts')
-// - up: only keys from top row (KEYBOARD_ROWS[0])
-// - down: only keys from bottom row (KEYBOARD_ROWS[2])
-// These rules have priority over finger progression (index -> ring -> middle -> pinky)
+// Key pools for each direction (row-based for letter-food)
+// up: top row; down: bottom row; left: middle row a-g; right: middle row h-ä
 const KEY_POOLS = {
-    // Left hand keys: q, a, y, w, s, x, e, d, c, r, f, v, t, g, b
-    left: ['q', 'a', 'y', 'w', 's', 'x', 'e', 'd', 'c', 'r', 'f', 'v', 't', 'g', 'b'],
-    // Right hand keys: p, ü, ö, ä, -, o, l, ., i, k, ,, z, h, n, u, j, m
-    right: ['p', 'ü', 'ö', 'ä', '-', 'o', 'l', '.', 'i', 'k', ',', 'z', 'h', 'n', 'u', 'j', 'm'],
-    // Top row keys: q, w, e, r, t, z, u, i, o, p, ü
     up: ['q', 'w', 'e', 'r', 't', 'z', 'u', 'i', 'o', 'p', 'ü'],
-    // Bottom row keys: y, x, c, v, b, n, m, ,, ., -
-    down: ['y', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
+    down: ['y', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-'],
+    left: ['a', 's', 'd', 'f', 'g'],
+    right: ['h', 'j', 'k', 'l', 'ö', 'ä']
 };
 
 // Game state
@@ -264,6 +255,14 @@ let keyPressCounters = {
     right: 0
 };
 
+// Letter-food: when a direction counter hits 10, spawn a letter-food instead of immediate key change
+const LETTER_FOOD_LIFETIME_MS = 30000;
+const LETTER_FOOD_BLINK_SLOW_AT = 20000;  // ms: start slow blink
+const LETTER_FOOD_BLINK_FAST_AT = 26000;  // ms: start fast blink
+const LETTER_FOOD_POINTS = 3;
+let letterFoods = {};  // direction -> { x, y, letter, spawnTime }
+let usedKeys = new Set();  // all keys ever assigned (initial t,b,f,j + letter-food keys)
+
 // Statistics tracking
 let gameStartTime = 0;
 let totalKeystrokes = 0;
@@ -282,9 +281,14 @@ let currentLevelIndex = 0;
 let currentLevel = null;
 let barriers = [];
 let levelChangeModalVisible = false;
+// Level change: hold 6+ of 8 home row keys to continue
+let levelChangeKeysHeld = new Set();
+let levelChangeAnimationInterval = null;
+let levelChangePulseTimeout = null;
 let maxLevelReached = 0;
 let pointsInCurrentLevel = 0; // Track points collected in current level
 let pendingLevelChange = null; // Store pending level change info to show after practice
+let pendingLevelAdvance = false; // Level reached 10 points but letter-foods still on screen; advance when clear
 
 // Track all keys pressed during gameplay for practice mode
 let keyPressSequence = [];
@@ -495,7 +499,7 @@ async function init() {
     
     scoreElement = document.getElementById('score');
     kpmElement = document.getElementById('kpm');
-    counterUpElement = document.getElementById('counter-up');
+    counterUpElement = document.getElementById('counter-up');      // optional: direction-info removed
     counterDownElement = document.getElementById('counter-down');
     counterLeftElement = document.getElementById('counter-left');
     counterRightElement = document.getElementById('counter-right');
@@ -609,6 +613,7 @@ async function init() {
     
     // Event listeners
     document.addEventListener('keydown', handleKeyPress);
+    document.addEventListener('keyup', handleKeyUp);
     restartButton.addEventListener('click', async () => {
         // If game over screen is showing, save statistics first
         if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
@@ -857,6 +862,11 @@ function resetGame() {
     pendingLevelChange = null;
     
     spawnFood();
+    
+    // Reset letter-foods, used keys (initial t, b, f, j), and pending level advance
+    letterFoods = {};
+    usedKeys = new Set(Object.values(controlKeys));
+    pendingLevelAdvance = false;
     
     // Reset counters
     keyPressCounters = {
@@ -1516,6 +1526,39 @@ function spawnFood() {
     food = newFood;
 }
 
+// Check if (x,y) is blocked for letter-food (snake, barriers, normal food, other letter-foods)
+function isPositionBlockedForLetterFood(x, y) {
+    if (snake.some(segment => segment.x === x && segment.y === y)) return true;
+    if (barriers.some(b => b.x === x && b.y === y)) return true;
+    if (food.x === x && food.y === y) return true;
+    for (const dir of ['up', 'down', 'left', 'right']) {
+        const lf = letterFoods[dir];
+        if (lf && lf.x === x && lf.y === y) return true;
+    }
+    return false;
+}
+
+// Spawn letter-food for a direction when its counter hits 10 (random letter from unused pool)
+function spawnLetterFood(direction) {
+    const keyPool = KEY_POOLS[direction];
+    if (!keyPool || keyPool.length === 0) return;
+    const available = keyPool.filter(k => !usedKeys.has(k));
+    if (available.length === 0) return;
+    const letter = available[Math.floor(Math.random() * available.length)];
+    let pos;
+    let attempts = 0;
+    const maxAttempts = 1000;
+    do {
+        pos = {
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * GRID_SIZE)
+        };
+        attempts++;
+    } while (attempts < maxAttempts && isPositionBlockedForLetterFood(pos.x, pos.y));
+    if (attempts >= maxAttempts) return;
+    letterFoods[direction] = { x: pos.x, y: pos.y, letter, spawnTime: Date.now() };
+}
+
 // Update game state
 function update() {
     if (!gameRunning || gamePaused) return;
@@ -1554,16 +1597,51 @@ function update() {
             return;
         }
 
-        // Check food collision
-        if (head.x === food.x && head.y === food.y) {
+        // Check letter-food collision first (adds 3 points, changes key, no level progress)
+        let ateLetterFood = false;
+        for (const dir of ['up', 'down', 'left', 'right']) {
+            const lf = letterFoods[dir];
+            if (lf && head.x === lf.x && head.y === lf.y) {
+                const oldKey = controlKeys[dir];
+                controlKeys[dir] = lf.letter;
+                usedKeys.add(lf.letter);
+                const prevCount = keyChangeCounts[dir] || 0;
+                keyChangeCounts[dir] = prevCount + 1;
+                score += LETTER_FOOD_POINTS;
+                scoreElement.textContent = score;
+                updateKeyboardDisplay();
+                showKeyChangeModal(dir, oldKey, lf.letter);
+                if (keyElements[lf.letter]) {
+                    keyElements[lf.letter].style.animation = 'none';
+                    setTimeout(() => {
+                        if (keyElements[lf.letter]) keyElements[lf.letter].style.animation = 'pulse 0.5s';
+                    }, 10);
+                }
+                delete letterFoods[dir];
+                ateLetterFood = true;
+                if (pendingLevelAdvance && Object.keys(letterFoods).length === 0) doLevelAdvance();
+                break;
+            }
+        }
+
+        // Timeout letter-foods after 30 seconds (removed; will re-spawn when that direction hits 10 again)
+        const nowMs = Date.now();
+        for (const dir of ['up', 'down', 'left', 'right']) {
+            const lf = letterFoods[dir];
+            if (lf && (nowMs - lf.spawnTime) >= LETTER_FOOD_LIFETIME_MS) {
+                delete letterFoods[dir];
+                if (pendingLevelAdvance && Object.keys(letterFoods).length === 0) doLevelAdvance();
+            }
+        }
+
+        // Check normal food collision
+        if (!ateLetterFood && head.x === food.x && head.y === food.y) {
             const oldScore = score;
             score++;
             scoreElement.textContent = score;
             spawnFood();
-            
-            // Check for level change every 10 points
             checkLevelChange(oldScore, score);
-        } else {
+        } else if (!ateLetterFood) {
             snake.pop();
         }
 
@@ -1614,6 +1692,30 @@ function draw() {
     ctx.fillRect(cx + third * 2, cy + third, third, third); // East
     ctx.fillRect(cx + third, cy + third * 2, third, third); // South
     ctx.fillRect(cx, cy + third, third, third);           // West
+
+    // Draw letter-foods with blink: solid 0–20s, slow blink 20–26s, fast blink 26–30s
+    const t = Date.now();
+    for (const dir of ['up', 'down', 'left', 'right']) {
+        const lf = letterFoods[dir];
+        if (!lf) continue;
+        const age = t - lf.spawnTime;
+        let visible = true;
+        if (age >= LETTER_FOOD_BLINK_FAST_AT) {
+            visible = (Math.floor(age / 200) % 2) === 0;
+        } else if (age >= LETTER_FOOD_BLINK_SLOW_AT) {
+            visible = (Math.floor(age / 500) % 2) === 0;
+        }
+        if (!visible) continue;
+        const lcx = lf.x * CELL_SIZE;
+        const lcy = lf.y * CELL_SIZE;
+        ctx.fillStyle = '#9b59b6';
+        ctx.fillRect(lcx + 2, lcy + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(12, CELL_SIZE - 8)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lf.letter.toUpperCase(), lcx + CELL_SIZE / 2, lcy + CELL_SIZE / 2);
+    }
 
     // Draw snake
     snake.forEach((segment, index) => {
@@ -1668,11 +1770,15 @@ function handleKeyPress(event) {
         return;
     }
     
-    // Handle level change modal - only space continues
+    // Handle level change modal - 6+ of 8 home row keys to continue
     if (levelChangeModalVisible) {
-        event.preventDefault();
-        if (key === ' ' || event.code === 'Space') {
-            hideLevelChangeModal();
+        if (homeRowKeysSequence.includes(key)) {
+            event.preventDefault();
+            levelChangeKeysHeld.add(key);
+            updateLevelChangeKeyCheckmarks();
+            if (levelChangeKeysHeld.size >= 6) {
+                hideLevelChangeModal();
+            }
         }
         return;
     }
@@ -1717,26 +1823,18 @@ function handleKeyPress(event) {
         return;
     }
 
-    // Handle tutorial step 3 - home row keys to continue (Fingerplatzierung)
+    // Handle tutorial step 3 - home row keys in sequence (Fingerplatzierung)
     if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 3) {
         if (homeRowKeysSequence.includes(key)) {
             event.preventDefault();
             const expectedKey = homeRowKeysSequence[homeRowKeysPressed.length];
-            
             if (key === expectedKey) {
-                // Correct key in sequence
                 homeRowKeysPressed.push(key);
                 updateHomeRowKeyCheckmarks();
-                
-                // Check if all keys have been pressed
                 if (homeRowKeysPressed.length === homeRowKeysSequence.length) {
-                    // All keys pressed in order - advance to next step
-                    setTimeout(() => {
-                        navigateTutorial(1);
-                    }, 500); // Small delay to show final checkmark
+                    setTimeout(() => navigateTutorial(1), 500);
                 }
             } else {
-                // Wrong key - reset
                 homeRowKeysPressed = [];
                 updateHomeRowKeyCheckmarks();
             }
@@ -1744,43 +1842,25 @@ function handleKeyPress(event) {
         }
     }
 
-    // Handle tutorial step 4 - highlight keys when pressed and check for "verstanden" (Fingerzuordnung)
+    // Handle tutorial step 4 - home row keys all at once (Fingerzuordnung)
     if (tutorialModal && tutorialModal.classList.contains('visible') && tutorialCurrentStep === 4) {
-        // Find the key-box element with matching data-key attribute
         const keyBox = document.querySelector(`.tutorial-step[data-step="4"] .key-box[data-key="${key}"]`);
         if (keyBox) {
             event.preventDefault();
-            // Remove highlight from all keys first
             document.querySelectorAll('.tutorial-step[data-step="4"] .key-box').forEach(box => {
                 box.classList.remove('highlighted');
             });
-            // Add highlight to the pressed key
             keyBox.classList.add('highlighted');
-            // Remove highlight after animation
-            setTimeout(() => {
-                keyBox.classList.remove('highlighted');
-            }, 400);
+            setTimeout(() => keyBox.classList.remove('highlighted'), 400);
         }
-        
-        // Check for typing "verstanden"
-        const expectedKey = verstandenSequence[verstandenTyped.length];
-        if (key === expectedKey) {
+        if (homeRowKeysSequence.includes(key)) {
             event.preventDefault();
-            verstandenTyped.push(key);
-            updateVerstandenKeys();
-            
-            // Check if all keys have been pressed
-            if (verstandenTyped.length === verstandenSequence.length) {
-                // All keys pressed in order - advance to next step
-                setTimeout(() => {
-                    navigateTutorial(1);
-                }, 500);
+            homeRowKeysHeld.add(key);
+            updateHomeRowStep4KeyCheckmarks();
+            if (homeRowKeysHeld.size >= 6) {
+                setTimeout(() => navigateTutorial(1), 300);
             }
-        } else if (verstandenSequence.includes(key)) {
-            // Wrong key in sequence - reset
-            event.preventDefault();
-            verstandenTyped = [];
-            updateVerstandenKeys();
+            return;
         }
     }
 
@@ -1940,10 +2020,27 @@ function handleKeyPress(event) {
         }
         
         if (keyPressCounters[directionChanged] >= PRESSES_PER_CHANGE && score >= MIN_SCORE_FOR_KEY_CHANGE) {
-            changeSingleKey(directionChanged);
-            keyPressCounters[directionChanged] = 0;
-            updateCounters();
+            if (!letterFoods[directionChanged]) {
+                spawnLetterFood(directionChanged);
+                keyPressCounters[directionChanged] = 0;
+                updateCounters();
+            }
         }
+    }
+}
+
+// Keyup: remove key from step 4 home row held set so checkmarks only show while key is down
+function handleKeyUp(event) {
+    const key = (event.key || '').toLowerCase();
+    if (levelChangeModalVisible && homeRowKeysSequence.includes(key)) {
+        levelChangeKeysHeld.delete(key);
+        updateLevelChangeKeyCheckmarks();
+        return;
+    }
+    if (!tutorialModal || !tutorialModal.classList.contains('visible') || tutorialCurrentStep !== 4) return;
+    if (homeRowKeysSequence.includes(key)) {
+        homeRowKeysHeld.delete(key);
+        updateHomeRowStep4KeyCheckmarks();
     }
 }
 
@@ -1960,10 +2057,10 @@ function highlightKey(direction) {
 
 // Update counter display
 function updateCounters() {
-    counterUpElement.textContent = `${keyPressCounters.up}/${PRESSES_PER_CHANGE}`;
-    counterDownElement.textContent = `${keyPressCounters.down}/${PRESSES_PER_CHANGE}`;
-    counterLeftElement.textContent = `${keyPressCounters.left}/${PRESSES_PER_CHANGE}`;
-    counterRightElement.textContent = `${keyPressCounters.right}/${PRESSES_PER_CHANGE}`;
+    if (counterUpElement) counterUpElement.textContent = `${keyPressCounters.up}/${PRESSES_PER_CHANGE}`;
+    if (counterDownElement) counterDownElement.textContent = `${keyPressCounters.down}/${PRESSES_PER_CHANGE}`;
+    if (counterLeftElement) counterLeftElement.textContent = `${keyPressCounters.left}/${PRESSES_PER_CHANGE}`;
+    if (counterRightElement) counterRightElement.textContent = `${keyPressCounters.right}/${PRESSES_PER_CHANGE}`;
 }
 
 // Filter sequence maintaining finger order: index -> ring -> middle -> pinky
@@ -2327,6 +2424,7 @@ function changeSingleKey(direction) {
 
     // Update the specific key
     controlKeys[direction] = finalKey;
+    usedKeys.add(finalKey);
     updateKeyboardDisplay();
     
     // Show key change modal with entertaining graphics
@@ -2367,56 +2465,42 @@ function getLevelForScore(score) {
     return availableLevels[levelIndex];
 }
 
+// Do the actual level advance (apply level, show modal). Call when no letter-foods on screen.
+function doLevelAdvance() {
+    if (availableLevels.length === 0 || currentLevelIndex >= availableLevels.length) return;
+    const newLevelIndex = currentLevelIndex + 1;
+    const newLevel = availableLevels[newLevelIndex - 1];
+    if (!newLevel) return;
+    pointsInCurrentLevel = 0;
+    pendingLevelAdvance = false;
+    currentLevelIndex = newLevelIndex;
+    currentLevel = newLevel;
+    maxLevelReached = Math.max(maxLevelReached, newLevelIndex);
+    const debugLevelInput = document.getElementById('debugLevel');
+    if (debugLevelInput) debugLevelInput.value = currentLevelIndex;
+    draw();
+    applyLevel(newLevel);
+    pendingLevelChange = { level: newLevel, levelNumber: newLevelIndex };
+    setTimeout(() => {
+        if (keyPressSequence.length > 0) showPracticeMode();
+        else showLevelChangeModal(newLevel, newLevelIndex);
+    }, 100);
+}
+
 // Check for level change based on points in current level.
-// Only called when eating food; practice points do not count (pointsInCurrentLevel = game points per level).
+// Only called when eating food; practice points do not count.
+// Do not advance until no letter-foods on screen (eaten or timed out).
 function checkLevelChange(oldScore, newScore) {
     if (availableLevels.length === 0) return;
-    
     const pointsEarned = newScore - oldScore;
     pointsInCurrentLevel += pointsEarned;
-    
-    // Check if we've collected 10 points in the current level (from snake game only)
-    if (pointsInCurrentLevel >= 10 && currentLevelIndex < availableLevels.length) {
-        const newLevelIndex = currentLevelIndex + 1;
-        const newLevel = availableLevels[newLevelIndex - 1]; // -1 because array is 0-indexed
-        
-        if (newLevel) {
-            // Reset points counter for new level
-            pointsInCurrentLevel = 0;
-            
-            currentLevelIndex = newLevelIndex;
-            currentLevel = newLevel;
-            maxLevelReached = Math.max(maxLevelReached, newLevelIndex);
-            
-            // Update debug menu level input
-            const debugLevelInput = document.getElementById('debugLevel');
-            if (debugLevelInput) {
-                debugLevelInput.value = currentLevelIndex;
-            }
-            
-            // Draw the current frame first so player sees they ate the food
-            draw();
-            
-            // Apply level immediately (barriers, etc.)
-            applyLevel(newLevel);
-            
-            // Store pending level change to show after practice mode completes
-            pendingLevelChange = {
-                level: newLevel,
-                levelNumber: newLevelIndex
-            };
-            
-            // Show practice mode first, level change modal will show after practice completes
-            setTimeout(() => {
-                if (keyPressSequence.length > 0) {
-                    showPracticeMode();
-                } else {
-                    // No practice available, show level change modal directly
-                    showLevelChangeModal(newLevel, newLevelIndex);
-                }
-            }, 100);
-        }
+    if (pointsInCurrentLevel < 10 || currentLevelIndex >= availableLevels.length) return;
+    const hasLetterFoods = Object.keys(letterFoods).length > 0;
+    if (hasLetterFoods) {
+        pendingLevelAdvance = true;
+        return;
     }
+    doLevelAdvance();
 }
 
 // Apply level barriers and reset snake (levels are 40x40; filter to current grid)
@@ -2464,6 +2548,9 @@ function showLevelChangeModal(level, levelNumber) {
         container.appendChild(particle);
     }
     
+    levelChangeKeysHeld.clear();
+    renderLevelChangeKeys();
+    
     levelChangeModal.classList.add('visible');
     levelChangeModalVisible = true;
     
@@ -2478,7 +2565,16 @@ function showLevelChangeModal(level, levelNumber) {
 function hideLevelChangeModal() {
     levelChangeModal.classList.remove('visible');
     levelChangeModalVisible = false;
-    pendingLevelChange = null; // Clear pending level change
+    pendingLevelChange = null;
+    if (levelChangeAnimationInterval) {
+        clearInterval(levelChangeAnimationInterval);
+        levelChangeAnimationInterval = null;
+    }
+    if (levelChangePulseTimeout) {
+        clearTimeout(levelChangePulseTimeout);
+        levelChangePulseTimeout = null;
+    }
+    levelChangeKeysHeld.clear();
     
     // Resume game
     if (gameRunning) {
@@ -2487,6 +2583,73 @@ function hideLevelChangeModal() {
         gameLoop = requestAnimationFrame(update);
         kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
     }
+}
+
+// Render 8 home row keys in level change modal (same challenge as tutorial step 4)
+function renderLevelChangeKeys() {
+    const container = document.getElementById('levelChangeKeys');
+    if (!container) return;
+    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
+    container.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    animateLevelChangeKeys();
+}
+
+function animateLevelChangeKeys() {
+    if (levelChangeAnimationInterval) {
+        clearInterval(levelChangeAnimationInterval);
+        levelChangeAnimationInterval = null;
+    }
+    if (levelChangePulseTimeout) {
+        clearTimeout(levelChangePulseTimeout);
+        levelChangePulseTimeout = null;
+    }
+    const container = document.getElementById('levelChangeKeys');
+    if (!container) return;
+    function runPulse() {
+        if (!levelChangeModalVisible) return;
+        container.classList.add('home-row-pulse-sync');
+        levelChangePulseTimeout = setTimeout(() => {
+            levelChangePulseTimeout = null;
+            container.classList.remove('home-row-pulse-sync');
+        }, 2000);
+    }
+    runPulse();
+    levelChangeAnimationInterval = setInterval(() => {
+        if (!levelChangeModalVisible) {
+            if (levelChangeAnimationInterval) {
+                clearInterval(levelChangeAnimationInterval);
+                levelChangeAnimationInterval = null;
+            }
+            if (levelChangePulseTimeout) {
+                clearTimeout(levelChangePulseTimeout);
+                levelChangePulseTimeout = null;
+            }
+            container.classList.remove('home-row-pulse-sync');
+            return;
+        }
+        runPulse();
+    }, 4000);
+}
+
+function updateLevelChangeKeyCheckmarks() {
+    const container = document.getElementById('levelChangeKeys');
+    if (!container) return;
+    const checkmarks = container.querySelectorAll('.home-row-checkmark');
+    checkmarks.forEach((checkmark, index) => {
+        const key = homeRowKeysSequence[index];
+        if (key && levelChangeKeysHeld.has(key)) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
 }
 
 // Extract letter combinations (2-8 characters) from key sequence
@@ -3251,15 +3414,18 @@ function editLevel(id) {
 
 // ============= TUTORIAL SYSTEM =============
 
-// Home row animation interval
+// Home row animation interval and pulse timeout (step 3 cycling / step 4 sync pulse)
 let homeRowAnimationInterval = null;
+let homeRowPulseTimeout = null;
 // Tutorial demo animation timeout
 let tutorialDemoAnimationTimeout = null;
 // Track if game was paused by tutorial modal
 let pausedByTutorialModal = false;
-// Track home row key presses for step 1
-let homeRowKeysPressed = [];
+// Step 3: sequential home row keys (a, s, d, f, j, k, l, ö in order)
 const homeRowKeysSequence = ['a', 's', 'd', 'f', 'j', 'k', 'l', 'ö'];
+let homeRowKeysPressed = [];
+// Step 4: keys held simultaneously (all at once, advance when >= 6)
+let homeRowKeysHeld = new Set();
 
 // Track "verstanden" typing for step 2
 let verstandenTyped = [];
@@ -3296,19 +3462,19 @@ function openTutorial(step = 1) {
     // Update hash
     window.location.hash = `tutorial-step-${stepNumber}`;
     
-    // Reset home row key presses
+    // Reset step 3 sequential and step 4 all-at-once
     homeRowKeysPressed = [];
+    homeRowKeysHeld.clear();
     verstandenTyped = [];
     zeigefingerTyped = [];
     losgehtsTyped = [];
     
-    // Render keyboards for tutorial steps
+    // Render keyboards for tutorial steps (step 4 keys rendered when navigating to step 4)
     setTimeout(() => {
         renderTutorialHomeRow();
         renderTutorialKeyboards();
         renderTutorialGameDemo();
         renderTutorialStep1Keyboard();
-        renderVerstandenKeys();
         renderZeigefingerKeys();
         renderLosgehtsKeys();
         renderJKey();
@@ -3322,11 +3488,17 @@ function closeTutorial() {
     if (window.location.hash.startsWith('#tutorial-step-')) {
         window.location.hash = '';
     }
-    // Clear all animations
+    // Clear step 3 / step 4 home row animations and state
     if (homeRowAnimationInterval) {
         clearInterval(homeRowAnimationInterval);
         homeRowAnimationInterval = null;
     }
+    if (homeRowPulseTimeout) {
+        clearTimeout(homeRowPulseTimeout);
+        homeRowPulseTimeout = null;
+    }
+    homeRowKeysPressed = [];
+    homeRowKeysHeld.clear();
     if (verstandenAnimationInterval) {
         clearInterval(verstandenAnimationInterval);
         verstandenAnimationInterval = null;
@@ -3397,24 +3569,26 @@ function navigateTutorialToStep(step, updateHash = true) {
             }
         }
         
-        // Clear home row animation if leaving step 3 (Fingerplatzierung)
+        // Clear step 3 home row (sequential) when leaving
         if (tutorialCurrentStep === 3 && stepNumber !== 3) {
             if (homeRowAnimationInterval) {
                 clearInterval(homeRowAnimationInterval);
                 homeRowAnimationInterval = null;
             }
-            // Reset key presses when leaving step 3
             homeRowKeysPressed = [];
         }
         
-        // Reset verstanden typing when leaving step 4 (Fingerzuordnung)
+        // Clear step 4 home row (all-at-once) when leaving
         if (tutorialCurrentStep === 4 && stepNumber !== 4) {
-            if (verstandenAnimationInterval) {
-                clearInterval(verstandenAnimationInterval);
-                verstandenAnimationInterval = null;
+            if (homeRowAnimationInterval) {
+                clearInterval(homeRowAnimationInterval);
+                homeRowAnimationInterval = null;
             }
-            verstandenTyped = [];
-            updateVerstandenKeys();
+            if (homeRowPulseTimeout) {
+                clearTimeout(homeRowPulseTimeout);
+                homeRowPulseTimeout = null;
+            }
+            homeRowKeysHeld.clear();
         }
         
         // Reset zeigefinger typing when leaving step 5 (Farbcodierung)
@@ -3461,7 +3635,7 @@ function navigateTutorialToStep(step, updateHash = true) {
             }, 100);
         } else if (stepNumber === 4) {
             setTimeout(() => {
-                renderVerstandenKeys();
+                renderHomeRowStep4Keys();
             }, 100);
         } else if (stepNumber === 5) {
             setTimeout(() => {
@@ -3527,28 +3701,20 @@ function renderTutorialHomeRow() {
     animateHomeRowKeys();
 }
 
-// Animate home row keys in instruction text
+// Animate home row keys in step 3: cycle through keys (sequential challenge)
 function animateHomeRowKeys() {
-    // Clear any existing animation
     if (homeRowAnimationInterval) {
         clearInterval(homeRowAnimationInterval);
         homeRowAnimationInterval = null;
     }
     
-    // Reset key presses
-    homeRowKeysPressed = [];
-    
-    // Find the instruction element specifically in step 3 (Fingerplatzierung)
-    const step1Element = document.querySelector('#tutorial-step-3');
-    if (!step1Element) return;
-    
-    const instructionElement = step1Element.querySelector('.home-row-keys');
+    const step3 = document.querySelector('#tutorial-step-3');
+    if (!step3) return;
+    const instructionElement = step3.querySelector('.home-row-keys');
     if (!instructionElement) return;
     
     const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
     let currentKeyIndex = 0;
-    
-    // Create key elements with checkmark placeholders and finger color classes
     instructionElement.innerHTML = keys.map((key, index) => {
         const keyLower = key.toLowerCase();
         const fingerClass = getFingerClass(keyLower);
@@ -3561,77 +3727,44 @@ function animateHomeRowKeys() {
     const keyElements = instructionElement.querySelectorAll('.home-row-key-animate');
     
     function highlightNextKey() {
-        // Only animate if we haven't completed the sequence
         if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
-            // Remove active class from all keys
-            keyElements.forEach(el => el.classList.remove('active'));
-            
-            // Add active class to next expected key
+            keyElements.forEach(el => el.classList.remove('active', 'pausing'));
             const nextKeyIndex = homeRowKeysPressed.length;
-            if (keyElements[nextKeyIndex]) {
-                keyElements[nextKeyIndex].classList.add('active');
-            }
+            if (keyElements[nextKeyIndex]) keyElements[nextKeyIndex].classList.add('active');
         }
     }
     
     function animateCycle() {
-        // Only cycle if no keys have been pressed yet
         if (homeRowKeysPressed.length === 0) {
-            // Check if we're about to show Ö (last key, index 7)
             const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
-            
-            // Remove active class and pause class from all keys
-            keyElements.forEach(el => {
-                el.classList.remove('active', 'pausing');
-            });
-            
-            // Add active class to current key in cycle
-            if (keyElements[currentKeyIndex]) {
-                keyElements[currentKeyIndex].classList.add('active');
-            }
-            
-            // Move to next key in cycle
+            keyElements.forEach(el => el.classList.remove('active', 'pausing'));
+            if (keyElements[currentKeyIndex]) keyElements[currentKeyIndex].classList.add('active');
             currentKeyIndex = (currentKeyIndex + 1) % keys.length;
-            
-            // If we just showed Ö, signal to pause (keep Ö active)
-            if (aboutToShowLastKey) {
-                return true;
-            }
+            if (aboutToShowLastKey) return true;
         }
         return false;
     }
     
     function startPauseAnimation() {
-        // Find the Ö key (last key, index 7) and add pausing class
-        // It should already have active class from animateCycle
-        const lastKeyIndex = keys.length - 1;
-        if (keyElements[lastKeyIndex]) {
-            keyElements[lastKeyIndex].classList.add('pausing');
-        }
+        if (keyElements[keys.length - 1]) keyElements[keys.length - 1].classList.add('pausing');
     }
     
     function stopPauseAnimation() {
-        // Remove pausing class from all keys
         keyElements.forEach(el => el.classList.remove('pausing'));
     }
     
-    // Start by highlighting the first key
     highlightNextKey();
-    
-    // Start cycling animation (only runs when no keys pressed)
     let cyclePaused = false;
     let pauseEndTime = 0;
     homeRowAnimationInterval = setInterval(() => {
         if (tutorialCurrentStep !== 3 || !tutorialModal.classList.contains('visible')) {
             clearInterval(homeRowAnimationInterval);
+            homeRowAnimationInterval = null;
             return;
         }
-        // Only cycle if no keys have been pressed yet
         if (homeRowKeysPressed.length === 0) {
             if (cyclePaused) {
-                // Check if pause time has elapsed (2 seconds)
                 if (Date.now() >= pauseEndTime) {
-                    // Resume after pause - show A again
                     stopPauseAnimation();
                     cyclePaused = false;
                     animateCycle();
@@ -3639,21 +3772,21 @@ function animateHomeRowKeys() {
             } else {
                 const shouldPause = animateCycle();
                 if (shouldPause) {
-                    // Don't remove active class from Ö, just add pausing
                     cyclePaused = true;
-                    pauseEndTime = Date.now() + 2000; // Pause for 2 seconds
+                    pauseEndTime = Date.now() + 2000;
                     startPauseAnimation();
                 }
             }
         }
-    }, 400); // Cycle every 0.4 seconds
+    }, 400);
 }
 
-// Update checkmarks for pressed keys
+// Update checkmarks for step 3 (sequential): show check for each key pressed in order
 function updateHomeRowKeyCheckmarks() {
-    const checkmarks = document.querySelectorAll('.home-row-checkmark');
-    const keyElements = document.querySelectorAll('.home-row-key-animate');
-    
+    const step3 = document.querySelector('#tutorial-step-3');
+    if (!step3) return;
+    const checkmarks = step3.querySelectorAll('.home-row-keys .home-row-checkmark');
+    const keyElements = step3.querySelectorAll('.home-row-keys .home-row-key-animate');
     checkmarks.forEach((checkmark, index) => {
         if (index < homeRowKeysPressed.length) {
             checkmark.classList.add('checked');
@@ -3661,18 +3794,79 @@ function updateHomeRowKeyCheckmarks() {
             checkmark.classList.remove('checked');
         }
     });
-    
-    // Immediately highlight the next expected key
     if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
-        // Remove active class from all keys
         keyElements.forEach(el => el.classList.remove('active'));
-        
-        // Add active class to next expected key
-        const nextKeyIndex = homeRowKeysPressed.length;
-        if (keyElements[nextKeyIndex]) {
-            keyElements[nextKeyIndex].classList.add('active');
-        }
+        if (keyElements[homeRowKeysPressed.length]) keyElements[homeRowKeysPressed.length].classList.add('active');
     }
+}
+
+// Step 4: render and animate all-at-once 8 keys (sync pulse)
+function renderHomeRowStep4Keys() {
+    const container = document.getElementById('homeRowStep4Keys');
+    if (!container) return;
+    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
+    container.innerHTML = keys.map((key, index) => {
+        const keyLower = key.toLowerCase();
+        const fingerClass = getFingerClass(keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
+            <span class="home-row-checkmark" data-index="${index}">✓</span>
+        </span>`;
+    }).join('');
+    animateHomeRowStep4Keys();
+}
+
+function animateHomeRowStep4Keys() {
+    if (homeRowAnimationInterval) {
+        clearInterval(homeRowAnimationInterval);
+        homeRowAnimationInterval = null;
+    }
+    if (homeRowPulseTimeout) {
+        clearTimeout(homeRowPulseTimeout);
+        homeRowPulseTimeout = null;
+    }
+    const container = document.getElementById('homeRowStep4Keys');
+    if (!container) return;
+    
+    function runPulse() {
+        if (tutorialCurrentStep !== 4 || !tutorialModal.classList.contains('visible')) return;
+        container.classList.add('home-row-pulse-sync');
+        homeRowPulseTimeout = setTimeout(() => {
+            homeRowPulseTimeout = null;
+            container.classList.remove('home-row-pulse-sync');
+        }, 2000);
+    }
+    runPulse();
+    homeRowAnimationInterval = setInterval(() => {
+        if (tutorialCurrentStep !== 4 || !tutorialModal.classList.contains('visible')) {
+            if (homeRowAnimationInterval) {
+                clearInterval(homeRowAnimationInterval);
+                homeRowAnimationInterval = null;
+            }
+            if (homeRowPulseTimeout) {
+                clearTimeout(homeRowPulseTimeout);
+                homeRowPulseTimeout = null;
+            }
+            container.classList.remove('home-row-pulse-sync');
+            return;
+        }
+        runPulse();
+    }, 4000);
+}
+
+// Update checkmarks for step 4 (all-at-once): show check only while key is held
+function updateHomeRowStep4KeyCheckmarks() {
+    const container = document.getElementById('homeRowStep4Keys');
+    if (!container) return;
+    const checkmarks = container.querySelectorAll('.home-row-checkmark');
+    checkmarks.forEach((checkmark, index) => {
+        const key = homeRowKeysSequence[index];
+        if (key && homeRowKeysHeld.has(key)) {
+            checkmark.classList.add('checked');
+        } else {
+            checkmark.classList.remove('checked');
+        }
+    });
 }
 
 // Animation interval for verstanden keys

@@ -2435,9 +2435,25 @@ h1 {
     font-weight: 900;
 }
 
+.level-change-keys-instruction {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.level-change-keys-instruction .home-row-keys {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .level-change-hint {
-    font-size: 1em;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.95em;
+    color: rgba(255, 255, 255, 0.9);
     padding: 12px 25px;
     background: rgba(136, 136, 136, 0.25);
     border-radius: 25px;
@@ -3139,6 +3155,22 @@ h1 {
 
 .home-row-key-animate.pausing {
     animation: keyPausePulse 0.6s ease-in-out infinite;
+}
+
+/* Step 3: synchronous pulse on all 8 keys (2s on / 2s off) */
+.home-row-pulse-sync .home-row-key-animate {
+    animation: keyPulseSync 2s ease-in-out;
+}
+
+@keyframes keyPulseSync {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 4px 16px rgba(136, 136, 136, 0.5);
+    }
 }
 
 .home-row-key-animate.active.pausing {

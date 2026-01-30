@@ -49,28 +49,6 @@
         </header>
 
         <div class="keyboard-section">
-            <div class="direction-info">
-                <div class="direction-item">
-                    <span class="direction-arrow">↑</span>
-                    <span class="direction-label">Oben</span>
-                    <span class="direction-counter" id="counter-up">0/10</span>
-                </div>
-                <div class="direction-item">
-                    <span class="direction-arrow">↓</span>
-                    <span class="direction-label">Unten</span>
-                    <span class="direction-counter" id="counter-down">0/10</span>
-                </div>
-                <div class="direction-item">
-                    <span class="direction-arrow">←</span>
-                    <span class="direction-label">Links</span>
-                    <span class="direction-counter" id="counter-left">0/10</span>
-                </div>
-                <div class="direction-item">
-                    <span class="direction-arrow">→</span>
-                    <span class="direction-label">Rechts</span>
-                    <span class="direction-counter" id="counter-right">0/10</span>
-                </div>
-            </div>
             <div class="virtual-keyboard" id="virtualKeyboard"></div>
         </div>
 
@@ -240,7 +218,10 @@
                 <div class="level-change-title">NEUES LEVEL!</div>
                 <div class="level-change-name" id="levelChangeName">Labyrinth</div>
                 <div class="level-change-number">Level <span id="levelChangeNumber">2</span></div>
-                <div class="level-change-hint">Drücke Leertaste zum Fortfahren</div>
+                <div class="level-change-keys-instruction">
+                    <div class="home-row-keys level-change-keys" id="levelChangeKeys"></div>
+                    <div class="level-change-hint">Mindestens 6 der 8 Tasten gleichzeitig drücken (manche Tastaturen erkennen nur 6)</div>
+                </div>
             </div>
         </div>
 
@@ -346,7 +327,7 @@
                                 
                                 <div class="home-row-instruction">
                                     <div class="home-row-keys">ASDFJKLÖ</div>
-                                    <div class="instruction-text">um weiterzumachen</div>
+                                    <div class="instruction-text">Tasten nacheinander drücken, um weiterzumachen</div>
                                 </div>
                             </div>
                         </div>
@@ -469,8 +450,8 @@
                                 </div>
                                 
                                 <div class="home-row-instruction">
-                                    <div class="home-row-keys" id="verstandenKeys">VERSTANDEN</div>
-                                    <div class="instruction-text">um weiterzumachen</div>
+                                    <div class="home-row-keys" id="homeRowStep4Keys"></div>
+                                    <div class="instruction-text">Mindestens 6 der 8 Tasten gleichzeitig drücken (manche Tastaturen erkennen nur 6)</div>
                                 </div>
                             </div>
                         </div>

@@ -16,6 +16,23 @@
       }
     },
     {
+      "id": 1769736074999,
+      "timestamp": "2026-01-30T01:21:14.999Z",
+      "name": "testjonathan",
+      "points": 36,
+      "kpm": 25,
+      "level": 1,
+      "duration": 250,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 60
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
       "id": 1769720933417,
       "timestamp": "2026-01-29T21:08:53.417Z",
       "name": "jonathan",
