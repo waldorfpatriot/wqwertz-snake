@@ -9,6 +9,24 @@ let CELL_SIZE = 400 / GRID_SIZE;
 let FPS = DIFFICULTY_FPS.medium;
 let currentDifficulty = 'medium';
 let gridSizeOption = 'medium';
+
+// Load cached difficulty and grid from localStorage (before init)
+(function loadCachedSettings() {
+    try {
+        var d = localStorage.getItem('qwertznake-difficulty');
+        var g = localStorage.getItem('qwertznake-gridSize');
+        if (d && DIFFICULTY_FPS[d] != null) {
+            currentDifficulty = d;
+            FPS = DIFFICULTY_FPS[d];
+        }
+        if (g && GRID_SIZE_OPTIONS[g] != null) {
+            gridSizeOption = g;
+            GRID_SIZE = GRID_SIZE_OPTIONS[g];
+            CELL_SIZE = 400 / GRID_SIZE;
+        }
+    } catch (e) {}
+})();
+
 let PRESSES_PER_CHANGE = 10;
 const MIN_SCORE_FOR_KEY_CHANGE = 3;
 
@@ -4741,6 +4759,7 @@ function applyDifficulty(mode) {
     if (DIFFICULTY_FPS[mode] != null) {
         FPS = DIFFICULTY_FPS[mode];
         currentDifficulty = mode;
+        try { localStorage.setItem('qwertznake-difficulty', mode); } catch (e) {}
         const debugSpeedInput = document.getElementById('debugSpeed');
         if (debugSpeedInput) debugSpeedInput.value = FPS;
     }
@@ -4752,6 +4771,7 @@ function applyGridSize(option) {
         GRID_SIZE = GRID_SIZE_OPTIONS[option];
         CELL_SIZE = 400 / GRID_SIZE;
         gridSizeOption = option;
+        try { localStorage.setItem('qwertznake-gridSize', option); } catch (e) {}
     }
 }
 
