@@ -665,7 +665,7 @@ async function init() {
             }
             
             // Save statistics
-            await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage);
+            await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage, lastGameAccuracy, lastGameWPM);
             gameStatsSaved = true;
         }
         startGame();
@@ -883,7 +883,7 @@ function resetGame() {
     nextDirection = { x: 1, y: 0 };
     score = 0;
     scoreElement.textContent = '0';
-    kpmElement.textContent = '0';
+    // kpmElement removed from UI, but KPM is still calculated for statistics
     
     // Reset level state
     currentLevelIndex = 0;
@@ -966,11 +966,11 @@ function calculateKPM() {
     return Math.round(totalKeystrokes / elapsedMinutes);
 }
 
-// Update T/Min display
+// Update T/Min display (kept for internal tracking, but not displayed)
 function updateKPMDisplay() {
+    // KPM is no longer displayed, but we still calculate it for statistics
+    // Also update WPM display
     if (gameRunning && !gamePaused) {
-        kpmElement.textContent = calculateKPM();
-        // Also update WPM display
         updateWPMDisplay();
     }
 }
@@ -1015,6 +1015,8 @@ function updateWPMDisplay() {
 // Track last game score for saving
 let lastGameScore = 0;
 let lastGameFingerUsage = {};
+let lastGameAccuracy = 100;
+let lastGameWPM = 0;
 
 // Logging state
 let loggingEnabled = false;
@@ -1026,7 +1028,7 @@ async function startGame() {
     // Save statistics from previous game if not saved yet
     if (!gameStatsSaved && lastGameScore > 0) {
         console.log('[stats] startGame: saving previous game statistics', { lastGameScore, lastGameKPM, currentDifficulty, gridSizeOption });
-        const saved = await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage);
+        const saved = await submitStatistics(lastGameKPM, lastGameScore, lastGameFingerUsage, lastGameAccuracy, lastGameWPM);
         if (saved) gameStatsSaved = true;
     }
     
@@ -1067,8 +1069,8 @@ function gameOver() {
     lastGameKPM = calculateKPM();
     lastGameScore = score;
     lastGameFingerUsage = { ...fingerUsage };
-    const lastGameAccuracy = calculateAccuracy();
-    const lastGameWPM = calculateWPM();
+    lastGameAccuracy = calculateAccuracy();
+    lastGameWPM = calculateWPM();
     const lastGameFingerAccuracy = {
         'finger-pinky': calculateFingerAccuracy('finger-pinky'),
         'finger-ring': calculateFingerAccuracy('finger-ring'),
@@ -1099,13 +1101,15 @@ function gameOver() {
 }
 
 // Submit statistics to server. Returns true if saved successfully.
-async function submitStatistics(kpm, gameScore, gameFingersUsed) {
+async function submitStatistics(kpm, gameScore, gameFingersUsed, accuracy = 100, wpm = 0) {
     const name = playerName || 'Anonym';
     
     const gameData = {
         name: name,
         points: gameScore,
         kpm: kpm,
+        accuracy: accuracy,
+        wpm: wpm,
         level: maxLevelReached,
         fingersUsed: gameFingersUsed,
         duration: Math.round((Date.now() - gameStartTime) / 1000),
@@ -1163,7 +1167,7 @@ function renderStatisticsTable(stats, difficultyFilter) {
     console.log('[stats] renderStatisticsTable', { statsCount: list.length, filter: filter, filteredCount: filtered.length });
 
     if (filtered.length === 0) {
-        statsTableBody.innerHTML = '<tr><td colspan="7" class="no-stats">Noch keine Statistiken für diese Schwierigkeit</td></tr>';
+        statsTableBody.innerHTML = '<tr><td colspan="8" class="no-stats">Noch keine Statistiken für diese Schwierigkeit</td></tr>';
         return;
     }
 
@@ -1171,12 +1175,15 @@ function renderStatisticsTable(stats, difficultyFilter) {
         const fingerDots = renderFingerDots(game.fingersUsed);
         const levelDisplay = game.level ? 'Level ' + game.level : '-';
         const gridLabel = game.gridSize ? (GRID_SIZE_LABELS[game.gridSize] || game.gridSize) : '-';
+        const accuracy = game.accuracy !== undefined ? game.accuracy + '%' : '-';
+        const wpm = game.wpm !== undefined ? game.wpm : '-';
         return '<tr>' +
             '<td>' + (index + 1) + '</td>' +
             '<td>' + escapeHtml(game.name) + '</td>' +
             '<td>' + game.points + '</td>' +
             '<td>' + levelDisplay + '</td>' +
-            '<td>' + game.kpm + '</td>' +
+            '<td>' + accuracy + '</td>' +
+            '<td>' + wpm + '</td>' +
             '<td>' + escapeHtml(gridLabel) + '</td>' +
             '<td>' + fingerDots + '</td>' +
             '</tr>';
@@ -1360,6 +1367,8 @@ function renderGameOverStatsTable(stats, kpm, accuracy = 100, wpm = 0, fingerAcc
         name: playerName || 'Anonym',
         points: score,
         kpm: kpm,
+        accuracy: accuracy,
+        wpm: wpm,
         level: maxLevelReached,
         fingersUsed: lastGameFingerUsage,
         difficulty: currentDifficulty,
@@ -1410,7 +1419,7 @@ function renderGameOverStatsTable(stats, kpm, accuracy = 100, wpm = 0, fingerAcc
         accuracySummaryHtml +
         '<table class="game-over-stats-table">' +
         '<thead><tr>' +
-        '<th>#</th><th>Name</th><th>Punkte</th><th>Level</th><th>T/Min</th><th>Spielfeld</th><th>Finger</th>' +
+        '<th>#</th><th>Name</th><th>Punkte</th><th>Level</th><th>Genauigkeit</th><th>WPM</th><th>Spielfeld</th><th>Finger</th>' +
         '</tr></thead><tbody>';
 
     displayStats.forEach(function (game) {
@@ -1420,12 +1429,15 @@ function renderGameOverStatsTable(stats, kpm, accuracy = 100, wpm = 0, fingerAcc
         const gridLabel = game.gridSize ? (GRID_SIZE_LABELS[game.gridSize] || game.gridSize) : '-';
         const isNewRow = game.isNew;
         const rowClass = isNewRow ? 'new-score-row blinking' : '';
+        const gameAccuracy = game.accuracy !== undefined ? game.accuracy + '%' : (isNewRow ? accuracy + '%' : '-');
+        const gameWpm = game.wpm !== undefined ? game.wpm : (isNewRow ? wpm : '-');
         html += '<tr class="' + rowClass + '">' +
             '<td>' + (actualIndex + 1) + '</td>' +
             '<td>' + (isNewRow ? '<input type="text" class="game-over-name-input" placeholder="' + placeholderName + '" value="' + (playerName || '') + '" maxlength="20">' : escapeHtml(game.name)) + '</td>' +
             '<td>' + game.points + '</td>' +
             '<td>' + levelDisplay + '</td>' +
-            '<td>' + game.kpm + '</td>' +
+            '<td>' + gameAccuracy + '</td>' +
+            '<td>' + gameWpm + '</td>' +
             '<td>' + escapeHtml(gridLabel) + '</td>' +
             '<td>' + fingerDots + '</td>' +
             '</tr>';

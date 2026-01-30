@@ -207,6 +207,8 @@ const server = http.createServer((req, res) => {
                     name: gameData.name.substring(0, 50).replace(/[<>]/g, ''),
                     points: Math.floor(gameData.points),
                     kpm: Math.floor(gameData.kpm),
+                    accuracy: typeof gameData.accuracy === 'number' ? Math.round(gameData.accuracy * 10) / 10 : 100,
+                    wpm: typeof gameData.wpm === 'number' ? Math.floor(gameData.wpm) : 0,
                     level: typeof gameData.level === 'number' ? Math.floor(gameData.level) : 0,
                     duration: typeof gameData.duration === 'number' ? Math.floor(gameData.duration) : 0,
                     fingersUsed: gameData.fingersUsed && typeof gameData.fingersUsed === 'object' ? gameData.fingersUsed : {},
