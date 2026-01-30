@@ -2,6 +2,7 @@
 
 ## Issues
 
+- ✅ after pressing the asdfjklö keys to start the 10-finger übung wayt until the keys are not pressed anymore to start the 10-finger übung
 
 
 ## Feature requests
@@ -29,4 +30,7 @@
 - ✅ words are direction changes until a food is eaten
 - ✅ accuracy is tracked by counting character inputs that are not currently mapped to any arrow
 - ✅ use the list of characters mapped to fingers that is allready there
-- also track these values in the 10 finger excercise in between levels
+
+### implement a finger curriculum
+
+- change the key progression: start by only changing the keys from the middle row

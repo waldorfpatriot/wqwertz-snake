@@ -366,6 +366,7 @@ let levelChangeModal, levelChangeName, levelChangeNumber;
 let practiceModal, practiceKeysElement, practiceModalVisible = false;
 let practiceIntroElement, practiceMainElement, practicePunkteKeysElement;
 let practiceAwaitingIntro = false; // True when user must hold 6+ of 8 home row keys to start
+let practiceReadyToStart = false; // True when 6+ keys have been held and we're waiting for release
 let practiceKeysHeld = new Set();
 let practiceIntroAnimationInterval = null;
 let practiceIntroPulseTimeout = null;
@@ -2390,6 +2391,22 @@ function handleKeyUp(event) {
     if (practiceModalVisible && practiceAwaitingIntro && homeRowKeysSequence.includes(key)) {
         practiceKeysHeld.delete(key);
         updatePracticeIntroKeyCheckmarks();
+        // If we were ready to start and all keys are now released, start the practice mode
+        if (practiceReadyToStart && practiceKeysHeld.size === 0) {
+            practiceAwaitingIntro = false;
+            practiceReadyToStart = false;
+            if (practiceIntroAnimationInterval) {
+                clearInterval(practiceIntroAnimationInterval);
+                practiceIntroAnimationInterval = null;
+            }
+            if (practiceIntroPulseTimeout) {
+                clearTimeout(practiceIntroPulseTimeout);
+                practiceIntroPulseTimeout = null;
+            }
+            if (practiceIntroElement) practiceIntroElement.style.display = 'none';
+            if (practiceMainElement) practiceMainElement.classList.add('visible');
+            startPracticeCombination();
+        }
         return;
     }
     if (!tutorialModal || !tutorialModal.classList.contains('visible') || tutorialCurrentStep !== 4) return;
@@ -3063,6 +3080,7 @@ function showPracticeMode() {
     
     // Show "Level geschafft" intro: hold 6+ of 8 home row keys to start (same challenge as level change)
     practiceAwaitingIntro = true;
+    practiceReadyToStart = false;
     practiceKeysHeld.clear();
     if (practiceIntroElement) practiceIntroElement.style.display = 'block';
     if (practiceMainElement) practiceMainElement.classList.remove('visible');
@@ -3311,19 +3329,8 @@ function handlePracticeKey(key, event) {
             practiceKeysHeld.add(key);
             updatePracticeIntroKeyCheckmarks();
             if (practiceKeysHeld.size >= 6) {
-                practiceAwaitingIntro = false;
-                if (practiceIntroAnimationInterval) {
-                    clearInterval(practiceIntroAnimationInterval);
-                    practiceIntroAnimationInterval = null;
-                }
-                if (practiceIntroPulseTimeout) {
-                    clearTimeout(practiceIntroPulseTimeout);
-                    practiceIntroPulseTimeout = null;
-                }
-                practiceKeysHeld.clear();
-                if (practiceIntroElement) practiceIntroElement.style.display = 'none';
-                if (practiceMainElement) practiceMainElement.classList.add('visible');
-                startPracticeCombination();
+                // Mark as ready to start, but wait for all keys to be released
+                practiceReadyToStart = true;
             }
             return true;
         }
@@ -3447,6 +3454,7 @@ function hidePracticeMode() {
         practiceIntroPulseTimeout = null;
     }
     practiceKeysHeld.clear();
+    practiceReadyToStart = false;
     if (practiceKPMInterval) {
         clearInterval(practiceKPMInterval);
         practiceKPMInterval = null;
