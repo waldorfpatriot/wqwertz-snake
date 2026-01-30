@@ -1141,6 +1141,58 @@ h1 {
     border: 1px solid #e0e0e0;
 }
 
+.game-over-accuracy-summary {
+    padding: 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0;
+}
+
+.accuracy-summary-item {
+    margin-bottom: 10px;
+    font-size: 1em;
+    color: #333;
+}
+
+.accuracy-summary-item strong {
+    color: #666;
+    margin-right: 8px;
+}
+
+.accuracy-summary-fingers {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.accuracy-finger-item {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.accuracy-finger-item .finger-label-index {
+    color: #4a90e2;
+    font-weight: 600;
+}
+
+.accuracy-finger-item .finger-label-middle {
+    color: #50c878;
+    font-weight: 600;
+}
+
+.accuracy-finger-item .finger-label-ring {
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+.accuracy-finger-item .finger-label-pinky {
+    color: #ffa500;
+    font-weight: 600;
+}
+
 .game-over-stats-table {
     width: 100%;
     border-collapse: collapse;

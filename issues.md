@@ -25,7 +25,7 @@
 
 ### accuracy tracker, wpm, week fingers
 
-- implement tracking for accuracy (in %) both over all and seperated by finger and tracking for word per minute
-- words are direction changes until a food is eaten
-- accuracy is tracked by counting character inputs that are not currently mapped to any arrow
-- use the list of characters mapped to fingers that is allready there
+- ✅ implement tracking for accuracy (in %) both over all and seperated by finger and tracking for word per minute
+- ✅ words are direction changes until a food is eaten
+- ✅ accuracy is tracked by counting character inputs that are not currently mapped to any arrow
+- ✅ use the list of characters mapped to fingers that is allready there

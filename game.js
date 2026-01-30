@@ -275,6 +275,21 @@ let fingerUsage = {
 let kpmUpdateInterval;
 let playerName = localStorage.getItem('qwertzsnake_name') || '';
 
+// Accuracy tracking
+let totalInputs = 0;  // Total character inputs (mapped + unmapped)
+let incorrectInputs = 0;  // Inputs that are not mapped to any arrow
+let fingerInputs = {
+    'finger-pinky': { total: 0, incorrect: 0 },
+    'finger-ring': { total: 0, incorrect: 0 },
+    'finger-middle': { total: 0, incorrect: 0 },
+    'finger-index': { total: 0, incorrect: 0 }
+};
+
+// WPM tracking (words are direction changes until a food is eaten)
+let wordCount = 0;
+let wordStartTime = 0;  // Time when current word started (first direction change)
+let currentWordDirectionChanges = 0;  // Count direction changes in current word
+
 // Level system
 let availableLevels = [];
 let currentLevelIndex = 0;
@@ -315,7 +330,7 @@ let keyChangeCounts = {
 let KEY_CHANGES_BEFORE_FORCE_PROGRESSION = 4;
 
 // DOM elements
-let scoreElement, kpmElement;
+let scoreElement, kpmElement, accuracyElement, wpmElement;
 let counterUpElement, counterDownElement, counterLeftElement, counterRightElement;
 let virtualKeyboardElement;
 let overlayElement, overlayTitleElement, overlayMessageElement, restartButton;
@@ -514,6 +529,8 @@ async function init() {
     
     scoreElement = document.getElementById('score');
     kpmElement = document.getElementById('kpm');
+    accuracyElement = document.getElementById('accuracy');
+    wpmElement = document.getElementById('wpm');
     counterUpElement = document.getElementById('counter-up');      // optional: direction-info removed
     counterDownElement = document.getElementById('counter-down');
     counterLeftElement = document.getElementById('counter-left');
@@ -916,8 +933,27 @@ function resetGame() {
         'finger-index': 0
     };
     
+    // Reset accuracy tracking
+    totalInputs = 0;
+    incorrectInputs = 0;
+    fingerInputs = {
+        'finger-pinky': { total: 0, incorrect: 0 },
+        'finger-ring': { total: 0, incorrect: 0 },
+        'finger-middle': { total: 0, incorrect: 0 },
+        'finger-index': { total: 0, incorrect: 0 }
+    };
+    
+    // Reset WPM tracking
+    wordCount = 0;
+    wordStartTime = 0;
+    currentWordDirectionChanges = 0;
+    
     // Reset key press sequence for practice mode
     keyPressSequence = [];
+    
+    // Reset display elements
+    if (accuracyElement) accuracyElement.textContent = '100%';
+    if (wpmElement) wpmElement.textContent = '0';
     
     updateCounters();
 }
@@ -934,6 +970,45 @@ function calculateKPM() {
 function updateKPMDisplay() {
     if (gameRunning && !gamePaused) {
         kpmElement.textContent = calculateKPM();
+        // Also update WPM display
+        updateWPMDisplay();
+    }
+}
+
+// Calculate accuracy percentage (overall)
+function calculateAccuracy() {
+    if (totalInputs === 0) return 100;
+    const accuracy = ((totalInputs - incorrectInputs) / totalInputs) * 100;
+    return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
+}
+
+// Calculate accuracy percentage for a specific finger
+function calculateFingerAccuracy(fingerType) {
+    const finger = fingerInputs[fingerType];
+    if (!finger || finger.total === 0) return 100;
+    const accuracy = ((finger.total - finger.incorrect) / finger.total) * 100;
+    return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
+}
+
+// Calculate WPM (words per minute)
+function calculateWPM() {
+    if (!gameStartTime || wordCount === 0) return 0;
+    const elapsedMinutes = (Date.now() - gameStartTime) / 60000;
+    if (elapsedMinutes < 0.01) return 0; // Avoid division issues for very short times
+    return Math.round(wordCount / elapsedMinutes);
+}
+
+// Update accuracy display
+function updateAccuracyDisplay() {
+    if (gameRunning && !gamePaused && accuracyElement) {
+        accuracyElement.textContent = calculateAccuracy() + '%';
+    }
+}
+
+// Update WPM display
+function updateWPMDisplay() {
+    if (gameRunning && !gamePaused && wpmElement) {
+        wpmElement.textContent = calculateWPM();
     }
 }
 
@@ -992,6 +1067,14 @@ function gameOver() {
     lastGameKPM = calculateKPM();
     lastGameScore = score;
     lastGameFingerUsage = { ...fingerUsage };
+    const lastGameAccuracy = calculateAccuracy();
+    const lastGameWPM = calculateWPM();
+    const lastGameFingerAccuracy = {
+        'finger-pinky': calculateFingerAccuracy('finger-pinky'),
+        'finger-ring': calculateFingerAccuracy('finger-ring'),
+        'finger-middle': calculateFingerAccuracy('finger-middle'),
+        'finger-index': calculateFingerAccuracy('finger-index')
+    };
     gameStatsSaved = false;
     
     // Log game over
@@ -999,8 +1082,11 @@ function gameOver() {
         logEvent('game_over', {
             score: score,
             kpm: lastGameKPM,
+            accuracy: lastGameAccuracy,
+            wpm: lastGameWPM,
             level: currentLevelIndex,
             fingerUsage: { ...fingerUsage },
+            fingerAccuracy: lastGameFingerAccuracy,
             duration: Math.round((Date.now() - gameStartTime) / 1000),
             timestamp: new Date().toISOString()
         });
@@ -1009,7 +1095,7 @@ function gameOver() {
     }
     
     // Show game over with stats (don't auto-save, wait for user to click button)
-    showOverlay('Game Over!', `Punkte: ${score}`, true, lastGameKPM);
+    showOverlay('Game Over!', `Punkte: ${score}`, true, lastGameKPM, lastGameAccuracy, lastGameWPM, lastGameFingerAccuracy);
 }
 
 // Submit statistics to server. Returns true if saved successfully.
@@ -1191,7 +1277,7 @@ function closeSettingsModal() {
 }
 
 // Show overlay
-async function showOverlay(title, message, showStats = false, kpm = 0) {
+async function showOverlay(title, message, showStats = false, kpm = 0, accuracy = 100, wpm = 0, fingerAccuracy = null) {
     overlayTitleElement.textContent = title;
     overlayMessageElement.textContent = message;
     // Hide message when showing stats
@@ -1240,7 +1326,7 @@ async function showOverlay(title, message, showStats = false, kpm = 0) {
         const stats = await fetchStatistics();
         const statsList = Array.isArray(stats) ? stats : (stats && stats.games ? stats.games : []);
         console.log('[stats] Game over overlay: got', statsList.length, 'games, rendering table');
-        overlayStatsElement.innerHTML = renderGameOverStatsTable(stats, kpm);
+        overlayStatsElement.innerHTML = renderGameOverStatsTable(stats, kpm, accuracy, wpm, fingerAccuracy);
         
         // Set up event listener for the name input in the table
         setTimeout(() => {
@@ -1269,7 +1355,7 @@ async function showOverlay(title, message, showStats = false, kpm = 0) {
 }
 
 // Render game over statistics table with new score inserted (filtered by current difficulty)
-function renderGameOverStatsTable(stats, kpm) {
+function renderGameOverStatsTable(stats, kpm, accuracy = 100, wpm = 0, fingerAccuracy = null) {
     const newScore = {
         name: playerName || 'Anonym',
         points: score,
@@ -1295,7 +1381,33 @@ function renderGameOverStatsTable(stats, kpm) {
     const savedName = localStorage.getItem('qwertzsnake_name') || '';
     const placeholderName = savedName || 'Anonym';
 
+    // Build accuracy summary HTML
+    let accuracySummaryHtml = '<div class="game-over-accuracy-summary">' +
+        '<div class="accuracy-summary-item"><strong>Genauigkeit:</strong> ' + accuracy + '%</div>' +
+        '<div class="accuracy-summary-item"><strong>WPM:</strong> ' + wpm + '</div>';
+    
+    if (fingerAccuracy) {
+        accuracySummaryHtml += '<div class="accuracy-summary-fingers">';
+        const fingerLabels = {
+            'finger-index': 'Zeigefinger',
+            'finger-middle': 'Mittelfinger',
+            'finger-ring': 'Ringfinger',
+            'finger-pinky': 'Kleiner Finger'
+        };
+        Object.keys(fingerAccuracy).forEach(fingerType => {
+            const acc = fingerAccuracy[fingerType];
+            if (fingerInputs[fingerType] && fingerInputs[fingerType].total > 0) {
+                accuracySummaryHtml += '<div class="accuracy-finger-item">' +
+                    '<span class="finger-label-' + fingerType.split('-')[1] + '">' + fingerLabels[fingerType] + ':</span> ' +
+                    acc + '%</div>';
+            }
+        });
+        accuracySummaryHtml += '</div>';
+    }
+    accuracySummaryHtml += '</div>';
+
     let html = '<div class="game-over-stats-container">' +
+        accuracySummaryHtml +
         '<table class="game-over-stats-table">' +
         '<thead><tr>' +
         '<th>#</th><th>Name</th><th>Punkte</th><th>Level</th><th>T/Min</th><th>Spielfeld</th><th>Finger</th>' +
@@ -1654,10 +1766,25 @@ function update() {
             const oldScore = score;
             score++;
             scoreElement.textContent = score;
+            
+            // Complete current word (food eaten = word completed)
+            if (currentWordDirectionChanges > 0) {
+                wordCount++;
+                currentWordDirectionChanges = 0;
+                updateWPMDisplay();
+            }
+            
             spawnFood();
             checkLevelChange(oldScore, score);
         } else if (!ateLetterFood) {
             snake.pop();
+        }
+        
+        // Also complete word when letter-food is eaten
+        if (ateLetterFood && currentWordDirectionChanges > 0) {
+            wordCount++;
+            currentWordDirectionChanges = 0;
+            updateWPMDisplay();
         }
 
         lastUpdate = now;
@@ -2034,8 +2161,35 @@ function handleKeyPress(event) {
         // Mapped keys are already highlighted by highlightKey() function above
     }
 
+    // Track accuracy: count character inputs that are mapped to fingers
+    if (gameRunning && !gamePaused && getFingerClass(key)) {
+        totalInputs++;
+        const fingerType = getFingerClass(key);
+        
+        // Track per finger
+        if (fingerType && fingerInputs[fingerType]) {
+            fingerInputs[fingerType].total++;
+            
+            // If key is not mapped to any arrow, count as incorrect
+            if (!isMappedKey) {
+                incorrectInputs++;
+                fingerInputs[fingerType].incorrect++;
+            }
+        }
+        
+        // Update accuracy display
+        updateAccuracyDisplay();
+    }
+
     // Track keystroke statistics
     if (directionChanged) {
+        // Track word start: if this is the first direction change in a word, record start time
+        if (currentWordDirectionChanges === 0) {
+            wordStartTime = Date.now();
+        }
+        currentWordDirectionChanges++;
+        
+        totalKeystrokes++;
         totalKeystrokes++;
         const fingerType = getFingerClass(key);
         if (fingerType && fingerUsage[fingerType] !== undefined) {
