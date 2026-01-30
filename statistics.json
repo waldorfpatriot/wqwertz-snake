@@ -1,6 +1,25 @@
 {
   "games": [
     {
+      "id": 1769764021307,
+      "timestamp": "2026-01-30T09:07:01.307Z",
+      "name": "testjonathan",
+      "points": 64,
+      "kpm": 52,
+      "accuracy": 87.5,
+      "wpm": 6,
+      "level": 2,
+      "duration": 423,
+      "fingersUsed": {
+        "finger-pinky": 10,
+        "finger-ring": 11,
+        "finger-middle": 0,
+        "finger-index": 70
+      },
+      "difficulty": "hard",
+      "gridSize": "small"
+    },
+    {
       "id": 1769638343968,
       "timestamp": "2026-01-28T22:12:23.968Z",
       "name": "jonathan",

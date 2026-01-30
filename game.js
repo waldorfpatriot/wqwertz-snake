@@ -17,7 +17,8 @@ let gridSizeOption = 'medium';
         var g = localStorage.getItem('qwertznake-gridSize');
         if (d && DIFFICULTY_FPS[d] != null) {
             currentDifficulty = d;
-            FPS = DIFFICULTY_FPS[d];
+            baseFPS = DIFFICULTY_FPS[d];
+            FPS = baseFPS;
         }
         if (g && GRID_SIZE_OPTIONS[g] != null) {
             gridSizeOption = g;
@@ -285,6 +286,15 @@ let fingerInputs = {
     'finger-index': { total: 0, incorrect: 0 }
 };
 
+// Hand-based accuracy tracking (left and right)
+let handInputs = {
+    'links': { total: 0, incorrect: 0 },
+    'rechts': { total: 0, incorrect: 0 }
+};
+
+// Base FPS (stored to calculate speed adjustments)
+let baseFPS = DIFFICULTY_FPS.medium;
+
 // WPM tracking (words are direction changes until a food is eaten)
 let wordCount = 0;
 let wordStartTime = 0;  // Time when current word started (first direction change)
@@ -369,6 +379,15 @@ let practiceCorrectedKeys = new Set(); // Track keys that were wrong but correct
 let practiceDeletedWrongPositions = new Set(); // Track positions where wrong keys were deleted
 let practiceHadMistake = false; // Track if any mistake was ever made in current word
 let practiceKPMInterval = null;
+
+// Practice mode accuracy tracking (left and right hands)
+let practiceHandInputs = {
+    'links': { total: 0, incorrect: 0 },
+    'rechts': { total: 0, incorrect: 0 }
+};
+
+// Practice mode base speed (for speed adjustments)
+let practiceBaseSpeed = 1.0; // Relative speed multiplier
 
 // Track if current game stats have been saved
 let gameStatsSaved = false;
@@ -943,6 +962,16 @@ function resetGame() {
         'finger-index': { total: 0, incorrect: 0 }
     };
     
+    // Reset hand-based accuracy tracking
+    handInputs = {
+        'links': { total: 0, incorrect: 0 },
+        'rechts': { total: 0, incorrect: 0 }
+    };
+    
+    // Reset FPS to base (remove speed adjustments)
+    baseFPS = DIFFICULTY_FPS[currentDifficulty];
+    FPS = baseFPS;
+    
     // Reset WPM tracking
     wordCount = 0;
     wordStartTime = 0;
@@ -988,6 +1017,84 @@ function calculateFingerAccuracy(fingerType) {
     if (!finger || finger.total === 0) return 100;
     const accuracy = ((finger.total - finger.incorrect) / finger.total) * 100;
     return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
+}
+
+// Calculate accuracy percentage for a specific hand (left or right)
+function calculateHandAccuracy(hand) {
+    const handData = handInputs[hand];
+    if (!handData || handData.total === 0) return 100;
+    const accuracy = ((handData.total - handData.incorrect) / handData.total) * 100;
+    return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
+}
+
+// Calculate accuracy percentage for practice mode hand (left or right)
+function calculatePracticeHandAccuracy(hand) {
+    const handData = practiceHandInputs[hand];
+    if (!handData || handData.total === 0) return 100;
+    const accuracy = ((handData.total - handData.incorrect) / handData.total) * 100;
+    return Math.round(accuracy * 10) / 10; // Round to 1 decimal place
+}
+
+// Adjust game speed based on hand accuracy (10% faster if >95%, 10% slower if <95%)
+function adjustGameSpeedBasedOnAccuracy() {
+    if (!gameRunning || gamePaused) return;
+    
+    const leftAccuracy = calculateHandAccuracy('links');
+    const rightAccuracy = calculateHandAccuracy('rechts');
+    
+    // Only adjust if both hands have enough inputs (at least 10 each)
+    if (handInputs['links'].total < 10 || handInputs['rechts'].total < 10) {
+        return; // Not enough data yet
+    }
+    
+    // Calculate average accuracy
+    const avgAccuracy = (leftAccuracy + rightAccuracy) / 2;
+    
+    // Adjust speed: +10% if accuracy > 95%, -10% if accuracy < 95%
+    let speedMultiplier = 1.0;
+    if (avgAccuracy > 95) {
+        speedMultiplier = 1.1; // 10% faster
+    } else if (avgAccuracy < 95) {
+        speedMultiplier = 0.9; // 10% slower
+    }
+    
+    // Apply speed adjustment to base FPS
+    const adjustedFPS = baseFPS * speedMultiplier;
+    
+    // Only update if change is significant (avoid constant micro-adjustments)
+    if (Math.abs(FPS - adjustedFPS) > 0.1) {
+        FPS = adjustedFPS;
+    }
+}
+
+// Adjust practice mode speed based on hand accuracy (10% faster if >95%, 10% slower if <95%)
+// Note: Practice mode doesn't have a direct speed mechanism, but this function tracks accuracy
+// and could be used to adjust animation speeds or other practice mode parameters
+function adjustPracticeSpeedBasedOnAccuracy() {
+    if (!practiceModalVisible) return;
+    
+    const leftAccuracy = calculatePracticeHandAccuracy('links');
+    const rightAccuracy = calculatePracticeHandAccuracy('rechts');
+    
+    // Only adjust if both hands have enough inputs (at least 10 each)
+    if (practiceHandInputs['links'].total < 10 || practiceHandInputs['rechts'].total < 10) {
+        return; // Not enough data yet
+    }
+    
+    // Calculate average accuracy
+    const avgAccuracy = (leftAccuracy + rightAccuracy) / 2;
+    
+    // Adjust speed: +10% if accuracy > 95%, -10% if accuracy < 95%
+    if (avgAccuracy > 95) {
+        practiceBaseSpeed = 1.1; // 10% faster
+    } else if (avgAccuracy < 95) {
+        practiceBaseSpeed = 0.9; // 10% slower
+    } else {
+        practiceBaseSpeed = 1.0; // Normal speed
+    }
+    
+    // Note: practiceBaseSpeed could be used to adjust animation speeds or delays in practice mode
+    // For now, we just track it for potential future use
 }
 
 // Calculate WPM (words per minute)
@@ -2177,6 +2284,7 @@ function handleKeyPress(event) {
     if (gameRunning && !gamePaused && getFingerClass(key)) {
         totalInputs++;
         const fingerType = getFingerClass(key);
+        const hand = getFingerHand(key);
         
         // Track per finger
         if (fingerType && fingerInputs[fingerType]) {
@@ -2189,8 +2297,17 @@ function handleKeyPress(event) {
             }
         }
         
-        // Update accuracy display
+        // Track per hand (left/right)
+        if (hand && handInputs[hand]) {
+            handInputs[hand].total++;
+            if (!isMappedKey) {
+                handInputs[hand].incorrect++;
+            }
+        }
+        
+        // Update accuracy display and adjust game speed
         updateAccuracyDisplay();
+        adjustGameSpeedBasedOnAccuracy();
     }
 
     // Track keystroke statistics
@@ -2907,6 +3024,13 @@ function showPracticeMode() {
     practiceDeletedWrongPositions.clear();
     practiceHadMistake = false;
     
+    // Reset practice accuracy tracking
+    practiceHandInputs = {
+        'links': { total: 0, incorrect: 0 },
+        'rechts': { total: 0, incorrect: 0 }
+    };
+    practiceBaseSpeed = 1.0;
+    
     // Show "Level geschafft" intro: hold 6+ of 8 home row keys to start (same challenge as level change)
     practiceAwaitingIntro = true;
     practiceKeysHeld.clear();
@@ -3186,7 +3310,20 @@ function handlePracticeKey(key, event) {
     practiceKeystrokes++;
     totalKeystrokes++; // Add to main game keystrokes for KPM calculation
     
-    if (normalizedKey === expectedChar.toLowerCase()) {
+    // Track accuracy by hand in practice mode
+    const hand = getFingerHand(normalizedKey);
+    const isCorrect = normalizedKey === expectedChar.toLowerCase();
+    
+    if (hand && practiceHandInputs[hand]) {
+        practiceHandInputs[hand].total++;
+        if (!isCorrect) {
+            practiceHandInputs[hand].incorrect++;
+        }
+        // Adjust practice speed based on accuracy
+        adjustPracticeSpeedBasedOnAccuracy();
+    }
+    
+    if (isCorrect) {
         // Correct key
         const currentIndex = practiceTyped.length;
         
@@ -5129,7 +5266,8 @@ function simulateGameEndWithRandomData() {
 // Apply difficulty (simple / medium / hard) – speed only
 function applyDifficulty(mode) {
     if (DIFFICULTY_FPS[mode] != null) {
-        FPS = DIFFICULTY_FPS[mode];
+        baseFPS = DIFFICULTY_FPS[mode];
+        FPS = baseFPS; // Reset to base when difficulty changes
         currentDifficulty = mode;
         try { localStorage.setItem('qwertznake-difficulty', mode); } catch (e) {}
         const debugSpeedInput = document.getElementById('debugSpeed');
