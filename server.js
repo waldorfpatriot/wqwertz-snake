@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const STATS_FILE = path.join(__dirname, 'statistics.json');
 const LEVELS_FILE = path.join(__dirname, 'levels.json');
 const LOGS_FILE = path.join(__dirname, 'game-logs.txt');
@@ -16,7 +17,7 @@ const MAX_BODY_SIZE = 1024 * 1024;
 
 // Allowed origins for CORS (set to your domain in production)
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'];
+    process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://localhost:3080', 'http://127.0.0.1:3000', 'http://127.0.0.1:3080'];
 
 // Initialize statistics file if it doesn't exist
 function initStatsFile() {
@@ -459,8 +460,17 @@ if (!fs.existsSync(LOGS_FILE)) {
     fs.writeFileSync(LOGS_FILE, `=== Game Logs Started at ${new Date().toISOString()} ===\n`, 'utf8');
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     console.log(`🐍 qwertZnake server running at http://localhost:${PORT}`);
     console.log(`📝 Logs will be saved to: ${LOGS_FILE}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Try: PORT=${Number(PORT) + 1} npm start`);
+    } else if (err.code === 'EPERM') {
+        console.error(`Cannot bind to ${HOST}:${PORT} (${err.message}). Try: PORT=3080 npm start`);
+    } else {
+        console.error('Server error:', err.message);
+    }
+    process.exit(1);
 });
 

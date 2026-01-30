@@ -64,7 +64,7 @@
                 <div class="title-screen-hint">
                     <div class="keyboard-icon">⌨️</div>
                     <div class="arrow-down">↑</div>
-                    <div class="press-any-key-hint">Drücke eine Taste</div>
+                    <div class="press-any-key-hint">Benutze die Tastatur</div>
                 </div>
                 <div class="spacebar-hint">
                     <div class="spacebar-key-indicator">
@@ -220,7 +220,7 @@
                 <div class="level-change-number">Level <span id="levelChangeNumber">2</span></div>
                 <div class="level-change-keys-instruction">
                     <div class="home-row-keys level-change-keys" id="levelChangeKeys"></div>
-                    <div class="level-change-hint">Mindestens 6 der 8 Tasten gleichzeitig drücken (manche Tastaturen erkennen nur 6)</div>
+                    <div class="level-change-hint">Lege Deine Finger in die Grundposition und Drücke mindestens 6 der 8 Tasten gleichzeitig</div>
                 </div>
             </div>
         </div>
@@ -229,10 +229,10 @@
         <div class="practice-modal" id="practiceModal">
             <div class="practice-modal-content">
                 <div class="practice-intro" id="practiceIntro">
-                    <p class="practice-intro-message" id="practiceIntroMessage">Level geschafft! Jetzt eine kurze 10-Finger-Übung, sammel so viele Punkte, wie möglich, indem du alles richtig schreibst. Zum bestätigen schreibe "punkte".</p>
+                    <p class="practice-intro-message" id="practiceIntroMessage">Level geschafft! Jetzt eine kurze 10-Finger-Übung – sammle so viele Punkte wie möglich, indem du alles richtig schreibst.</p>
                     <div class="home-row-instruction">
                         <div class="home-row-keys" id="practicePunkteKeys"></div>
-                        <div class="instruction-text">um zu starten</div>
+                        <div class="instruction-text">Lege Deine Finger in die Grundposition und Drücke mindestens 6 der 8 Tasten gleichzeitig</div>
                     </div>
                 </div>
                 <div class="practice-main" id="practiceMain">
@@ -294,14 +294,56 @@
                             <div class="tutorial-step-content">
                                 <p>qwertZnake ist ein Snake-Spiel, bei dem du die Schlange mit den richtigen Fingern steuerst:</p>
                                 
-                                <ol style="text-align: left; max-width: 600px; margin: 20px auto; line-height: 1.8;">
-                                    <li><strong>Start:</strong> Drücke eine beliebige Taste oder die Leertaste, um zu starten.</li>
-                                    <li><strong>Steuerung:</strong> Die vier Richtungstasten (oben, unten, links, rechts) werden am Anfang zufällig zugewiesen.</li>
-                                    <li><strong>Futter sammeln:</strong> Bewege die Schlange zum roten Futter, um Punkte zu sammeln.</li>
-                                    <li><strong>Tastenwechsel:</strong> Nach 10 Mal Drücken einer Richtungstaste wechselt diese automatisch zu einer neuen Taste!</li>
-                                    <li><strong>Level:</strong> Alle 10 Punkte kommt ein neues Level mit Barrieren.</li>
-                                    <li><strong>Game Over:</strong> Das Spiel endet, wenn die Schlange sich selbst oder eine Barriere berührt.</li>
-                                </ol>
+                                <table class="tutorial-step2-table">
+                                    <tr>
+                                        <td class="tutorial-step2-term">Steuerung:</td>
+                                        <td class="tutorial-step2-desc">
+                                            <span class="tutorial-step2-text">Die vier Richtungstasten (oben, unten, links, rechts) werden zufällig zugewiesen.</span>
+                                            <div class="tutorial-step2-visual tutorial-mini-direction-info">
+                                                <div class="tutorial-mini-direction-item"><div class="tutorial-mini-direction-key finger-index active-control" data-direction="up" data-arrow="↑">T</div></div>
+                                                <div class="tutorial-mini-direction-item"><div class="tutorial-mini-direction-key finger-index active-control" data-direction="down" data-arrow="↓">B</div></div>
+                                                <div class="tutorial-mini-direction-item"><div class="tutorial-mini-direction-key finger-index active-control" data-direction="left" data-arrow="←">F</div></div>
+                                                <div class="tutorial-mini-direction-item"><div class="tutorial-mini-direction-key finger-index active-control" data-direction="right" data-arrow="→">J</div></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="tutorial-step2-term">Futter sammeln:</td>
+                                        <td class="tutorial-step2-desc">
+                                            <span class="tutorial-step2-text">Bewege die Schlange zum roten Futter, um Punkte zu sammeln.</span>
+                                            <div class="tutorial-step2-visual tutorial-mini-food-dot" aria-hidden="true">
+                                                <span class="tutorial-mini-food-n"></span>
+                                                <span class="tutorial-mini-food-e"></span>
+                                                <span class="tutorial-mini-food-s"></span>
+                                                <span class="tutorial-mini-food-w"></span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="tutorial-step2-term">Tastenwechsel:</td>
+                                        <td class="tutorial-step2-desc">
+                                            <span class="tutorial-step2-text">Nach 10 Mal Drücken einer Richtungstaste erscheint ein Buchstabe auf dem Feld, den die Schlange essen kann. Dann ändert sich eine der Tasten zu dieser Taste.</span>
+                                            <div class="tutorial-step2-visual tutorial-mini-letter-food">R</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="tutorial-step2-term">Level:</td>
+                                        <td class="tutorial-step2-desc">
+                                            <span class="tutorial-step2-text">Alle 10 Punkte kommt ein neues Level mit Barrieren.</span>
+                                            <div class="tutorial-step2-visual tutorial-mini-barrier"></div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="tutorial-step2-term">Game Over:</td>
+                                        <td class="tutorial-step2-desc">
+                                            <span class="tutorial-step2-text">Das Spiel endet, wenn die Schlange sich selbst oder eine Barriere berührt.</span>
+                                            <div class="tutorial-step2-visual tutorial-mini-gameover-demo">
+                                                <span class="tutorial-mini-snake-head"></span>
+                                                <span class="tutorial-mini-barrier"></span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
                                 
                                 <p><strong>Viel Erfolg beim Üben! 🎉</strong></p>
                                 
@@ -451,7 +493,7 @@
                                 
                                 <div class="home-row-instruction">
                                     <div class="home-row-keys" id="homeRowStep4Keys"></div>
-                                    <div class="instruction-text">Mindestens 6 der 8 Tasten gleichzeitig drücken (manche Tastaturen erkennen nur 6)</div>
+                                    <div class="instruction-text">Lege Deine Finger in die Grundposition und Drücke mindestens 6 der 8 Tasten gleichzeitig</div>
                                 </div>
                             </div>
                         </div>

@@ -339,8 +339,10 @@ let toolBarrier, toolEraser, toolClear, saveLevelBtn, savedLevelsList;
 let levelChangeModal, levelChangeName, levelChangeNumber;
 let practiceModal, practiceKeysElement, practiceModalVisible = false;
 let practiceIntroElement, practiceMainElement, practicePunkteKeysElement;
-let practiceAwaitingPunkte = false; // True when user must type "punkte" to start exercise
-let practicePunkteTyped = []; // Track typed chars for "punkte" confirmation
+let practiceAwaitingIntro = false; // True when user must hold 6+ of 8 home row keys to start
+let practiceKeysHeld = new Set();
+let practiceIntroAnimationInterval = null;
+let practiceIntroPulseTimeout = null;
 let practiceCombinations = [];
 let currentPracticeIndex = 0;
 let practiceTyped = [];
@@ -352,7 +354,6 @@ let practiceCorrectedKeys = new Set(); // Track keys that were wrong but correct
 let practiceDeletedWrongPositions = new Set(); // Track positions where wrong keys were deleted
 let practiceHadMistake = false; // Track if any mistake was ever made in current word
 let practiceKPMInterval = null;
-let practicePunkteAnimationInterval = null; // Cycling animation (same as verstandenKeys)
 
 // Track if current game stats have been saved
 let gameStatsSaved = false;
@@ -383,6 +384,13 @@ function renderKeyboard() {
     virtualKeyboardElement.innerHTML = '';
     keyElements = {};
 
+    // Define separator positions for each row (after which index to insert separator)
+    const separatorPositions = {
+        0: 4, // After 't' (index 4), before 'z' (index 5)
+        1: 4, // After 'g' (index 4), before 'h' (index 5)
+        2: 4  // After 'b' (index 4), before 'n' (index 5)
+    };
+
     KEYBOARD_ROWS.forEach((row, rowIndex) => {
         const rowElement = document.createElement('div');
         rowElement.className = 'keyboard-row';
@@ -390,7 +398,14 @@ function renderKeyboard() {
             rowElement.classList.add('keyboard-row-top');
         }
 
-        row.forEach(key => {
+        row.forEach((key, keyIndex) => {
+            // Add separator before this key if it's the first right-hand key
+            if (separatorPositions[rowIndex] !== undefined && keyIndex === separatorPositions[rowIndex] + 1) {
+                const separator = document.createElement('div');
+                separator.className = 'keyboard-separator';
+                rowElement.appendChild(separator);
+            }
+
             const keyElement = document.createElement('div');
             
             // Special handling for space key
@@ -1972,23 +1987,51 @@ function handleKeyPress(event) {
 
     // Handle direction changes and count presses
     let directionChanged = null;
+    let isMappedKey = false;
     
     if (key === controlKeys.up && direction.y === 0) {
         nextDirection = { x: 0, y: -1 };
         directionChanged = 'up';
+        isMappedKey = true;
         highlightKey('up');
     } else if (key === controlKeys.down && direction.y === 0) {
         nextDirection = { x: 0, y: 1 };
         directionChanged = 'down';
+        isMappedKey = true;
         highlightKey('down');
     } else if (key === controlKeys.left && direction.x === 0) {
         nextDirection = { x: -1, y: 0 };
         directionChanged = 'left';
+        isMappedKey = true;
         highlightKey('left');
     } else if (key === controlKeys.right && direction.x === 0) {
         nextDirection = { x: 1, y: 0 };
         directionChanged = 'right';
+        isMappedKey = true;
         highlightKey('right');
+    }
+    
+    // Highlight any pressed key on the virtual keyboard
+    // Show "x" indicator if key is not mapped to an arrow direction
+    if (gameRunning && !gamePaused && keyElements[key] && getFingerClass(key)) {
+        if (!isMappedKey) {
+            // Key is not mapped to an arrow - show "x" indicator
+            keyElements[key].classList.add('active');
+            keyElements[key].classList.add('unmapped-key');
+            const xIndicator = document.createElement('span');
+            xIndicator.className = 'key-x-indicator';
+            xIndicator.textContent = '✕';
+            keyElements[key].appendChild(xIndicator);
+            setTimeout(() => {
+                keyElements[key].classList.remove('active');
+                keyElements[key].classList.remove('unmapped-key');
+                const existingX = keyElements[key].querySelector('.key-x-indicator');
+                if (existingX) {
+                    existingX.remove();
+                }
+            }, 200);
+        }
+        // Mapped keys are already highlighted by highlightKey() function above
     }
 
     // Track keystroke statistics
@@ -2029,12 +2072,17 @@ function handleKeyPress(event) {
     }
 }
 
-// Keyup: remove key from step 4 home row held set so checkmarks only show while key is down
+// Keyup: remove key from held sets so checkmarks only show while key is down
 function handleKeyUp(event) {
     const key = (event.key || '').toLowerCase();
     if (levelChangeModalVisible && homeRowKeysSequence.includes(key)) {
         levelChangeKeysHeld.delete(key);
         updateLevelChangeKeyCheckmarks();
+        return;
+    }
+    if (practiceModalVisible && practiceAwaitingIntro && homeRowKeysSequence.includes(key)) {
+        practiceKeysHeld.delete(key);
+        updatePracticeIntroKeyCheckmarks();
         return;
     }
     if (!tutorialModal || !tutorialModal.classList.contains('visible') || tutorialCurrentStep !== 4) return;
@@ -2585,19 +2633,11 @@ function hideLevelChangeModal() {
     }
 }
 
-// Render 8 home row keys in level change modal (same challenge as tutorial step 4)
+// Render 10 home row keys in level change modal (G/H rest, same challenge as tutorial step 4)
 function renderLevelChangeKeys() {
     const container = document.getElementById('levelChangeKeys');
     if (!container) return;
-    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
-    container.innerHTML = keys.map((key, index) => {
-        const keyLower = key.toLowerCase();
-        const fingerClass = getFingerClass(keyLower);
-        return `<span class="home-row-key-wrapper">
-            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
-            <span class="home-row-checkmark" data-index="${index}">✓</span>
-        </span>`;
-    }).join('');
+    container.innerHTML = getHomeRowKeysWithRestHTML();
     animateLevelChangeKeys();
 }
 
@@ -2701,12 +2741,12 @@ function showPracticeMode() {
     practiceDeletedWrongPositions.clear();
     practiceHadMistake = false;
     
-    // Show "Level geschafft" intro: user must type "punkte" to start (same UI/function as tutorial)
-    practiceAwaitingPunkte = true;
-    practicePunkteTyped = [];
+    // Show "Level geschafft" intro: hold 6+ of 8 home row keys to start (same challenge as level change)
+    practiceAwaitingIntro = true;
+    practiceKeysHeld.clear();
     if (practiceIntroElement) practiceIntroElement.style.display = 'block';
     if (practiceMainElement) practiceMainElement.classList.remove('visible');
-    renderPracticePunkteKeys();
+    renderPracticeIntroKeys();
     
     // Update progress and stats (for when main practice is shown)
     document.getElementById('practiceProgress').textContent = '1';
@@ -2722,101 +2762,59 @@ function showPracticeMode() {
     practiceKPMInterval = setInterval(updatePracticeKPM, 500);
 }
 
-// Render "PUNKTE" keys for intro (same structure, classes and animation as tutorial #verstandenKeys)
-function renderPracticePunkteKeys() {
+// Render 10 home row keys for practice intro (G/H rest, same as level change)
+function renderPracticeIntroKeys() {
     if (!practicePunkteKeysElement) return;
-    const keys = ['P', 'U', 'N', 'K', 'T', 'E'];
-    practicePunkteKeysElement.innerHTML = keys.map((key, index) => {
-        const keyLower = key.toLowerCase();
-        const fingerClass = getFingerClass(keyLower);
-        return `<span class="home-row-key-wrapper">
-            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
-            <span class="home-row-checkmark" data-index="${index}">✓</span>
-        </span>`;
-    }).join('');
-    animatePracticePunkteKeys();
+    practicePunkteKeysElement.innerHTML = getHomeRowKeysWithRestHTML();
+    animatePracticeIntroKeys();
 }
 
-// Animate PUNKTE keys (same as animateVerstandenKeys: cycle active key, pause on last, then repeat)
-function animatePracticePunkteKeys() {
-    if (practicePunkteAnimationInterval) {
-        clearInterval(practicePunkteAnimationInterval);
-        practicePunkteAnimationInterval = null;
+function animatePracticeIntroKeys() {
+    if (practiceIntroAnimationInterval) {
+        clearInterval(practiceIntroAnimationInterval);
+        practiceIntroAnimationInterval = null;
     }
-    practicePunkteTyped = [];
+    if (practiceIntroPulseTimeout) {
+        clearTimeout(practiceIntroPulseTimeout);
+        practiceIntroPulseTimeout = null;
+    }
     if (!practicePunkteKeysElement) return;
-    const keys = ['P', 'U', 'N', 'K', 'T', 'E'];
-    let currentKeyIndex = 0;
-    const keyElements = practicePunkteKeysElement.querySelectorAll('.home-row-key-animate');
-    function animateCycle() {
-        if (practicePunkteTyped.length === 0) {
-            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
-            keyElements.forEach(el => {
-                el.classList.remove('active', 'pausing');
-            });
-            if (keyElements[currentKeyIndex]) {
-                keyElements[currentKeyIndex].classList.add('active');
+    const container = practicePunkteKeysElement;
+    function runPulse() {
+        if (!practiceModalVisible || !practiceAwaitingIntro) return;
+        container.classList.add('home-row-pulse-sync');
+        practiceIntroPulseTimeout = setTimeout(() => {
+            practiceIntroPulseTimeout = null;
+            container.classList.remove('home-row-pulse-sync');
+        }, 2000);
+    }
+    runPulse();
+    practiceIntroAnimationInterval = setInterval(() => {
+        if (!practiceModalVisible || !practiceAwaitingIntro) {
+            if (practiceIntroAnimationInterval) {
+                clearInterval(practiceIntroAnimationInterval);
+                practiceIntroAnimationInterval = null;
             }
-            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
-            if (aboutToShowLastKey) return true;
-        }
-        return false;
-    }
-    function startPauseAnimation() {
-        const lastKeyIndex = keys.length - 1;
-        if (keyElements[lastKeyIndex]) keyElements[lastKeyIndex].classList.add('pausing');
-    }
-    function stopPauseAnimation() {
-        keyElements.forEach(el => el.classList.remove('pausing'));
-    }
-    if (keyElements[0]) keyElements[0].classList.add('active');
-    let cyclePaused = false;
-    let pauseEndTime = 0;
-    practicePunkteAnimationInterval = setInterval(() => {
-        if (!practiceModalVisible || !practiceAwaitingPunkte) {
-            if (practicePunkteAnimationInterval) {
-                clearInterval(practicePunkteAnimationInterval);
-                practicePunkteAnimationInterval = null;
+            if (practiceIntroPulseTimeout) {
+                clearTimeout(practiceIntroPulseTimeout);
+                practiceIntroPulseTimeout = null;
             }
+            container.classList.remove('home-row-pulse-sync');
             return;
         }
-        if (practicePunkteTyped.length === 0) {
-            if (cyclePaused) {
-                if (Date.now() >= pauseEndTime) {
-                    stopPauseAnimation();
-                    cyclePaused = false;
-                    animateCycle();
-                }
-            } else {
-                const shouldPause = animateCycle();
-                if (shouldPause) {
-                    cyclePaused = true;
-                    pauseEndTime = Date.now() + 2000;
-                    startPauseAnimation();
-                }
-            }
-        }
-    }, 400);
+        runPulse();
+    }, 4000);
 }
 
-// Update "PUNKTE" checkmarks and active key (same design/animations as tutorial)
-function updatePracticePunkteKeys() {
+function updatePracticeIntroKeyCheckmarks() {
     if (!practicePunkteKeysElement) return;
     const checkmarks = practicePunkteKeysElement.querySelectorAll('.home-row-checkmark');
-    const keyElements = practicePunkteKeysElement.querySelectorAll('.home-row-key-animate');
-    checkmarks.forEach((checkmark, index) => {
-        if (index < practicePunkteTyped.length) {
+    checkmarks.forEach((checkmark, seqIndex) => {
+        const key = homeRowKeysSequence[seqIndex];
+        if (key && practiceKeysHeld.has(key)) {
             checkmark.classList.add('checked');
         } else {
             checkmark.classList.remove('checked');
-        }
-    });
-    // Highlight next expected key (same as tutorial: active = keyPulse animation)
-    keyElements.forEach((el, index) => {
-        if (index === practicePunkteTyped.length) {
-            el.classList.add('active');
-        } else {
-            el.classList.remove('active');
         }
     });
 }
@@ -2949,13 +2947,8 @@ function updatePracticeKeys() {
 function handlePracticeBackspace() {
     if (!practiceModalVisible) return false;
     
-    // Intro: type "punkte" to start
-    if (practiceAwaitingPunkte) {
-        if (practicePunkteTyped.length === 0) return false;
-        practicePunkteTyped.pop();
-        updatePracticePunkteKeys();
-        return true;
-    }
+    // Intro: 6-of-8 keys (no backspace)
+    if (practiceAwaitingIntro) return false;
     
     if (currentPracticeIndex >= practiceCombinations.length) return false;
     if (practiceTyped.length === 0) return false;
@@ -2991,21 +2984,25 @@ function handlePracticeBackspace() {
 function handlePracticeKey(key, event) {
     if (!practiceModalVisible) return false;
     
-    // Intro: type "punkte" to start (same as tutorial confirmation)
-    if (practiceAwaitingPunkte) {
-        const normalizedKey = (key === ' ' || (event && event.code === 'Space')) ? ' ' : key.toLowerCase();
-        const expected = 'punkte'[practicePunkteTyped.length];
-        if (normalizedKey === expected) {
-            practicePunkteTyped.push(normalizedKey);
-            updatePracticePunkteKeys();
-            if (practicePunkteTyped.length >= 6) {
-                practiceAwaitingPunkte = false;
-                if (practicePunkteAnimationInterval) {
-                    clearInterval(practicePunkteAnimationInterval);
-                    practicePunkteAnimationInterval = null;
+    // Intro: hold 6+ of 8 home row keys to start
+    if (practiceAwaitingIntro) {
+        if (homeRowKeysSequence.includes(key)) {
+            if (event) event.preventDefault();
+            practiceKeysHeld.add(key);
+            updatePracticeIntroKeyCheckmarks();
+            if (practiceKeysHeld.size >= 6) {
+                practiceAwaitingIntro = false;
+                if (practiceIntroAnimationInterval) {
+                    clearInterval(practiceIntroAnimationInterval);
+                    practiceIntroAnimationInterval = null;
                 }
+                if (practiceIntroPulseTimeout) {
+                    clearTimeout(practiceIntroPulseTimeout);
+                    practiceIntroPulseTimeout = null;
+                }
+                practiceKeysHeld.clear();
                 if (practiceIntroElement) practiceIntroElement.style.display = 'none';
-                if (practiceMainElement) practiceMainElement.classList.add('visible'); /* same fadeIn as tutorial "next page" */
+                if (practiceMainElement) practiceMainElement.classList.add('visible');
                 startPracticeCombination();
             }
             return true;
@@ -3106,10 +3103,15 @@ function hidePracticeMode() {
     practiceModal.classList.remove('visible');
     practiceModalVisible = false;
     
-    if (practicePunkteAnimationInterval) {
-        clearInterval(practicePunkteAnimationInterval);
-        practicePunkteAnimationInterval = null;
+    if (practiceIntroAnimationInterval) {
+        clearInterval(practiceIntroAnimationInterval);
+        practiceIntroAnimationInterval = null;
     }
+    if (practiceIntroPulseTimeout) {
+        clearTimeout(practiceIntroPulseTimeout);
+        practiceIntroPulseTimeout = null;
+    }
+    practiceKeysHeld.clear();
     if (practiceKPMInterval) {
         clearInterval(practiceKPMInterval);
         practiceKPMInterval = null;
@@ -3423,7 +3425,31 @@ let tutorialDemoAnimationTimeout = null;
 let pausedByTutorialModal = false;
 // Step 3: sequential home row keys (a, s, d, f, j, k, l, ö in order)
 const homeRowKeysSequence = ['a', 's', 'd', 'f', 'j', 'k', 'l', 'ö'];
+// Display row: A S D F G H J K L Ö (G and H grey/rest, not used in challenge)
+const HOME_ROW_DISPLAY = [
+    { key: 'A', keyLower: 'a', rest: false, seqIdx: 0 }, { key: 'S', keyLower: 's', rest: false, seqIdx: 1 },
+    { key: 'D', keyLower: 'd', rest: false, seqIdx: 2 }, { key: 'F', keyLower: 'f', rest: false, seqIdx: 3 },
+    { key: 'G', keyLower: 'g', rest: true, seqIdx: -1 }, { key: 'H', keyLower: 'h', rest: true, seqIdx: -1 },
+    { key: 'J', keyLower: 'j', rest: false, seqIdx: 4 }, { key: 'K', keyLower: 'k', rest: false, seqIdx: 5 },
+    { key: 'L', keyLower: 'l', rest: false, seqIdx: 6 }, { key: 'Ö', keyLower: 'ö', rest: false, seqIdx: 7 }
+];
+const HOME_ROW_SEQ_INDEX_TO_DISPLAY_INDEX = [0, 1, 2, 3, 6, 7, 8, 9]; // sequence index -> display index (for 10-key row)
 let homeRowKeysPressed = [];
+
+// Build HTML for 10 home row keys (A S D F G H J K L Ö); G and H get class home-row-key-rest (grey, not animated)
+function getHomeRowKeysWithRestHTML() {
+    return HOME_ROW_DISPLAY.map((item, displayIndex) => {
+        if (item.rest) {
+            return `<span class="home-row-key-wrapper"><span class="home-row-key-animate home-row-key-rest" data-display-index="${displayIndex}">${item.key}</span></span>`;
+        }
+        const fingerClass = getFingerClass(item.keyLower);
+        return `<span class="home-row-key-wrapper">
+            <span class="home-row-key-animate ${fingerClass}" data-key="${item.keyLower}" data-seq-index="${item.seqIdx}" data-display-index="${displayIndex}">${item.key}</span>
+            <span class="home-row-checkmark" data-seq-index="${item.seqIdx}">✓</span>
+        </span>`;
+    }).join('');
+}
+
 // Step 4: keys held simultaneously (all at once, advance when >= 6)
 let homeRowKeysHeld = new Set();
 
@@ -3713,40 +3739,33 @@ function animateHomeRowKeys() {
     const instructionElement = step3.querySelector('.home-row-keys');
     if (!instructionElement) return;
     
-    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
-    let currentKeyIndex = 0;
-    instructionElement.innerHTML = keys.map((key, index) => {
-        const keyLower = key.toLowerCase();
-        const fingerClass = getFingerClass(keyLower);
-        return `<span class="home-row-key-wrapper">
-            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
-            <span class="home-row-checkmark" data-index="${index}">✓</span>
-        </span>`;
-    }).join('');
-    
+    instructionElement.innerHTML = getHomeRowKeysWithRestHTML();
     const keyElements = instructionElement.querySelectorAll('.home-row-key-animate');
+    let currentSeqIndex = 0;
     
     function highlightNextKey() {
         if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
             keyElements.forEach(el => el.classList.remove('active', 'pausing'));
-            const nextKeyIndex = homeRowKeysPressed.length;
-            if (keyElements[nextKeyIndex]) keyElements[nextKeyIndex].classList.add('active');
+            const displayIdx = HOME_ROW_SEQ_INDEX_TO_DISPLAY_INDEX[homeRowKeysPressed.length];
+            if (keyElements[displayIdx]) keyElements[displayIdx].classList.add('active');
         }
     }
     
     function animateCycle() {
         if (homeRowKeysPressed.length === 0) {
-            const aboutToShowLastKey = currentKeyIndex === keys.length - 1;
+            const aboutToShowLastKey = currentSeqIndex === homeRowKeysSequence.length - 1;
             keyElements.forEach(el => el.classList.remove('active', 'pausing'));
-            if (keyElements[currentKeyIndex]) keyElements[currentKeyIndex].classList.add('active');
-            currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+            const displayIdx = HOME_ROW_SEQ_INDEX_TO_DISPLAY_INDEX[currentSeqIndex];
+            if (keyElements[displayIdx]) keyElements[displayIdx].classList.add('active');
+            currentSeqIndex = (currentSeqIndex + 1) % homeRowKeysSequence.length;
             if (aboutToShowLastKey) return true;
         }
         return false;
     }
     
     function startPauseAnimation() {
-        if (keyElements[keys.length - 1]) keyElements[keys.length - 1].classList.add('pausing');
+        const lastDisplayIdx = HOME_ROW_SEQ_INDEX_TO_DISPLAY_INDEX[homeRowKeysSequence.length - 1];
+        if (keyElements[lastDisplayIdx]) keyElements[lastDisplayIdx].classList.add('pausing');
     }
     
     function stopPauseAnimation() {
@@ -3781,14 +3800,14 @@ function animateHomeRowKeys() {
     }, 400);
 }
 
-// Update checkmarks for step 3 (sequential): show check for each key pressed in order
+// Update checkmarks for step 3 (sequential): show check for each key pressed in order (8 checkmarks)
 function updateHomeRowKeyCheckmarks() {
     const step3 = document.querySelector('#tutorial-step-3');
     if (!step3) return;
     const checkmarks = step3.querySelectorAll('.home-row-keys .home-row-checkmark');
     const keyElements = step3.querySelectorAll('.home-row-keys .home-row-key-animate');
-    checkmarks.forEach((checkmark, index) => {
-        if (index < homeRowKeysPressed.length) {
+    checkmarks.forEach((checkmark, seqIndex) => {
+        if (seqIndex < homeRowKeysPressed.length) {
             checkmark.classList.add('checked');
         } else {
             checkmark.classList.remove('checked');
@@ -3796,23 +3815,16 @@ function updateHomeRowKeyCheckmarks() {
     });
     if (homeRowKeysPressed.length < homeRowKeysSequence.length) {
         keyElements.forEach(el => el.classList.remove('active'));
-        if (keyElements[homeRowKeysPressed.length]) keyElements[homeRowKeysPressed.length].classList.add('active');
+        const displayIdx = HOME_ROW_SEQ_INDEX_TO_DISPLAY_INDEX[homeRowKeysPressed.length];
+        if (keyElements[displayIdx]) keyElements[displayIdx].classList.add('active');
     }
 }
 
-// Step 4: render and animate all-at-once 8 keys (sync pulse)
+// Step 4: render and animate all-at-once 10 keys with G/H rest (sync pulse)
 function renderHomeRowStep4Keys() {
     const container = document.getElementById('homeRowStep4Keys');
     if (!container) return;
-    const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L', 'Ö'];
-    container.innerHTML = keys.map((key, index) => {
-        const keyLower = key.toLowerCase();
-        const fingerClass = getFingerClass(keyLower);
-        return `<span class="home-row-key-wrapper">
-            <span class="home-row-key-animate ${fingerClass}" data-key="${keyLower}" data-index="${index}">${key}</span>
-            <span class="home-row-checkmark" data-index="${index}">✓</span>
-        </span>`;
-    }).join('');
+    container.innerHTML = getHomeRowKeysWithRestHTML();
     animateHomeRowStep4Keys();
 }
 

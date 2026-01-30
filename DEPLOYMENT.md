@@ -252,4 +252,3 @@ scp root@82.165.153.24:/var/www/qwertznake.de/backup-*.tar.gz ./backups/
 scp ./backups/backup-YYYYMMDD.tar.gz root@82.165.153.24:/var/www/qwertznake.de/
 ssh root@82.165.153.24 "cd /var/www/qwertznake.de && tar -xzvf backup-YYYYMMDD.tar.gz && pm2 restart qwertznake"
 ```
-

@@ -475,10 +475,21 @@ h1 {
     display: flex;
     gap: 4px;
     justify-content: center;
+    align-items: center;
+    position: relative;
 }
 
 .keyboard-row-top {
     transform: translateX(calc(-32px / 8));
+}
+
+/* Separator line between left and right hand */
+.keyboard-separator {
+    width: 2px;
+    height: 36px;
+    background: linear-gradient(to bottom, transparent, #888, transparent);
+    margin: 0 2px;
+    opacity: 0.6;
 }
 
 .keyboard-key {
@@ -495,6 +506,7 @@ h1 {
     transition: all 0.2s;
     cursor: default;
     user-select: none;
+    position: relative;
 }
 
 /* Finger color coding - 10-Finger-System QWERTZ */
@@ -552,6 +564,27 @@ h1 {
     transform: scale(1.15);
     box-shadow: 0 0 15px rgba(136, 136, 136, 0.6);
     z-index: 20;
+}
+
+/* Unmapped key (not assigned to an arrow) */
+.keyboard-key.unmapped-key {
+    background: #ff4444 !important;
+    color: white !important;
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.8) !important;
+}
+
+/* X indicator for unmapped keys */
+.key-x-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 30;
 }
 
 /* Highlighted state for tutorial step 3 */
@@ -2796,6 +2829,106 @@ h1 {
     margin-bottom: 10px;
 }
 
+/* Tutorial Schritt 2: borderless table + game-like visuals */
+.tutorial-step2-table {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto;
+    border-collapse: collapse;
+    border: none;
+}
+
+.tutorial-step2-table td {
+    border: none;
+    vertical-align: top;
+    padding: 10px 12px 14px 0;
+    line-height: 1.6;
+}
+
+.tutorial-step2-term {
+    font-weight: 700;
+    color: #333;
+    white-space: nowrap;
+    width: 1%;
+    padding-right: 12px;
+}
+
+.tutorial-step2-desc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.tutorial-step2-text {
+    flex: 1;
+    min-width: 200px;
+}
+
+.tutorial-step2-visual {
+    flex-shrink: 0;
+}
+
+/* Game-like visuals (match game.js draw: 4 dots in N,E,S,W, each 1/9 of the 3×3 block) */
+.tutorial-mini-food-dot {
+    width: 21px;
+    height: 21px;
+    position: relative;
+    display: inline-block;
+}
+
+.tutorial-mini-food-dot .tutorial-mini-food-n,
+.tutorial-mini-food-dot .tutorial-mini-food-e,
+.tutorial-mini-food-dot .tutorial-mini-food-s,
+.tutorial-mini-food-dot .tutorial-mini-food-w {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    background: #e74c3c;
+    border-radius: 1px;
+}
+
+.tutorial-mini-food-n { left: 7px;  top: 0; }   /* North */
+.tutorial-mini-food-e { left: 14px; top: 7px; }  /* East */
+.tutorial-mini-food-s { left: 7px;  top: 14px; } /* South */
+.tutorial-mini-food-w { left: 0;    top: 7px; }  /* West */
+
+.tutorial-mini-letter-food {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #9b59b6;
+    color: #fff;
+    font-size: 0.75em;
+    font-weight: bold;
+    border-radius: 2px;
+}
+
+.tutorial-mini-barrier {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(145deg, #8b4513, #654321);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    border-radius: 2px;
+}
+
+.tutorial-mini-gameover-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tutorial-mini-snake-head {
+    width: 18px;
+    height: 18px;
+    background: #32cd32;
+    border-radius: 2px;
+    display: inline-block;
+}
+
 .tutorial-keyboard-demo {
     background: #f8f9fa;
     padding: 15px;
@@ -3157,8 +3290,16 @@ h1 {
     animation: keyPausePulse 0.6s ease-in-out infinite;
 }
 
-/* Step 3: synchronous pulse on all 8 keys (2s on / 2s off) */
-.home-row-pulse-sync .home-row-key-animate {
+/* G and H in home row: grey, not used in challenge, no pulse */
+.home-row-key-animate.home-row-key-rest {
+    background: #888 !important;
+    color: #ccc !important;
+    border-color: #777 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Step 3 / 4 / level change: synchronous pulse on challenge keys only (not G/H) */
+.home-row-pulse-sync .home-row-key-animate:not(.home-row-key-rest) {
     animation: keyPulseSync 2s ease-in-out;
 }
 
