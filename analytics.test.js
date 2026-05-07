@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 
 const {
     buildAnalyticsResponse,
-    normalizeStatisticsRecord
+    normalizeStatisticsRecord,
+    isValidAdminPassword
 } = require('./server');
 
 test('analytics normalizes legacy records without game or source fields', () => {
@@ -73,4 +74,10 @@ test('analytics tolerates malformed or empty statistics payloads', () => {
     assert.equal(analytics.totals.sessions, 0);
     assert.deepEqual(analytics.byGame, []);
     assert.deepEqual(analytics.records, []);
+});
+
+test('analytics password check uses the configured admin password', () => {
+    assert.equal(isValidAdminPassword('Znake'), true);
+    assert.equal(isValidAdminPassword('wrong'), false);
+    assert.equal(isValidAdminPassword(undefined), false);
 });

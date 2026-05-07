@@ -133,6 +133,53 @@
             border-color: #9ab3ab;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
+        .auth-panel {
+            max-width: 420px;
+            margin: 18vh auto 0;
+            padding: 24px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .auth-panel h1 {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+
+        .auth-panel p {
+            color: var(--muted);
+            margin: 0 0 16px;
+        }
+
+        .auth-form {
+            display: grid;
+            gap: 10px;
+        }
+
+        .auth-form input {
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 0 12px;
+            font: inherit;
+        }
+
+        .auth-error {
+            min-height: 20px;
+            color: var(--red);
+            font-size: 0.9rem;
+        }
+
+        .analytics-content {
+            min-width: 0;
+        }
+
         .status {
             margin: 0 0 18px;
             color: var(--muted);
@@ -317,7 +364,7 @@
             }
         }
     </style>
-    <script src="analytics.js?v=1" defer></script>
+    <script src="analytics.js?v=2" defer></script>
 </head>
 <body>
     <div class="page">
@@ -332,100 +379,114 @@
         </aside>
 
         <main>
-            <header>
-                <div>
-                    <h1>Analytics</h1>
-                    <p class="subhead">Internal view of play time, sources, games, and KPI trends.</p>
-                </div>
-                <div class="toolbar">
-                    <label for="kpiSelect">KPI</label>
-                    <select id="kpiSelect">
-                        <option value="sessions">Sessions</option>
-                        <option value="durationMinutes">Time spent</option>
-                        <option value="averagePoints">Avg points</option>
-                        <option value="bestPoints">Best points</option>
-                        <option value="averageKpm">Avg T/min</option>
-                        <option value="averageAccuracy">Avg accuracy</option>
-                        <option value="averageWpm">Avg WPM</option>
-                    </select>
-                    <label for="seriesMode">Lines</label>
-                    <select id="seriesMode">
-                        <option value="byGame">By game</option>
-                        <option value="overall">Overall</option>
-                    </select>
-                    <button id="refreshButton" type="button">Refresh</button>
-                </div>
-            </header>
+            <section class="auth-panel" id="authPanel">
+                <h1>Analytics Login</h1>
+                <p>Enter the admin password to view internal game statistics.</p>
+                <form class="auth-form" id="authForm">
+                    <label for="analyticsPassword">Password</label>
+                    <input type="password" id="analyticsPassword" autocomplete="current-password">
+                    <button type="submit">Unlock analytics</button>
+                    <div class="auth-error" id="authError"></div>
+                </form>
+            </section>
 
-            <p class="status" id="status">Loading analytics...</p>
-
-            <section class="kpis" id="kpiCards" aria-label="Summary KPIs"></section>
-
-            <section class="grid">
-                <div class="chart-panel">
-                    <div class="panel-head">
-                        <h2 id="primaryChartTitle">KPI over time</h2>
-                        <div class="legend" id="primaryLegend"></div>
+            <div class="analytics-content hidden" id="analyticsContent">
+                <header>
+                    <div>
+                        <h1>Analytics</h1>
+                        <p class="subhead">Internal view of play time, sources, games, and KPI trends.</p>
                     </div>
-                    <canvas id="primaryChart" aria-label="Selected KPI line chart"></canvas>
-
-                    <div class="panel-head" style="margin-top: 18px;">
-                        <h2>Time spent over time</h2>
-                        <div class="legend" id="durationLegend"></div>
+                    <div class="toolbar">
+                        <label for="kpiSelect">KPI</label>
+                        <select id="kpiSelect">
+                            <option value="sessions">Sessions</option>
+                            <option value="durationMinutes">Time spent</option>
+                            <option value="averagePoints">Avg points</option>
+                            <option value="bestPoints">Best points</option>
+                            <option value="averageKpm">Avg T/min</option>
+                            <option value="averageAccuracy">Avg accuracy</option>
+                            <option value="averageWpm">Avg WPM</option>
+                        </select>
+                        <label for="seriesMode">Lines</label>
+                        <select id="seriesMode">
+                            <option value="byGame">By game</option>
+                            <option value="overall">Overall</option>
+                        </select>
+                        <button id="refreshButton" type="button">Refresh</button>
+                        <button id="logoutButton" type="button">Lock</button>
                     </div>
-                    <canvas class="mini-chart" id="durationChart" aria-label="Time spent line chart"></canvas>
-                </div>
+                </header>
 
-                <div class="table-panel">
+                <p class="status" id="status">Loading analytics...</p>
+
+                <section class="kpis" id="kpiCards" aria-label="Summary KPIs"></section>
+
+                <section class="grid">
+                    <div class="chart-panel">
+                        <div class="panel-head">
+                            <h2 id="primaryChartTitle">KPI over time</h2>
+                            <div class="legend" id="primaryLegend"></div>
+                        </div>
+                        <canvas id="primaryChart" aria-label="Selected KPI line chart"></canvas>
+
+                        <div class="panel-head" style="margin-top: 18px;">
+                            <h2>Time spent over time</h2>
+                            <div class="legend" id="durationLegend"></div>
+                        </div>
+                        <canvas class="mini-chart" id="durationChart" aria-label="Time spent line chart"></canvas>
+                    </div>
+
+                    <div class="table-panel">
+                        <div class="panel-head">
+                            <h2>Source / game</h2>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Game</th>
+                                        <th>Source</th>
+                                        <th>Sessions</th>
+                                        <th>Time</th>
+                                        <th>Best</th>
+                                        <th>Avg T/min</th>
+                                        <th>Avg accuracy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sourceGameRows">
+                                    <tr><td colspan="7" class="empty">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="table-panel recent">
                     <div class="panel-head">
-                        <h2>Source / game</h2>
+                        <h2>Recent sessions</h2>
                     </div>
                     <div class="table-wrap">
                         <table>
                             <thead>
                                 <tr>
+                                    <th>When</th>
+                                    <th>Player</th>
                                     <th>Game</th>
                                     <th>Source</th>
-                                    <th>Sessions</th>
+                                    <th>Points</th>
                                     <th>Time</th>
-                                    <th>Best</th>
-                                    <th>Avg T/min</th>
-                                    <th>Avg accuracy</th>
+                                    <th>T/min</th>
+                                    <th>Accuracy</th>
+                                    <th>WPM</th>
                                 </tr>
                             </thead>
-                            <tbody id="sourceGameRows">
-                                <tr><td colspan="7" class="empty">Loading...</td></tr>
+                            <tbody id="recentRows">
+                                <tr><td colspan="9" class="empty">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </section>
-
-            <section class="table-panel recent">
-                <div class="panel-head">
-                    <h2>Recent sessions</h2>
-                </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>When</th>
-                                <th>Player</th>
-                                <th>Game</th>
-                                <th>Source</th>
-                                <th>Points</th>
-                                <th>Time</th>
-                                <th>T/min</th>
-                                <th>Accuracy</th>
-                                <th>WPM</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recentRows">
-                            <tr><td colspan="9" class="empty">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                </section>
+            </div>
         </main>
     </div>
 </body>

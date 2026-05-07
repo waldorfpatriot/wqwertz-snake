@@ -287,6 +287,12 @@ function buildAnalyticsResponse(stats) {
     };
 }
 
+function isValidAdminPassword(password) {
+    return typeof password === 'string' &&
+        password.length === ADMIN_PASSWORD.length &&
+        crypto.timingSafeEqual(Buffer.from(password), Buffer.from(ADMIN_PASSWORD));
+}
+
 // MIME types for static files
 const mimeTypes = {
     '.html': 'text/html',
@@ -361,7 +367,7 @@ const server = http.createServer((req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -385,6 +391,11 @@ const server = http.createServer((req, res) => {
     }
 
     if (pathname === '/api/analytics' && req.method === 'GET') {
+        if (!isValidAdminPassword(req.headers['x-admin-password'])) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return;
+        }
         const stats = loadStats();
         const analytics = buildAnalyticsResponse(stats);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -486,8 +497,7 @@ const server = http.createServer((req, res) => {
             try {
                 const { password } = JSON.parse(body);
                 // Use timing-safe comparison to prevent timing attacks
-                const isValid = password && password.length === ADMIN_PASSWORD.length &&
-                    crypto.timingSafeEqual(Buffer.from(password), Buffer.from(ADMIN_PASSWORD));
+                const isValid = isValidAdminPassword(password);
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ valid: isValid }));
@@ -713,5 +723,6 @@ module.exports = {
     buildAnalyticsResponse,
     normalizeStatisticsRecord,
     inferGame,
-    inferSource
+    inferSource,
+    isValidAdminPassword
 };

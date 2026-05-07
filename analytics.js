@@ -1,4 +1,5 @@
 (function () {
+    const PASSWORD_STORAGE_KEY = 'qwertz_analytics_password';
     const COLORS = ['#287d68', '#2b6cb0', '#b54b4b', '#b17819', '#5b5f97', '#65743a'];
     const KPI_LABELS = {
         sessions: 'Sessions',
@@ -12,7 +13,8 @@
 
     const state = {
         analytics: null,
-        loading: false
+        loading: false,
+        password: ''
     };
 
     function $(id) {
@@ -279,12 +281,67 @@
         renderCharts();
     }
 
+    function setLocked(locked, message) {
+        $('authPanel').classList.toggle('hidden', !locked);
+        $('analyticsContent').classList.toggle('hidden', locked);
+        $('authError').textContent = message || '';
+        if (locked) {
+            const input = $('analyticsPassword');
+            input.value = '';
+            input.focus();
+        }
+    }
+
+    function clearStoredPassword(message) {
+        state.password = '';
+        sessionStorage.removeItem(PASSWORD_STORAGE_KEY);
+        setLocked(true, message || '');
+    }
+
+    async function verifyPassword(password) {
+        const response = await fetch('/api/verify-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: password })
+        });
+        if (!response.ok) return false;
+        const result = await response.json();
+        return Boolean(result.valid);
+    }
+
+    async function unlock(password) {
+        $('authError').textContent = 'Checking password...';
+        const valid = await verifyPassword(password);
+        if (!valid) {
+            clearStoredPassword('Wrong password.');
+            return;
+        }
+
+        state.password = password;
+        sessionStorage.setItem(PASSWORD_STORAGE_KEY, password);
+        setLocked(false);
+        await loadAnalytics();
+    }
+
     async function loadAnalytics() {
         if (state.loading) return;
+        if (!state.password) {
+            clearStoredPassword();
+            return;
+        }
         state.loading = true;
         $('status').textContent = 'Loading analytics...';
         try {
-            const response = await fetch('/api/analytics', { headers: { Accept: 'application/json' } });
+            const response = await fetch('/api/analytics', {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Admin-Password': state.password
+                }
+            });
+            if (response.status === 401) {
+                clearStoredPassword('Session locked. Enter the admin password again.');
+                return;
+            }
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
             state.analytics = data;
@@ -298,6 +355,16 @@
     }
 
     function init() {
+        $('authForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const password = $('analyticsPassword').value;
+            unlock(password).catch(function () {
+                clearStoredPassword('Could not verify password.');
+            });
+        });
+        $('logoutButton').addEventListener('click', function () {
+            clearStoredPassword('Locked.');
+        });
         $('refreshButton').addEventListener('click', loadAnalytics);
         $('kpiSelect').addEventListener('change', renderCharts);
         $('seriesMode').addEventListener('change', renderCharts);
@@ -305,7 +372,14 @@
             window.clearTimeout(init.resizeTimer);
             init.resizeTimer = window.setTimeout(renderCharts, 100);
         });
-        loadAnalytics();
+
+        state.password = sessionStorage.getItem(PASSWORD_STORAGE_KEY) || '';
+        if (state.password) {
+            setLocked(false);
+            loadAnalytics();
+        } else {
+            setLocked(true);
+        }
     }
 
     if (typeof window !== 'undefined') {
