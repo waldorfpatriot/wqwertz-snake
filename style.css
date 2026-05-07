@@ -388,6 +388,45 @@ h1 {
     display: inline-block;
 }
 
+/* Speed display next to WPM */
+.speed-display-wrapper {
+    position: relative;
+}
+
+.speed-container {
+    position: relative;
+    display: inline-block;
+    min-width: 36px;
+    font-weight: 700;
+}
+
+/* Spark animation when speed changes */
+.speed-spark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    font-size: 0.55em;
+    pointer-events: none;
+    opacity: 1;
+    animation: speed-spark-fly 0.8s ease-out forwards;
+    animation-delay: var(--delay, 0s);
+}
+
+.speed-container.speed-spark-active .speed-spark {
+    display: inline-block;
+}
+
+@keyframes speed-spark-fly {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--end-x, 0)), calc(-50% + var(--end-y, 0))) scale(0.3);
+    }
+}
+
 /* Statistics button in header */
 .stats-button {
     position: absolute;

@@ -341,7 +341,7 @@ let keyChangeCounts = {
 let KEY_CHANGES_BEFORE_FORCE_PROGRESSION = 4;
 
 // DOM elements
-let scoreElement, kpmElement, accuracyElement, wpmElement;
+let scoreElement, kpmElement, accuracyElement, wpmElement, speedElement, speedContainerElement;
 let counterUpElement, counterDownElement, counterLeftElement, counterRightElement;
 let virtualKeyboardElement;
 let overlayElement, overlayTitleElement, overlayMessageElement, restartButton;
@@ -558,6 +558,8 @@ async function init() {
     kpmElement = document.getElementById('kpm');
     accuracyElement = document.getElementById('accuracy');
     wpmElement = document.getElementById('wpm');
+    speedElement = document.getElementById('speed');
+    speedContainerElement = document.getElementById('speedContainer');
     counterUpElement = document.getElementById('counter-up');      // optional: direction-info removed
     counterDownElement = document.getElementById('counter-down');
     counterLeftElement = document.getElementById('counter-left');
@@ -989,6 +991,7 @@ function resetGame() {
     // Reset display elements
     if (accuracyElement) accuracyElement.textContent = '100%';
     if (wpmElement) wpmElement.textContent = '0';
+    updateSpeedDisplay(); // Show current base FPS
     
     updateCounters();
 }
@@ -1004,9 +1007,10 @@ function calculateKPM() {
 // Update T/Min display (kept for internal tracking, but not displayed)
 function updateKPMDisplay() {
     // KPM is no longer displayed, but we still calculate it for statistics
-    // Also update WPM display
+    // Also update WPM and speed display
     if (gameRunning && !gamePaused) {
         updateWPMDisplay();
+        updateSpeedDisplay();
     }
 }
 
@@ -1076,6 +1080,8 @@ function adjustGameSpeedBasedOnAccuracy() {
     // Only update if change is significant (avoid constant micro-adjustments)
     if (Math.abs(FPS - adjustedFPS) > 0.1) {
         FPS = adjustedFPS;
+        updateSpeedDisplay();
+        triggerSpeedChangeSparks();
     }
 }
 
@@ -1140,6 +1146,50 @@ function updateWPMDisplay() {
     if (gameRunning && !gamePaused && wpmElement) {
         wpmElement.textContent = calculateWPM();
     }
+}
+
+// Update speed display (current FPS / tempo)
+function updateSpeedDisplay() {
+    if (speedElement) {
+        speedElement.textContent = Math.round(FPS * 10) / 10; // 1 decimal
+    }
+}
+
+// Trigger spark animation when speed changes
+function triggerSpeedChangeSparks() {
+    if (!speedContainerElement) return;
+    
+    const container = speedContainerElement;
+    
+    const sparkCount = 12;
+    const colors = ['#ffd700', '#ffa500', '#ff6b6b', '#32cd32', '#00ced1'];
+    const shapes = ['✦', '✧', '•', '∗', '·'];
+    const radius = 20;
+    
+    for (let i = 0; i < sparkCount; i++) {
+        const angle = (i / sparkCount) * 360 + Math.random() * 30;
+        const rad = (angle * Math.PI) / 180;
+        const endX = Math.cos(rad) * radius;
+        const endY = Math.sin(rad) * radius;
+        
+        const spark = document.createElement('span');
+        spark.className = 'speed-spark';
+        spark.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+        spark.style.color = colors[Math.floor(Math.random() * colors.length)];
+        spark.style.setProperty('--end-x', endX + 'px');
+        spark.style.setProperty('--end-y', endY + 'px');
+        spark.style.setProperty('--delay', Math.random() * 0.08 + 's');
+        container.appendChild(spark);
+        
+        setTimeout(() => {
+            if (spark.parentNode) spark.remove();
+        }, 900);
+    }
+    
+    container.classList.add('speed-spark-active');
+    setTimeout(() => {
+        container.classList.remove('speed-spark-active');
+    }, 50);
 }
 
 // Track last game score for saving

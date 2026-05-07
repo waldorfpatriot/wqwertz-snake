@@ -20,6 +20,25 @@
       "gridSize": "small"
     },
     {
+      "id": 1769764698814,
+      "timestamp": "2026-01-30T09:18:18.814Z",
+      "name": "testjonathan",
+      "points": 52,
+      "kpm": 75,
+      "accuracy": 88.6,
+      "wpm": 8,
+      "level": 2,
+      "duration": 230,
+      "fingersUsed": {
+        "finger-pinky": 5,
+        "finger-ring": 7,
+        "finger-middle": 10,
+        "finger-index": 56
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
       "id": 1769638343968,
       "timestamp": "2026-01-28T22:12:23.968Z",
       "name": "jonathan",
@@ -65,6 +84,44 @@
         "finger-middle": 0,
         "finger-index": 91
       }
+    },
+    {
+      "id": 1769776102049,
+      "timestamp": "2026-01-30T12:28:22.049Z",
+      "name": "testjonathan",
+      "points": 27,
+      "kpm": 136,
+      "accuracy": 96.1,
+      "wpm": 19,
+      "level": 0,
+      "duration": 11243,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 98
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769813790649,
+      "timestamp": "2026-01-30T22:56:30.649Z",
+      "name": "testjonathan",
+      "points": 25,
+      "kpm": 82,
+      "accuracy": 86,
+      "wpm": 6,
+      "level": 1,
+      "duration": 151,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 74
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
     },
     {
       "id": 1769639330504,
@@ -228,6 +285,25 @@
       "duration": 258,
       "id": 1767132452125,
       "timestamp": "2025-12-30T22:07:32.125Z"
+    },
+    {
+      "id": 1778073164350,
+      "timestamp": "2026-05-06T13:12:44.350Z",
+      "name": "jonathan",
+      "points": 5,
+      "kpm": 101,
+      "accuracy": 86.4,
+      "wpm": 13,
+      "level": 0,
+      "duration": 26,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 19
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
     },
     {
       "id": 1769723342941,
