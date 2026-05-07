@@ -559,6 +559,40 @@ h1 {
     line-height: 1;
 }
 
+.keyboard-key.active-control::before {
+    content: attr(data-owner);
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    background: #333;
+    border: 2px solid white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.pong-page .keyboard-key.active-control::before {
+    display: flex;
+}
+
+.keyboard-key.active-control.left-player::after,
+.key-change-key.active-control.left-player::after {
+    background: #22a15f;
+}
+
+.keyboard-key.active-control.right-player::after,
+.key-change-key.active-control.right-player::after {
+    background: #0ea5d7;
+}
+
 /* Active state when key is pressed */
 .keyboard-key.active {
     transform: scale(1.15);
@@ -630,6 +664,128 @@ h1 {
     display: flex;
     justify-content: center;
     margin-bottom: 20px;
+}
+
+.pong-container {
+    max-width: 760px;
+}
+
+.pong-score-display {
+    flex-wrap: wrap;
+}
+
+.pong-score-flash {
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.95), 0 0 22px rgba(56, 189, 248, 0.85);
+    animation: pongScoreBlink 0.65s ease-out;
+}
+
+@keyframes pongScoreBlink {
+    0%, 100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    18%, 48% {
+        transform: scale(1.35);
+        filter: brightness(2.6);
+    }
+    32%, 64% {
+        transform: scale(1.08);
+        filter: brightness(1.4);
+    }
+}
+
+.pong-direction-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.pong-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 0 0 132px;
+    width: 132px;
+}
+
+.pong-control-group.right-player {
+    align-items: flex-end;
+}
+
+.pong-page .pong-control-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(36px, auto);
+    gap: 8px;
+    width: 100%;
+}
+
+.pong-page .pong-control-group.right-player .pong-control-buttons {
+    justify-items: end;
+}
+
+.pong-control-heading {
+    width: 100%;
+    color: #333;
+    font-size: 0.85em;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.pong-control-group.right-player .pong-control-heading {
+    text-align: right;
+}
+
+.pong-direction-item {
+    min-width: 128px;
+    justify-content: center;
+    border: 1px solid transparent;
+}
+
+.pong-direction-item.left-player {
+    border-color: rgba(34, 161, 95, 0.22);
+    background: rgba(34, 161, 95, 0.08);
+}
+
+.pong-direction-item.right-player {
+    border-color: rgba(14, 165, 215, 0.22);
+    background: rgba(14, 165, 215, 0.08);
+}
+
+.pong-game-area #gameCanvas {
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    aspect-ratio: 64 / 42;
+    background: #0d1117;
+    border-color: #333;
+}
+
+.pong-help {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 16px;
+    margin: -4px 0 10px;
+    color: #666;
+    font-size: 0.78em;
+    font-weight: 700;
+}
+
+.pong-credit {
+    color: #777;
+    font-size: 0.9em;
+    font-weight: 700;
+    margin-top: -4px;
+}
+
+.title-keyboard-separator,
+.key-change-separator {
+    align-self: center;
 }
 
 #gameCanvas {
@@ -4035,6 +4191,10 @@ h1 {
         margin-left: 170px; /* Adjust for smaller debug menu */
     }
 
+    .pong-page .container {
+        margin-left: 0;
+    }
+
     h1 {
         font-size: 1.8em;
     }
@@ -4042,6 +4202,39 @@ h1 {
     .direction-info {
         font-size: 0.8em;
         gap: 6px;
+    }
+
+    .pong-direction-info {
+        gap: 12px;
+    }
+
+    .pong-control-group {
+        flex-basis: 100%;
+        width: 100%;
+        align-items: center;
+    }
+
+    .pong-control-group.right-player {
+        align-items: center;
+    }
+
+    .pong-control-buttons,
+    .pong-control-group.right-player .pong-control-buttons {
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pong-control-heading,
+    .pong-control-group.right-player .pong-control-heading {
+        text-align: center;
+    }
+
+    .pong-direction-item {
+        min-width: 112px;
+    }
+
+    .pong-help {
+        font-size: 0.72em;
     }
 
     .keyboard-key {

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qwertzPong</title>
+    <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body class="pong-page">
+    <div class="app-layout">
+        <nav id="app-menu" class="sidebar"></nav>
+        <main class="main-content">
+            <div class="container pong-container">
+                <header>
+                    <h1>qwertzPong</h1>
+                    <div class="score-display pong-score-display">
+                        <span class="score-item">Links: <span id="leftScore">0</span></span>
+                        <span class="score-divider">|</span>
+                        <span class="score-item">Rechts: <span id="rightScore">0</span></span>
+                        <span class="score-divider">|</span>
+                        <span class="score-item">Ballkontakte: <span id="rally">0</span></span>
+                        <span class="score-divider">|</span>
+                        <span class="score-item kpm-display">T/Min: <span id="kpm">0</span></span>
+                    </div>
+                </header>
+
+                <div class="keyboard-section">
+                    <div class="pong-direction-info" aria-label="Pong Steuerung">
+                        <div class="pong-control-group left-player">
+                            <div class="pong-control-heading">Links</div>
+                            <div class="pong-control-buttons">
+                                <div class="direction-item pong-direction-item left-player">
+                                    <span class="direction-arrow">↑</span>
+                                    <span class="direction-label">Hoch</span>
+                                    <span class="direction-counter" id="counter-leftUp">0/50</span>
+                                </div>
+                                <div class="direction-item pong-direction-item left-player">
+                                    <span class="direction-arrow">↓</span>
+                                    <span class="direction-label">Runter</span>
+                                    <span class="direction-counter" id="counter-leftDown">0/50</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pong-control-group right-player">
+                            <div class="pong-control-heading">Rechts</div>
+                            <div class="pong-control-buttons">
+                                <div class="direction-item pong-direction-item right-player">
+                                    <span class="direction-arrow">↑</span>
+                                    <span class="direction-label">Hoch</span>
+                                    <span class="direction-counter" id="counter-rightUp">0/50</span>
+                                </div>
+                                <div class="direction-item pong-direction-item right-player">
+                                    <span class="direction-arrow">↓</span>
+                                    <span class="direction-label">Runter</span>
+                                    <span class="direction-counter" id="counter-rightDown">0/50</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="virtual-keyboard" id="virtualKeyboard"></div>
+                </div>
+
+                <div class="game-area pong-game-area" id="game" data-anchor="game">
+                    <canvas id="gameCanvas" width="640" height="420"></canvas>
+                </div>
+
+                <div class="pong-help">
+                    <span>Linke Hand spielt links.</span>
+                    <span>Rechte Hand spielt rechts.</span>
+                    <span>Leertaste pausiert.</span>
+                </div>
+
+                <div class="game-overlay" id="gameOverlay" data-anchor="start">
+                    <div class="overlay-content">
+                        <h2 id="overlayTitle">qwertzPong</h2>
+                        <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
+                        <div class="title-screen-hint">
+                            <div class="press-any-key-hint">Drücke eine Steuerungstaste</div>
+                        </div>
+                        <p id="overlayMessage">Zwei Hände, zwei Paddles. Die linke Tastaturhälfte steuert links, die rechte steuert rechts.</p>
+                        <p class="pong-credit">Idee: Moritz</p>
+                        <div class="overlay-stats" id="overlayStats"></div>
+                        <div class="overlay-buttons">
+                            <button id="restartButton" class="restart-button">Neues Spiel</button>
+                        </div>
+                        <div class="other-games-link">
+                            <a href="index.html" class="tetris-link">qwertZnake</a>
+                            <a href="tetris.html" class="tetris-link">qwertzis</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="key-change-modal" id="keyChangeModal">
+                    <div class="confetti-container"></div>
+                    <div class="key-change-content">
+                        <div class="key-change-title">TASTENWECHSEL!</div>
+                        <div class="key-change-direction" id="keyChangeDirection">LINKS HOCH</div>
+                        <div class="key-change-keyboard" id="keyChangeKeyboard"></div>
+                        <div class="finger-label" id="keyChangeFingerName">Zeigefinger links</div>
+                        <div class="key-change-hint">Drücke R zum Fortfahren</div>
+                        <div class="sparkle-ring"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+    <script src="pong.js?v=4"></script>
+</body>
+</html>

@@ -32,7 +32,7 @@
     <ul class="sidebar-sub">
       <li><a href="index.html" class="menu-item sub menu-link">qwertznake</a></li>
       <li><a href="tetris.html" class="menu-item sub menu-link">qwertzris</a></li>
-      <li><span class="menu-item sub disabled">qwertz ball</span></li>
+      <li><a href="pong.html" class="menu-item sub menu-link">qwertzPong</a></li>
       <li><span class="menu-item sub disabled">qwertz breaker</span></li>
       <li><span class="menu-item sub disabled">qwertz plummer</span></li>
       <li><span class="menu-item sub disabled">qwertz man</span></li>
