@@ -580,6 +580,31 @@ function startGame() {
     gameLoop = requestAnimationFrame(update);
 }
 
+async function submitStatistics(kpm) {
+    const payload = {
+        name: localStorage.getItem('qwertz_arcade_name') || 'Anonym',
+        points: Math.max(state.leftPaddle.score, state.rightPaddle.score) * 100 + state.rally,
+        kpm: kpm,
+        level: 1,
+        duration: Math.round((Date.now() - gameStartTime) / 1000),
+        fingersUsed: fingerUsage,
+        rally: state.rally,
+        winner: state.leftPaddle.score > state.rightPaddle.score ? 'Links' : 'Rechts',
+        game: 'qwertzPong',
+        source: 'pong.html'
+    };
+
+    try {
+        await fetch('/api/statistics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (error) {
+        console.error('Failed to submit Pong statistics:', error);
+    }
+}
+
 function endGame(winner) {
     gameRunning = false;
     gamePaused = false;
@@ -599,6 +624,7 @@ function endGame(winner) {
         kpm
     };
 
+    submitStatistics(kpm);
     showOverlay('Spiel vorbei', `${winner} gewinnt ${state.leftPaddle.score}:${state.rightPaddle.score}`, true);
 }
 

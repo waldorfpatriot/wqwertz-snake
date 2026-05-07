@@ -1298,7 +1298,9 @@ async function submitStatistics(kpm, gameScore, gameFingersUsed, accuracy = 100,
         fingersUsed: gameFingersUsed,
         duration: Math.round((Date.now() - gameStartTime) / 1000),
         difficulty: currentDifficulty,
-        gridSize: gridSizeOption
+        gridSize: gridSizeOption,
+        game: 'qwertZnake',
+        source: 'index.html'
     };
     
     console.log('[stats] submitStatistics called', { gameData: gameData, url: window.location.origin + '/api/statistics' });

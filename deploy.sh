@@ -12,7 +12,11 @@ echo "🐍 Deploying qwertZnake to $SERVER..."
 
 # Copy all necessary files (do NOT copy statistics.json – preserves server Bestenliste)
 echo "📦 Copying files..."
-scp index.html style.css game.js menu.js tetris.html tetris.js pong.html pong.js key_sequence.txt server.js package.json levels.json ecosystem.config.js $SERVER:$DEST/
+scp \
+  index.html analytics.html breakout.html frogqwertz.html invaders.html mario.html pinball.html pong.html qwertzman.html qwertzoids.html tetris.html \
+  style.css analytics.js arcade-shared.js game.js menu.js pong.js tetris.js \
+  key_sequence.txt server.js package.json levels.json ecosystem.config.js \
+  $SERVER:$DEST/
 scp -r ressources $SERVER:$DEST/
 
 # Restart the application on the server

@@ -654,7 +654,9 @@ async function submitStatistics(kpm, gameScore, gameFingersUsed) {
         level: level,
         lines: lines,
         fingersUsed: gameFingersUsed,
-        duration: Math.round((Date.now() - gameStartTime) / 1000)
+        duration: Math.round((Date.now() - gameStartTime) / 1000),
+        game: 'qwertzis',
+        source: 'tetris.html'
     };
     
     try {

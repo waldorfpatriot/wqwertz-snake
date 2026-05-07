@@ -15,6 +15,7 @@
 <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Menü schließen">&times;</button>
 <ul class="sidebar-nav">
   <li><a href="#bestenliste" class="menu-item menu-link menu-action" data-action="stats">Bestenliste</a></li>
+  <li><a href="analytics.html" class="menu-item menu-link">Analytics</a></li>
   <li><a href="#einstellungen" class="menu-item menu-link menu-action" data-action="settings">Einstellungen</a></li>
   <li>
     <button type="button" class="menu-item menu-item-with-sub" data-action="tutorial" aria-expanded="false">Hilfe</button>
@@ -33,12 +34,13 @@
       <li><a href="index.html" class="menu-item sub menu-link">qwertznake</a></li>
       <li><a href="tetris.html" class="menu-item sub menu-link">qwertzris</a></li>
       <li><a href="pong.html" class="menu-item sub menu-link">qwertzPong</a></li>
-      <li><span class="menu-item sub disabled">qwertz breaker</span></li>
-      <li><span class="menu-item sub disabled">qwertz plummer</span></li>
-      <li><span class="menu-item sub disabled">qwertz man</span></li>
-      <li><span class="menu-item sub disabled">qwertzoids</span></li>
-      <li><span class="menu-item sub disabled">qwertztreat</span></li>
-      <li><span class="menu-item sub disabled">qwertzout</span></li>
+      <li><a href="breakout.html" class="menu-item sub menu-link">qwertz breaker</a></li>
+      <li><a href="invaders.html" class="menu-item sub menu-link">qwertz invaders</a></li>
+      <li><a href="pinball.html" class="menu-item sub menu-link">qwertz pinball</a></li>
+      <li><a href="mario.html" class="menu-item sub menu-link">qwertz plummer</a></li>
+      <li><a href="qwertzman.html" class="menu-item sub menu-link">qwertz man</a></li>
+      <li><a href="qwertzoids.html" class="menu-item sub menu-link">qwertzoids</a></li>
+      <li><a href="frogqwertz.html" class="menu-item sub menu-link">frogqwertz</a></li>
     </ul>
   </li>
   <li><a href="#admin" class="menu-item menu-link menu-action" data-action="admin">Admin</a></li>
@@ -149,6 +151,74 @@
             var h = window.location.hash.substring(1);
             if (h === 'bestenliste' || h === 'einstellungen' || h === 'admin' || h.indexOf('tutorial-step-') === 0) closeOverlay();
         });
+
+        initViewportFitter();
+    }
+
+    function initViewportFitter() {
+        var container = document.querySelector('.container');
+        var canvas = document.getElementById('gameCanvas');
+        var keyboard = document.querySelector('.keyboard-section');
+        if (!container || !canvas || !keyboard) return;
+
+        function numberStyle(element, property) {
+            var value = parseFloat(window.getComputedStyle(element)[property]);
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        function outerHeight(element) {
+            if (!element) return 0;
+            var style = window.getComputedStyle(element);
+            return element.getBoundingClientRect().height +
+                (parseFloat(style.marginTop) || 0) +
+                (parseFloat(style.marginBottom) || 0);
+        }
+
+        function fit() {
+            var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            var viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            var isNarrow = viewportWidth < MENU_BREAKPOINT;
+            var availablePageHeight = Math.max(320, viewportHeight - (isNarrow ? 12 : 32));
+
+            document.body.classList.toggle('viewport-fit-compact', viewportHeight < 760);
+            document.body.classList.toggle('viewport-fit-tight', viewportHeight < 620);
+
+            container.style.maxHeight = availablePageHeight + 'px';
+
+            var verticalPadding = numberStyle(container, 'paddingTop') + numberStyle(container, 'paddingBottom');
+            var nonGameHeight = verticalPadding;
+            Array.prototype.forEach.call(container.children, function (child) {
+                if (child.classList && child.classList.contains('game-area')) return;
+                nonGameHeight += outerHeight(child);
+            });
+
+            var gameArea = canvas.closest('.game-area');
+            var gameMargins = gameArea ? numberStyle(gameArea, 'marginTop') + numberStyle(gameArea, 'marginBottom') : 0;
+            var usableGameHeight = Math.max(130, availablePageHeight - nonGameHeight - gameMargins);
+            var availableGameWidth = Math.max(220, Math.min(container.clientWidth - 10, canvas.width || 420));
+            var aspect = (canvas.width || 1) / (canvas.height || 1);
+            var fittedHeight = Math.min(canvas.height || usableGameHeight, usableGameHeight, availableGameWidth / aspect);
+            var fittedWidth = fittedHeight * aspect;
+
+            canvas.style.width = Math.max(120, Math.floor(fittedWidth)) + 'px';
+            canvas.style.height = Math.max(120, Math.floor(fittedHeight)) + 'px';
+        }
+
+        var fitTimer = 0;
+        function scheduleFit() {
+            window.clearTimeout(fitTimer);
+            fitTimer = window.setTimeout(fit, 40);
+        }
+
+        fit();
+        window.addEventListener('resize', scheduleFit);
+        window.addEventListener('orientationchange', scheduleFit);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleFit);
+        if (window.ResizeObserver) {
+            var observer = new ResizeObserver(scheduleFit);
+            observer.observe(container);
+            observer.observe(keyboard);
+        }
     }
 
     if (document.readyState === 'loading') {
