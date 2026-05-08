@@ -1,8 +1,10 @@
 // Game configuration
-const LEVEL_EDITOR_GRID = 40; // levels always 40x40
 const DIFFICULTY_FPS = { simple: 4.65, medium: 6.05, hard: 11.8, ultra: 17.7 }; // ultra = 50% faster than hard
 const GRID_SIZE_OPTIONS = { small: 20, medium: 30, big: 40 }; // small 20x20, medium 30x30, big 40x40
 const GRID_SIZE_LABELS = { small: 'Klein (20×20)', medium: 'Mittel (30×30)', big: 'Groß (40×40)' };
+const GRID_SIZE_TAB_LABELS = { small: 'Klein 20×20', medium: 'Mittel 30×30', big: 'Groß 40×40' };
+const LEVEL_EDITOR_CELL_SIZES = { small: 20, medium: 13, big: 10 };
+const LEGACY_LEVEL_GRID_SIZE = 'big';
 const DIFFICULTY_LABELS = { simple: 'Einfach', medium: 'Mittel', hard: 'Schwer', ultra: 'Ultra' };
 let GRID_SIZE = GRID_SIZE_OPTIONS.medium;
 let CELL_SIZE = 400 / GRID_SIZE;
@@ -302,6 +304,7 @@ let wordStartTime = 0;  // Time when current word started (first direction chang
 let currentWordDirectionChanges = 0;  // Count direction changes in current word
 
 // Level system
+let allLevels = [];
 let availableLevels = [];
 let currentLevelIndex = 0;
 let currentLevel = null;
@@ -758,6 +761,11 @@ async function init() {
     toolEraser.addEventListener('click', () => setDesignerTool('eraser'));
     toolClear.addEventListener('click', clearLevelGrid);
     saveLevelBtn.addEventListener('click', saveLevel);
+    document.querySelectorAll('.level-size-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            setDesignerGridSize(this.getAttribute('data-grid-size'));
+        });
+    });
     
     // Start screen
     showOverlay('qwertZnake', 'Drücke eine Taste zum Starten', false);
@@ -2865,16 +2873,37 @@ function changeSingleKey(direction) {
 
 // ============= LEVEL SYSTEM =============
 
+function normalizeLevelGridSize(value) {
+    return GRID_SIZE_OPTIONS[value] != null ? value : LEGACY_LEVEL_GRID_SIZE;
+}
+
+function normalizeLevelList(levels) {
+    if (!Array.isArray(levels)) return [];
+    return levels.map(level => Object.assign({}, level, {
+        gridSize: normalizeLevelGridSize(level.gridSize)
+    }));
+}
+
+function levelsForGridSize(levels, option) {
+    const gridSize = normalizeLevelGridSize(option);
+    return normalizeLevelList(levels).filter(level => level.gridSize === gridSize);
+}
+
+function refreshAvailableLevels() {
+    availableLevels = levelsForGridSize(allLevels, gridSizeOption);
+    updateDebugMenu();
+}
+
 // Load levels from server
 async function loadLevels() {
     try {
         const response = await fetch('/api/levels');
-        availableLevels = await response.json();
-        console.log('Loaded', availableLevels.length, 'levels');
-        // Update debug menu after loading levels
-        updateDebugMenu();
+        allLevels = normalizeLevelList(await response.json());
+        refreshAvailableLevels();
+        console.log('Loaded', availableLevels.length, gridSizeOption, 'levels');
     } catch (error) {
         console.error('Failed to load levels:', error);
+        allLevels = [];
         availableLevels = [];
     }
 }
@@ -2927,7 +2956,7 @@ function checkLevelChange(oldScore, newScore) {
     doLevelAdvance();
 }
 
-// Apply level barriers and reset snake (levels are 40x40; filter to current grid)
+// Apply level barriers and reset snake
 function applyLevel(level) {
     if (level && level.barriers) {
         barriers = level.barriers.filter(b => b.x < GRID_SIZE && b.y < GRID_SIZE);
@@ -3600,6 +3629,8 @@ async function handleLogin() {
 
 let currentTool = 'barrier';
 let designerBarriers = [];
+let editingLevelId = null;
+let designerGridSizeOption = gridSizeOption;
 let isDrawing = false;
 
 function openLevelDesigner() {
@@ -3611,8 +3642,12 @@ function openLevelDesigner() {
     }
     levelDesignerModal.classList.add('visible');
     window.location.hash = 'level-editor';
+    designerGridSizeOption = normalizeLevelGridSize(gridSizeOption);
     designerBarriers = [];
+    editingLevelId = null;
     levelNameInput.value = '';
+    saveLevelBtn.textContent = '💾 Level Speichern';
+    updateLevelSizeTabs();
     renderLevelGrid();
     loadSavedLevels();
 }
@@ -3644,14 +3679,44 @@ function setDesignerTool(tool) {
     }
 }
 
+function updateLevelSizeTabs() {
+    document.querySelectorAll('.level-size-tab').forEach(function (tab) {
+        const isActive = tab.getAttribute('data-grid-size') === designerGridSizeOption;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+}
+
+function setDesignerGridSize(option) {
+    const nextOption = normalizeLevelGridSize(option);
+    if (nextOption === designerGridSizeOption) return;
+
+    designerGridSizeOption = nextOption;
+    designerBarriers = [];
+    editingLevelId = null;
+    levelNameInput.value = '';
+    saveLevelBtn.textContent = '💾 Level Speichern';
+    updateLevelSizeTabs();
+    renderLevelGrid();
+    renderSavedLevelsList();
+}
+
+function getDesignerGridSize() {
+    return GRID_SIZE_OPTIONS[designerGridSizeOption] || GRID_SIZE_OPTIONS[LEGACY_LEVEL_GRID_SIZE];
+}
+
 function renderLevelGrid() {
     levelGrid.innerHTML = '';
+    const designerGridSize = getDesignerGridSize();
+    const cellSize = LEVEL_EDITOR_CELL_SIZES[designerGridSizeOption] || LEVEL_EDITOR_CELL_SIZES[LEGACY_LEVEL_GRID_SIZE];
+    levelGrid.style.setProperty('--level-grid-size', designerGridSize);
+    levelGrid.style.setProperty('--level-cell-size', `${cellSize}px`);
     
-    // Level editor always 40x40; spawn zone center of 40x40
-    const spawnZone = ['18,20', '19,20', '20,20'];
+    const center = Math.floor(designerGridSize / 2);
+    const spawnZone = [`${center - 2},${center}`, `${center - 1},${center}`, `${center},${center}`];
     
-    for (let y = 0; y < LEVEL_EDITOR_GRID; y++) {
-        for (let x = 0; x < LEVEL_EDITOR_GRID; x++) {
+    for (let y = 0; y < designerGridSize; y++) {
+        for (let x = 0; x < designerGridSize; x++) {
             const cell = document.createElement('div');
             cell.className = 'level-cell';
             cell.dataset.x = x;
@@ -3704,7 +3769,7 @@ function handleCellClick(x, y, isSpawnZone) {
 
 function updateGridCell(x, y) {
     const cells = levelGrid.querySelectorAll('.level-cell');
-    const index = y * LEVEL_EDITOR_GRID + x;
+    const index = y * getDesignerGridSize() + x;
     const cell = cells[index];
     
     if (cell && !cell.classList.contains('spawn-zone')) {
@@ -3733,25 +3798,36 @@ async function saveLevel() {
     
     const levelData = {
         name: name,
+        gridSize: designerGridSizeOption,
         barriers: designerBarriers
     };
     
     try {
-        const response = await fetch('/api/levels', {
-            method: 'POST',
+        const url = editingLevelId ? `/api/levels/${editingLevelId}` : '/api/levels';
+        const response = await fetch(url, {
+            method: editingLevelId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(levelData)
         });
         
         if (response.ok) {
-            alert('Level gespeichert!');
+            alert(editingLevelId ? 'Level aktualisiert!' : 'Level gespeichert!');
             levelNameInput.value = '';
             designerBarriers = [];
+            editingLevelId = null;
+            saveLevelBtn.textContent = '💾 Level Speichern';
             renderLevelGrid();
             loadSavedLevels();
             await loadLevels(); // Reload levels for game
         } else {
-            alert('Fehler beim Speichern!');
+            let message = 'Fehler beim Speichern!';
+            try {
+                const data = await response.json();
+                if (data && data.error) message += ` (${data.error})`;
+            } catch (error) {
+                // Keep the generic message if the server did not return JSON.
+            }
+            alert(message);
         }
     } catch (error) {
         console.error('Failed to save level:', error);
@@ -3762,25 +3838,31 @@ async function saveLevel() {
 async function loadSavedLevels() {
     try {
         const response = await fetch('/api/levels');
-        const levels = await response.json();
-        
-        if (levels.length === 0) {
-            savedLevelsList.innerHTML = '<p class="no-levels">Keine Levels vorhanden</p>';
-            return;
-        }
-        
-        savedLevelsList.innerHTML = levels.map((level, index) => `
-            <div class="level-item" data-id="${level.id}">
-                <span class="level-item-name">${index + 1}. ${escapeHtml(level.name)}</span>
-                <div class="level-item-actions">
-                    <button class="level-item-btn edit" onclick="editLevel(${level.id})">✏️</button>
-                    <button class="level-item-btn delete" onclick="deleteLevel(${level.id})">🗑️</button>
-                </div>
-            </div>
-        `).join('');
+        allLevels = normalizeLevelList(await response.json());
+        refreshAvailableLevels();
+        renderSavedLevelsList();
     } catch (error) {
         console.error('Failed to load saved levels:', error);
     }
+}
+
+function renderSavedLevelsList() {
+    const levels = levelsForGridSize(allLevels, designerGridSizeOption);
+
+    if (levels.length === 0) {
+        savedLevelsList.innerHTML = '<p class="no-levels">Keine Levels vorhanden</p>';
+        return;
+    }
+
+    savedLevelsList.innerHTML = levels.map((level, index) => `
+        <div class="level-item" data-id="${level.id}">
+            <span class="level-item-name">${index + 1}. ${escapeHtml(level.name)}<span class="level-item-grid">${escapeHtml(GRID_SIZE_TAB_LABELS[level.gridSize] || '')}</span></span>
+            <div class="level-item-actions">
+                <button class="level-item-btn edit" onclick="editLevel(${level.id})">✏️</button>
+                <button class="level-item-btn delete" onclick="deleteLevel(${level.id})">🗑️</button>
+            </div>
+        </div>
+    `).join('');
 }
 
 async function deleteLevel(id) {
@@ -3801,11 +3883,16 @@ async function deleteLevel(id) {
 }
 
 function editLevel(id) {
-    const level = availableLevels.find(l => l.id === id);
+    const level = allLevels.find(l => l.id === id);
     if (level) {
+        designerGridSizeOption = normalizeLevelGridSize(level.gridSize);
+        editingLevelId = id;
         levelNameInput.value = level.name;
         designerBarriers = [...level.barriers];
+        saveLevelBtn.textContent = '💾 Änderungen Speichern';
+        updateLevelSizeTabs();
         renderLevelGrid();
+        renderSavedLevelsList();
     }
 }
 
@@ -5374,6 +5461,7 @@ function applyGridSize(option) {
         CELL_SIZE = 400 / GRID_SIZE;
         gridSizeOption = option;
         try { localStorage.setItem('qwertznake-gridSize', option); } catch (e) {}
+        refreshAvailableLevels();
     }
 }
 

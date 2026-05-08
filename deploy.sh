@@ -10,12 +10,12 @@ DEST="/var/www/qwertznake.de"
 
 echo "🐍 Deploying qwertZnake to $SERVER..."
 
-# Copy all necessary files (do NOT copy statistics.json – preserves server Bestenliste)
+# Copy all necessary files (do NOT copy statistics.json or levels.json – preserves live data)
 echo "📦 Copying files..."
 scp \
   index.html analytics.html breakout.html frogqwertz.html invaders.html mario.html pinball.html pong.html qwertzman.html qwertzoids.html tetris.html \
   style.css analytics.js arcade-shared.js game.js menu.js pong.js tetris.js \
-  key_sequence.txt server.js package.json levels.json ecosystem.config.js \
+  key_sequence.txt server.js package.json ecosystem.config.js \
   $SERVER:$DEST/
 scp -r ressources $SERVER:$DEST/
 

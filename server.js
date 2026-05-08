@@ -8,6 +8,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 const STATS_FILE = path.join(__dirname, 'statistics.json');
 const LEVELS_FILE = path.join(__dirname, 'levels.json');
 const LOGS_FILE = path.join(__dirname, 'game-logs.txt');
+const LEVEL_GRID_SIZES = { small: 20, medium: 30, big: 40 };
+const LEGACY_LEVEL_GRID_SIZE = 'big';
+const LEVEL_GRID_SIZE = LEVEL_GRID_SIZES.big;
+const MAX_LEVEL_BARRIERS = LEVEL_GRID_SIZE * LEVEL_GRID_SIZE;
 
 // Admin password - set via environment variable for security
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Znake';
@@ -46,6 +50,67 @@ function loadLevels() {
 // Save levels to file
 function saveLevels(levels) {
     fs.writeFileSync(LEVELS_FILE, JSON.stringify(levels, null, 2));
+}
+
+function normalizeLevelGridSize(value) {
+    return Object.prototype.hasOwnProperty.call(LEVEL_GRID_SIZES, value) ? value : LEGACY_LEVEL_GRID_SIZE;
+}
+
+function levelsWithGridSize(levelsData) {
+    const levels = levelsData && Array.isArray(levelsData.levels) ? levelsData.levels : [];
+    return levels.map(level => Object.assign({}, level, {
+        gridSize: normalizeLevelGridSize(level.gridSize)
+    }));
+}
+
+function normalizeLevelPayload(levelData) {
+    if (!levelData || typeof levelData !== 'object') {
+        return { error: 'Invalid level data' };
+    }
+
+    if (typeof levelData.name !== 'string') {
+        return { error: 'Invalid level name' };
+    }
+
+    const name = levelData.name.trim();
+    if (!name || name.length > 50) {
+        return { error: 'Invalid level name' };
+    }
+
+    if (levelData.gridSize != null && !Object.prototype.hasOwnProperty.call(LEVEL_GRID_SIZES, levelData.gridSize)) {
+        return { error: 'Invalid grid size' };
+    }
+
+    const gridSize = normalizeLevelGridSize(levelData.gridSize);
+    const gridDimension = LEVEL_GRID_SIZES[gridSize];
+    const maxBarriers = gridDimension * gridDimension;
+
+    if (!Array.isArray(levelData.barriers) || levelData.barriers.length > maxBarriers) {
+        return { error: 'Invalid barriers' };
+    }
+
+    const barriers = [];
+    for (const barrier of levelData.barriers) {
+        if (!barrier || !Number.isFinite(barrier.x) || !Number.isFinite(barrier.y)) {
+            return { error: 'Invalid barrier coordinates' };
+        }
+
+        const x = Math.floor(barrier.x);
+        const y = Math.floor(barrier.y);
+        if (x < 0 || x >= gridDimension || y < 0 || y >= gridDimension) {
+            return { error: 'Invalid barrier coordinates' };
+        }
+
+        barriers.push({ x, y });
+    }
+
+    return {
+        level: {
+            name: name.substring(0, 50).replace(/[<>]/g, ''),
+            gridSize,
+            barriers
+        }
+    };
 }
 
 // Load statistics from file
@@ -366,7 +431,7 @@ const server = http.createServer((req, res) => {
     
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password');
 
     if (req.method === 'OPTIONS') {
@@ -487,7 +552,7 @@ const server = http.createServer((req, res) => {
         // Get all levels
         const levelsData = loadLevels();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(levelsData.levels));
+        res.end(JSON.stringify(levelsWithGridSize(levelsData)));
         return;
     }
 
@@ -517,34 +582,20 @@ const server = http.createServer((req, res) => {
         readBody(req).then(body => {
             try {
                 const levelData = JSON.parse(body);
-                
-                // Validate level data
-                if (typeof levelData.name !== 'string' || !levelData.name || levelData.name.length > 50) {
+                const normalized = normalizeLevelPayload(levelData);
+                if (normalized.error) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid level name' }));
-                    return;
-                }
-                if (!Array.isArray(levelData.barriers) || levelData.barriers.length > 400) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid barriers' }));
-                    return;
-                }
-                
-                // Validate each barrier
-                const validBarriers = levelData.barriers.every(b => 
-                    typeof b.x === 'number' && typeof b.y === 'number' &&
-                    b.x >= 0 && b.x < 20 && b.y >= 0 && b.y < 20
-                );
-                if (!validBarriers) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Invalid barrier coordinates' }));
+                    res.end(JSON.stringify({ error: normalized.error }));
                     return;
                 }
                 
                 const levelsData = loadLevels();
+                if (!Array.isArray(levelsData.levels)) levelsData.levels = [];
                 
-                // Limit total number of levels
-                if (levelsData.levels.length >= 100) {
+                // Limit total number of levels per grid size
+                const levelsInGrid = levelsWithGridSize(levelsData)
+                    .filter(level => level.gridSize === normalized.level.gridSize);
+                if (levelsInGrid.length >= 100) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Maximum levels reached' }));
                     return;
@@ -554,8 +605,9 @@ const server = http.createServer((req, res) => {
                 const sanitizedLevel = {
                     id: Date.now(),
                     createdAt: new Date().toISOString(),
-                    name: levelData.name.substring(0, 50).replace(/[<>]/g, ''),
-                    barriers: levelData.barriers.map(b => ({ x: Math.floor(b.x), y: Math.floor(b.y) }))
+                    name: normalized.level.name,
+                    gridSize: normalized.level.gridSize,
+                    barriers: normalized.level.barriers
                 };
                 
                 levelsData.levels.push(sanitizedLevel);
@@ -564,8 +616,60 @@ const server = http.createServer((req, res) => {
                 res.writeHead(201, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, id: sanitizedLevel.id }));
             } catch (error) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                const status = error instanceof SyntaxError ? 400 : 500;
+                res.writeHead(status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: status === 400 ? 'Invalid JSON' : 'Failed to save level' }));
+            }
+        }).catch(() => {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Request too large' }));
+        });
+        return;
+    }
+
+    // Update level endpoint
+    if (pathname.startsWith('/api/levels/') && req.method === 'PUT') {
+        const levelId = parseInt(pathname.split('/').pop(), 10);
+        if (!Number.isFinite(levelId)) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Level not found' }));
+            return;
+        }
+
+        readBody(req).then(body => {
+            try {
+                const levelData = JSON.parse(body);
+                const normalized = normalizeLevelPayload(levelData);
+                if (normalized.error) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: normalized.error }));
+                    return;
+                }
+
+                const levelsData = loadLevels();
+                if (!Array.isArray(levelsData.levels)) levelsData.levels = [];
+
+                const index = levelsData.levels.findIndex(l => l.id === levelId);
+                if (index === -1) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Level not found' }));
+                    return;
+                }
+
+                levelsData.levels[index] = Object.assign({}, levelsData.levels[index], {
+                    name: normalized.level.name,
+                    gridSize: normalized.level.gridSize,
+                    barriers: normalized.level.barriers,
+                    updatedAt: new Date().toISOString()
+                });
+                saveLevels(levelsData);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, id: levelId }));
+            } catch (error) {
+                const status = error instanceof SyntaxError ? 400 : 500;
+                res.writeHead(status, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: status === 400 ? 'Invalid JSON' : 'Failed to save level' }));
             }
         }).catch(() => {
             res.writeHead(413, { 'Content-Type': 'application/json' });
@@ -722,7 +826,14 @@ module.exports = {
     server,
     buildAnalyticsResponse,
     normalizeStatisticsRecord,
+    normalizeLevelPayload,
+    normalizeLevelGridSize,
+    levelsWithGridSize,
     inferGame,
     inferSource,
-    isValidAdminPassword
+    isValidAdminPassword,
+    LEVEL_GRID_SIZE,
+    MAX_LEVEL_BARRIERS,
+    LEVEL_GRID_SIZES,
+    LEGACY_LEVEL_GRID_SIZE
 };
