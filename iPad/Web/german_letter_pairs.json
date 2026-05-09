@@ -1,0 +1,348 @@
+{
+  "name": "important-german-letter-pairs",
+  "locale": "de-DE",
+  "description": "A ranked catalogue of important German bigrams for QWERTZ typing practice.",
+  "source": {
+    "file": "ressources/diagramme-triagramme.pdf",
+    "figure": "Abbildung 4: Die haeufigsten Bigramme im Deutschen",
+    "frequencyUnit": "percent",
+    "note": "Percentages are taken from the chart in the local PDF and are approximate shares of adjacent letter pairs."
+  },
+  "corePairs": [
+    {
+      "rank": 1,
+      "pair": "er",
+      "frequencyPercent": 4.09,
+      "tier": 1,
+      "examples": ["der", "er", "werden"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "middle-index"
+      },
+      "notes": "Very common in articles, endings, stems, and prefixes."
+    },
+    {
+      "rank": 2,
+      "pair": "en",
+      "frequencyPercent": 4.0,
+      "tier": 1,
+      "examples": ["den", "gehen", "machen"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "middle-index"
+      },
+      "notes": "One of the most important German endings."
+    },
+    {
+      "rank": 3,
+      "pair": "ch",
+      "frequencyPercent": 2.42,
+      "tier": 1,
+      "examples": ["ich", "machen", "doch"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "middle-index"
+      },
+      "notes": "Core German sound pair, including ich and ach sounds."
+    },
+    {
+      "rank": 4,
+      "pair": "de",
+      "frequencyPercent": 2.27,
+      "tier": 1,
+      "examples": ["der", "dem", "denken"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "middle"
+      },
+      "notes": "Common in articles, prefixes, and word stems."
+    },
+    {
+      "rank": 5,
+      "pair": "ei",
+      "frequencyPercent": 1.93,
+      "tier": 1,
+      "examples": ["ein", "sein", "Zeit"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "middle"
+      },
+      "notes": "High-value vowel pair with a distinct German sound."
+    },
+    {
+      "rank": 6,
+      "pair": "nd",
+      "frequencyPercent": 1.87,
+      "tier": 1,
+      "examples": ["und", "finden", "Land"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Common in und, participles, and stems."
+    },
+    {
+      "rank": 7,
+      "pair": "te",
+      "frequencyPercent": 1.85,
+      "tier": 1,
+      "examples": ["hatte", "heute", "Leute"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Common in verb forms and endings."
+    },
+    {
+      "rank": 8,
+      "pair": "in",
+      "frequencyPercent": 1.68,
+      "tier": 3,
+      "examples": ["in", "finden", "Kind"],
+      "qwertz": {
+        "handPattern": "right",
+        "fingerPattern": "middle-index"
+      },
+      "notes": "Common preposition, suffix, and word stem pair."
+    },
+    {
+      "rank": 9,
+      "pair": "ie",
+      "frequencyPercent": 1.63,
+      "tier": 2,
+      "examples": ["die", "hier", "Liebe"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "middle"
+      },
+      "notes": "Core long-vowel spelling pattern."
+    },
+    {
+      "rank": 10,
+      "pair": "ge",
+      "frequencyPercent": 1.47,
+      "tier": 2,
+      "examples": ["gehen", "gesagt", "gegen"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Essential German prefix and stem pair."
+    },
+    {
+      "rank": 11,
+      "pair": "es",
+      "frequencyPercent": 1.4,
+      "tier": 3,
+      "examples": ["es", "gestern", "dieses"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "middle-ring"
+      },
+      "notes": "Frequent pronoun and suffix pair."
+    },
+    {
+      "rank": 12,
+      "pair": "ne",
+      "frequencyPercent": 1.22,
+      "tier": 3,
+      "examples": ["eine", "nennen", "ohne"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Common across endings and stems."
+    },
+    {
+      "rank": 13,
+      "pair": "un",
+      "frequencyPercent": 1.19,
+      "tier": 2,
+      "examples": ["und", "unten", "unser"],
+      "qwertz": {
+        "handPattern": "right",
+        "fingerPattern": "index"
+      },
+      "notes": "Appears in und, negative prefix un-, and many stems."
+    },
+    {
+      "rank": 14,
+      "pair": "st",
+      "frequencyPercent": 1.16,
+      "tier": 2,
+      "examples": ["ist", "Stadt", "beste"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "ring-index"
+      },
+      "notes": "Frequent cluster in verbs, superlatives, and nouns."
+    },
+    {
+      "rank": 15,
+      "pair": "re",
+      "frequencyPercent": 1.12,
+      "tier": 3,
+      "examples": ["reden", "ihre", "bereit"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Common in stems, endings, and loan words."
+    },
+    {
+      "rank": 16,
+      "pair": "he",
+      "frequencyPercent": 1.02,
+      "tier": 3,
+      "examples": ["heute", "gehen", "sehen"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Common across stems and pronoun-like forms."
+    },
+    {
+      "rank": 17,
+      "pair": "an",
+      "frequencyPercent": 1.02,
+      "tier": 3,
+      "examples": ["an", "dann", "Hand"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "pinky-index"
+      },
+      "notes": "Common preposition, prefix, and stem pair."
+    },
+    {
+      "rank": 18,
+      "pair": "be",
+      "frequencyPercent": 1.01,
+      "tier": 2,
+      "examples": ["bei", "bekommen", "leben"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "index-middle"
+      },
+      "notes": "Essential German prefix and frequent stem pair."
+    },
+    {
+      "rank": 19,
+      "pair": "se",
+      "frequencyPercent": 0.99,
+      "tier": 3,
+      "examples": ["sein", "diese", "lesen"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "ring-middle"
+      },
+      "notes": "Common in pronouns, endings, and stems."
+    },
+    {
+      "rank": 20,
+      "pair": "ng",
+      "frequencyPercent": 0.94,
+      "tier": 2,
+      "examples": ["lang", "Ding", "Zeitung"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "index"
+      },
+      "notes": "Important ending and stem cluster."
+    },
+    {
+      "rank": 21,
+      "pair": "di",
+      "frequencyPercent": 0.93,
+      "tier": 3,
+      "examples": ["die", "diese", "Dienstag"],
+      "qwertz": {
+        "handPattern": "alternating",
+        "fingerPattern": "middle"
+      },
+      "notes": "Common in article/pronoun forms and stems."
+    },
+    {
+      "rank": 22,
+      "pair": "sc",
+      "frequencyPercent": 0.89,
+      "tier": 2,
+      "examples": ["schon", "schreiben", "Schule"],
+      "qwertz": {
+        "handPattern": "left",
+        "fingerPattern": "ring-middle"
+      },
+      "notes": "Mostly important as the beginning of sch."
+    }
+  ],
+  "supplementalPairs": [
+    {
+      "pair": "au",
+      "role": "Common vowel pair.",
+      "examples": ["auch", "Haus", "laufen"]
+    },
+    {
+      "pair": "eu",
+      "role": "Common vowel pair.",
+      "examples": ["neu", "heute", "Leute"]
+    },
+    {
+      "pair": "äu",
+      "role": "Umlaut variant of au/eu sound patterns.",
+      "examples": ["Häuser", "läuft", "träumen"]
+    },
+    {
+      "pair": "sp",
+      "role": "Common initial consonant cluster.",
+      "examples": ["Spiel", "sprechen", "spät"]
+    },
+    {
+      "pair": "ck",
+      "role": "Common spelling after short vowels.",
+      "examples": ["backen", "Ecke", "drücken"]
+    },
+    {
+      "pair": "ss",
+      "role": "Common double consonant and sharp-s alternative in some contexts.",
+      "examples": ["Wasser", "wissen", "muss"]
+    },
+    {
+      "pair": "tz",
+      "role": "Common affricate spelling.",
+      "examples": ["jetzt", "Platz", "setzen"]
+    },
+    {
+      "pair": "ll",
+      "role": "Common double consonant.",
+      "examples": ["alle", "sollen", "schnell"]
+    },
+    {
+      "pair": "mm",
+      "role": "Common double consonant.",
+      "examples": ["kommen", "immer", "stimmen"]
+    },
+    {
+      "pair": "nn",
+      "role": "Common double consonant.",
+      "examples": ["dann", "kann", "rennen"]
+    }
+  ],
+  "practiceStrings": {
+    "short": [
+      "er en ch de ei nd te",
+      "in ie ge es ne un st",
+      "re he an be se ng di sc"
+    ],
+    "compact": [
+      "erenerenchde",
+      "eindeinteie",
+      "gegenungstbe",
+      "schchscstng"
+    ],
+    "wordLike": [
+      "derdenwerden",
+      "eingehenheute",
+      "undfindenstadt",
+      "schreibenzeitung"
+    ]
+  }
+}

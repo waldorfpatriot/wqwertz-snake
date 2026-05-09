@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qwertz Invaders</title>
+    <link rel="stylesheet" href="style.css?v=8">
+    <style>
+        .arcade-container { max-width: 760px; border-radius: 12px; }
+        .arcade-summary { color: #555; font-size: 0.9rem; text-align: center; margin: 0 0 14px; }
+        .arcade-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 10px 0 14px; }
+        .arcade-actions a { color: #666; text-decoration: none; border: 1px solid #ddd; border-radius: 7px; padding: 7px 10px; font-size: 0.85rem; }
+        .arcade-designer { display: none; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+        .arcade-designer h3 { color: #333; font-size: 1rem; margin: 0 0 10px; }
+        .arcade-designer input { width: 100%; padding: 10px 12px; margin-bottom: 8px; border: 1px solid #d1d5db; border-radius: 7px; }
+        .designer-grid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 2px; margin: 10px auto; max-width: 280px; }
+        .designer-cell { aspect-ratio: 1; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 2px; padding: 0; min-height: 0; }
+        .designer-cell.active { background: #287d68; border-color: #14532d; }
+        .arcade-designer-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .custom-levels { display: grid; gap: 6px; margin-top: 12px; }
+        .custom-level-start { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid #d1d5db; background: #fff; border-radius: 7px; padding: 9px 11px; }
+        .custom-level-start span, .arcade-muted { color: #6b7280; font-size: 0.82rem; }
+        #gameStatus { min-height: 20px; color: #287d68; text-align: center; font-size: 0.9rem; margin-top: 8px; }
+        #gameCanvas { width: min(100%, 420px); height: auto; }
+        @media (max-width: 700px) { .arcade-container { padding: 18px; } .score-display { flex-wrap: wrap; } }
+    </style>
+</head>
+<body data-game="invaders">
+    <div class="app-layout"><nav id="app-menu" class="sidebar"></nav><main class="main-content"><div class="container arcade-container">
+        <header><h1 id="gameTitle">qwertz Invaders</h1><div class="score-display"><span class="score-item">Punkte: <span id="score">0</span></span><span class="score-divider">|</span><span class="score-item kpm-display">T/Min: <span id="kpm">0</span></span></div></header>
+        <p class="arcade-summary" id="gameSummary"></p>
+        <div class="keyboard-section"><div class="direction-info" id="directionInfo"></div><div class="virtual-keyboard" id="virtualKeyboard"></div></div>
+        <div class="game-area"><canvas id="gameCanvas" width="420" height="420"></canvas></div>
+        <div class="arcade-actions"><a href="index.html">qwertZnake</a><a href="breakout.html">Breakout</a><a href="analytics.html">Analytics</a></div>
+        <p id="gameStatus"></p>
+    </div></main></div>
+    <div class="game-overlay" id="gameOverlay"><div class="overlay-content"><h2 id="overlayTitle">qwertz Invaders</h2><p id="overlayMessage"></p><div class="overlay-stats" id="overlayStats"></div><div class="overlay-buttons"><button id="restartButton" class="restart-button">Start</button></div><div class="arcade-designer" id="levelDesigner"><h3>Eigene Formation bauen</h3><input id="levelName" placeholder="Levelname" maxlength="40"><input id="creatorName" placeholder="Creator Credit" maxlength="40"><div class="designer-grid" id="levelGrid"></div><div class="arcade-designer-actions"><button id="testLevelButton" class="stats-button-overlay">Testen</button><button id="publishLevelButton" class="restart-button">Speichern / Publish</button></div><div class="custom-levels" id="savedLevels"></div></div></div></div>
+    <div class="key-change-modal" id="keyChangeModal"><div class="key-change-content"><div class="key-change-title">TASTENWECHSEL!</div><div class="key-change-direction" id="keyChangeDirection"></div><div class="finger-label" id="keyChangeFingerName"></div><div class="key-change-hint">Drücke die neue Taste zum Fortfahren</div></div></div>
+    <script src="menu.js"></script><script src="arcade-shared.js?v=2"></script>
+</body>
+</html>

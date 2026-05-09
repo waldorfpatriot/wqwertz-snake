@@ -15,7 +15,7 @@ echo "📦 Copying files..."
 scp \
   index.html analytics.html breakout.html frogqwertz.html invaders.html mario.html pinball.html pong.html qwertzman.html qwertzoids.html tetris.html \
   style.css analytics.js arcade-shared.js game.js menu.js pong.js tetris.js \
-  key_sequence.txt server.js package.json ecosystem.config.js \
+  key_sequence.txt german_letter_pairs.json server.js package.json ecosystem.config.js \
   $SERVER:$DEST/
 scp -r ressources $SERVER:$DEST/
 

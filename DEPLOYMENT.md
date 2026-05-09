@@ -28,6 +28,7 @@
 ├── style.css
 ├── game.js
 ├── key_sequence.txt
+├── german_letter_pairs.json
 ├── server.js
 ├── package.json
 ├── statistics.json
@@ -45,7 +46,7 @@ ssh root@82.165.153.24 "mkdir -p /var/www/qwertznake.de"
 
 ### 2. Copy All Files
 ```bash
-scp index.html style.css game.js key_sequence.txt server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
+scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
 ```
 
 ### 3. Install Node.js (if not installed)
@@ -212,7 +213,7 @@ pm2 restart qwertznake
 
 ### Update Game Files
 ```bash
-scp index.html style.css game.js key_sequence.txt server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
+scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
 ssh root@82.165.153.24 "pm2 restart qwertznake"
 ```
 
@@ -224,7 +225,7 @@ SERVER="root@82.165.153.24"
 DEST="/var/www/qwertznake.de"
 
 echo "Deploying qwertZnake..."
-scp index.html style.css game.js key_sequence.txt server.js package.json levels.json $SERVER:$DEST/
+scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json $SERVER:$DEST/
 ssh $SERVER "pm2 restart qwertznake"
 echo "Deployment complete!"
 ```

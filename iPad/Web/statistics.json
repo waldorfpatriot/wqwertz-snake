@@ -1,0 +1,849 @@
+{
+  "games": [
+    {
+      "id": 1769764021307,
+      "timestamp": "2026-01-30T09:07:01.307Z",
+      "name": "testjonathan",
+      "points": 64,
+      "kpm": 52,
+      "accuracy": 87.5,
+      "wpm": 6,
+      "level": 2,
+      "duration": 423,
+      "fingersUsed": {
+        "finger-pinky": 10,
+        "finger-ring": 11,
+        "finger-middle": 0,
+        "finger-index": 70
+      },
+      "difficulty": "hard",
+      "gridSize": "small"
+    },
+    {
+      "id": 1769764698814,
+      "timestamp": "2026-01-30T09:18:18.814Z",
+      "name": "testjonathan",
+      "points": 52,
+      "kpm": 75,
+      "accuracy": 88.6,
+      "wpm": 8,
+      "level": 2,
+      "duration": 230,
+      "fingersUsed": {
+        "finger-pinky": 5,
+        "finger-ring": 7,
+        "finger-middle": 10,
+        "finger-index": 56
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769638343968,
+      "timestamp": "2026-01-28T22:12:23.968Z",
+      "name": "jonathan",
+      "points": 37,
+      "kpm": 18,
+      "level": 2,
+      "duration": 259,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 77
+      }
+    },
+    {
+      "id": 1769736074999,
+      "timestamp": "2026-01-30T01:21:14.999Z",
+      "name": "testjonathan",
+      "points": 36,
+      "kpm": 25,
+      "level": 1,
+      "duration": 250,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 60
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769720933417,
+      "timestamp": "2026-01-29T21:08:53.417Z",
+      "name": "jonathan",
+      "points": 32,
+      "kpm": 50,
+      "level": 2,
+      "duration": 260,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 91
+      }
+    },
+    {
+      "id": 1769776102049,
+      "timestamp": "2026-01-30T12:28:22.049Z",
+      "name": "testjonathan",
+      "points": 27,
+      "kpm": 136,
+      "accuracy": 96.1,
+      "wpm": 19,
+      "level": 0,
+      "duration": 11243,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 98
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769813790649,
+      "timestamp": "2026-01-30T22:56:30.649Z",
+      "name": "testjonathan",
+      "points": 25,
+      "kpm": 82,
+      "accuracy": 86,
+      "wpm": 6,
+      "level": 1,
+      "duration": 151,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 74
+      },
+      "difficulty": "hard",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769639330504,
+      "timestamp": "2026-01-28T22:28:50.504Z",
+      "name": "jonathan",
+      "points": 22,
+      "kpm": 32,
+      "level": 2,
+      "duration": 120,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 62
+      }
+    },
+    {
+      "name": "Pema",
+      "points": 21,
+      "kpm": 13,
+      "level": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 0
+      },
+      "duration": 52,
+      "id": 1767133000000,
+      "timestamp": "2025-12-30T22:16:40.000Z"
+    },
+    {
+      "name": "Jonathan",
+      "points": 17,
+      "kpm": 38,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 47
+      },
+      "duration": 77,
+      "id": 1767132588995,
+      "timestamp": "2025-12-30T22:09:48.995Z"
+    },
+    {
+      "id": 1769637911180,
+      "timestamp": "2026-01-28T22:05:11.180Z",
+      "name": "Anonym",
+      "points": 17,
+      "kpm": 23,
+      "level": 1,
+      "duration": 182,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 71
+      }
+    },
+    {
+      "id": 1769638084912,
+      "timestamp": "2026-01-28T22:08:04.912Z",
+      "name": "jonathan",
+      "points": 16,
+      "kpm": 19,
+      "level": 1,
+      "duration": 174,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 52
+      }
+    },
+    {
+      "name": "Jonathan",
+      "points": 15,
+      "kpm": 31,
+      "level": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 52
+      },
+      "duration": 106,
+      "id": 1767134217788,
+      "timestamp": "2025-12-30T22:36:57.788Z"
+    },
+    {
+      "name": "Jonathan",
+      "points": 10,
+      "kpm": 29,
+      "level": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 58
+      },
+      "duration": 122,
+      "id": 1767134876309,
+      "timestamp": "2025-12-30T22:47:56.309Z"
+    },
+    {
+      "id": 1769722457364,
+      "timestamp": "2026-01-29T21:34:17.364Z",
+      "name": "testjonathan",
+      "points": 8,
+      "kpm": 58,
+      "level": 0,
+      "duration": 44,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 39
+      }
+    },
+    {
+      "id": 1769722710313,
+      "timestamp": "2026-01-29T21:38:30.313Z",
+      "name": "testjonathan",
+      "points": 8,
+      "kpm": 51,
+      "level": 0,
+      "duration": 47,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 35
+      }
+    },
+    {
+      "id": 1769639135194,
+      "timestamp": "2026-01-28T22:25:35.194Z",
+      "name": "jonathan",
+      "points": 7,
+      "kpm": 36,
+      "level": 0,
+      "duration": 157,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 17
+      }
+    },
+    {
+      "name": "Pema",
+      "points": 5,
+      "kpm": 40,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 41
+      },
+      "duration": 258,
+      "id": 1767132452125,
+      "timestamp": "2025-12-30T22:07:32.125Z"
+    },
+    {
+      "id": 1778073164350,
+      "timestamp": "2026-05-06T13:12:44.350Z",
+      "name": "jonathan",
+      "points": 5,
+      "kpm": 101,
+      "accuracy": 86.4,
+      "wpm": 13,
+      "level": 0,
+      "duration": 26,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 19
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769723342941,
+      "timestamp": "2026-01-29T21:49:02.941Z",
+      "name": "testjonathan",
+      "points": 4,
+      "kpm": 55,
+      "level": 0,
+      "duration": 45,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 39
+      },
+      "difficulty": "ultra",
+      "gridSize": "small"
+    },
+    {
+      "id": 1769723226576,
+      "timestamp": "2026-01-29T21:47:06.576Z",
+      "name": "testjonathan",
+      "points": 3,
+      "kpm": 75,
+      "level": 0,
+      "duration": 16,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 18
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "name": "Anonym",
+      "points": 2,
+      "kpm": 14,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "duration": 46,
+      "id": 1767131748067,
+      "timestamp": "2025-12-30T21:55:48.067Z"
+    },
+    {
+      "id": 1769721437524,
+      "timestamp": "2026-01-29T21:17:17.524Z",
+      "name": "jonathan",
+      "points": 2,
+      "kpm": 87,
+      "level": 0,
+      "duration": 13,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769722801345,
+      "timestamp": "2026-01-29T21:40:01.345Z",
+      "name": "testjonathan",
+      "points": 2,
+      "kpm": 56,
+      "level": 0,
+      "duration": 14,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 11
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1769721694891,
+      "timestamp": "2026-01-29T21:21:34.891Z",
+      "name": "testjonathan",
+      "points": 1,
+      "kpm": 34,
+      "level": 0,
+      "duration": 23,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 10
+      },
+      "difficulty": "medium",
+      "gridSize": "medium"
+    },
+    {
+      "id": 1778128495637,
+      "timestamp": "2026-05-07T04:34:55.637Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 48,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 10,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128498804,
+      "timestamp": "2026-05-07T04:34:58.804Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 160,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 3,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128501404,
+      "timestamp": "2026-05-07T04:35:01.404Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128503954,
+      "timestamp": "2026-05-07T04:35:03.954Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128506303,
+      "timestamp": "2026-05-07T04:35:06.303Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128508753,
+      "timestamp": "2026-05-07T04:35:08.753Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128532918,
+      "timestamp": "2026-05-07T04:35:32.918Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 20,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 24,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778128535917,
+      "timestamp": "2026-05-07T04:35:35.917Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131100896,
+      "timestamp": "2026-05-07T05:18:20.896Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 0,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2564,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131119843,
+      "timestamp": "2026-05-07T05:18:39.843Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 40,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 12,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 8,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131373632,
+      "timestamp": "2026-05-07T05:22:53.632Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 4,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131373998,
+      "timestamp": "2026-05-07T05:22:53.998Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 4,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131374347,
+      "timestamp": "2026-05-07T05:22:54.347Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 4,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131386731,
+      "timestamp": "2026-05-07T05:23:06.731Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 45,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 12,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 9,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131480218,
+      "timestamp": "2026-05-07T05:24:40.218Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 90,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 3,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131481003,
+      "timestamp": "2026-05-07T05:24:41.003Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 4,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131481801,
+      "timestamp": "2026-05-07T05:24:41.801Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 240,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 4,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131483366,
+      "timestamp": "2026-05-07T05:24:43.366Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 180,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 3,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131505337,
+      "timestamp": "2026-05-07T05:25:05.337Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 68,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 8,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 9,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131507729,
+      "timestamp": "2026-05-07T05:25:07.729Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 270,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 2,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 9,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    },
+    {
+      "id": 1778131509350,
+      "timestamp": "2026-05-07T05:25:09.350Z",
+      "name": "Anonym",
+      "points": 0,
+      "kpm": 180,
+      "accuracy": 100,
+      "wpm": 0,
+      "level": 1,
+      "duration": 1,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 3,
+        "finger-index": 0
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "frogqwertz",
+      "source": "frogqwertz.html"
+    }
+  ]
+}
