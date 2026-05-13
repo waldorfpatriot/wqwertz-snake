@@ -153,6 +153,97 @@
         });
 
         initViewportFitter();
+        initDialogFitter();
+    }
+
+    function initDialogFitter() {
+        var dialogPairs = [
+            {
+                host: document.getElementById('gameOverlay'),
+                content: document.querySelector('.overlay-content'),
+                scaleVar: '--overlay-scale'
+            },
+            {
+                host: document.getElementById('tutorialModal'),
+                content: document.querySelector('.tutorial-modal-content'),
+                scaleVar: '--tutorial-scale'
+            }
+        ].filter(function (pair) {
+            return pair.host && pair.content;
+        });
+        if (!dialogPairs.length) return;
+
+        function isVisible(element) {
+            return !!element && window.getComputedStyle(element).display !== 'none';
+        }
+
+        function fitDialog(pair) {
+            if (!isVisible(pair.host)) return;
+
+            var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            var viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            var hostStyle = window.getComputedStyle(pair.host);
+            var availableWidth = viewportWidth -
+                (parseFloat(hostStyle.paddingLeft) || 0) -
+                (parseFloat(hostStyle.paddingRight) || 0);
+            var availableHeight = viewportHeight -
+                (parseFloat(hostStyle.paddingTop) || 0) -
+                (parseFloat(hostStyle.paddingBottom) || 0);
+
+            pair.content.style.setProperty(pair.scaleVar, '1');
+            var rect = pair.content.getBoundingClientRect();
+            var left = rect.left;
+            var right = rect.right;
+            var top = rect.top;
+            var bottom = rect.bottom;
+            Array.prototype.forEach.call(pair.content.querySelectorAll('*'), function (element) {
+                if (!isVisible(element)) return;
+                var childRect = element.getBoundingClientRect();
+                if (!childRect.width && !childRect.height) return;
+                left = Math.min(left, childRect.left);
+                right = Math.max(right, childRect.right);
+                top = Math.min(top, childRect.top);
+                bottom = Math.max(bottom, childRect.bottom);
+            });
+            var contentWidth = Math.max(rect.width, pair.content.scrollWidth, right - left);
+            var contentHeight = Math.max(rect.height, pair.content.scrollHeight, bottom - top);
+            var scale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+            pair.content.style.setProperty(pair.scaleVar, Math.max(0.25, scale).toFixed(3));
+        }
+
+        function fitAllDialogs() {
+            dialogPairs.forEach(fitDialog);
+        }
+
+        var fitTimer = 0;
+        function scheduleFit() {
+            window.clearTimeout(fitTimer);
+            fitTimer = window.setTimeout(fitAllDialogs, 20);
+        }
+
+        fitAllDialogs();
+        window.addEventListener('resize', scheduleFit);
+        window.addEventListener('orientationchange', scheduleFit);
+        window.addEventListener('hashchange', scheduleFit);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleFit);
+        if (window.ResizeObserver) {
+            dialogPairs.forEach(function (pair) {
+                var observer = new ResizeObserver(scheduleFit);
+                observer.observe(pair.host);
+                observer.observe(pair.content);
+            });
+        }
+        if (window.MutationObserver) {
+            dialogPairs.forEach(function (pair) {
+                var observer = new MutationObserver(scheduleFit);
+                observer.observe(pair.host, {
+                    attributes: true,
+                    attributeFilter: ['class', 'style', 'data-current-step'],
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
     }
 
     function initViewportFitter() {
