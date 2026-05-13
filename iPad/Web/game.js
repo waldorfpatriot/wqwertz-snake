@@ -3055,10 +3055,6 @@ function checkLevelChange(oldScore, newScore) {
             pointsInCurrentLevel = 0;
             return;
         }
-        if (hasActiveLetterFoods()) {
-            pendingEndgameProgression = true;
-            return;
-        }
         handleEndgameProgression();
         return;
     }
