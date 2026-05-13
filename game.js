@@ -322,6 +322,7 @@ let pendingEndgameProgression = false; // Final level or faster challenge reache
 let endgameChallengeActive = false;
 let progressionSpeedMultiplier = 1;
 let isTestingDesignedLevel = false;
+let infinityModeActive = false;
 let levelDesignerUnlocked = false;
 try {
     levelDesignerUnlocked = localStorage.getItem('qwertznake-level-designer-unlocked') === 'true';
@@ -1009,6 +1010,7 @@ function resetGame() {
     endgameChallengeActive = false;
     progressionSpeedMultiplier = 1;
     isTestingDesignedLevel = false;
+    infinityModeActive = false;
     
     spawnFood();
     
@@ -3052,6 +3054,10 @@ function checkLevelChange(oldScore, newScore) {
 
     if (currentLevelIndex >= availableLevels.length) {
         if (isTestingDesignedLevel) {
+            showTestLevelCompleteModal();
+            return;
+        }
+        if (infinityModeActive) {
             pointsInCurrentLevel = 0;
             return;
         }
@@ -3113,10 +3119,13 @@ function handleEndgamePrimaryAction() {
         startFasterEndgameChallenge();
     } else if (action === 'open-level-designer') {
         openLevelDesigner({ unlocked: true });
+    } else if (action === 'continue-infinity') {
+        continueTestLevelInInfinityMode();
     }
 }
 
 function startFasterEndgameChallenge() {
+    infinityModeActive = false;
     endgameChallengeActive = true;
     progressionSpeedMultiplier = ENDGAME_SPEED_MULTIPLIER;
     FPS = baseFPS * progressionSpeedMultiplier;
@@ -3139,6 +3148,7 @@ function resumeGameAfterProgression() {
 
 function unlockLevelDesignerFromEndgame() {
     endgameChallengeActive = false;
+    infinityModeActive = false;
     levelDesignerUnlocked = true;
     try { localStorage.setItem('qwertznake-level-designer-unlocked', 'true'); } catch (e) {}
     showEndgameModal(
@@ -3147,6 +3157,28 @@ function unlockLevelDesignerFromEndgame() {
         'Level Designer öffnen',
         'open-level-designer'
     );
+}
+
+function showTestLevelCompleteModal() {
+    pointsInCurrentLevel = 0;
+    pendingLevelAdvance = false;
+    pendingEndgameProgression = false;
+    showEndgameModal(
+        'Test abgeschlossen!',
+        'Du hast in deinem Test-Level 10 Punkte gesammelt. Du kannst jetzt ins Unendliche weiterspielen. Die 25%-Herausforderung startet im Testmodus nicht.',
+        'Ins Unendliche spielen',
+        'continue-infinity'
+    );
+}
+
+function continueTestLevelInInfinityMode() {
+    isTestingDesignedLevel = false;
+    infinityModeActive = true;
+    endgameChallengeActive = false;
+    progressionSpeedMultiplier = 1;
+    FPS = baseFPS;
+    updateSpeedDisplay();
+    resumeGameAfterProgression();
 }
 
 // Apply level barriers and reset snake
@@ -4079,6 +4111,7 @@ function launchDesignedLevel(level, options = {}) {
 
     resetGame();
     isTestingDesignedLevel = !!options.test;
+    infinityModeActive = false;
     currentLevel = normalizedLevel;
     currentLevelIndex = levelIndex >= 0 ? levelIndex + 1 : Math.max(1, availableLevels.length);
     maxLevelReached = currentLevelIndex;
