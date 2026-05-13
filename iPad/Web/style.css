@@ -505,6 +505,10 @@ h1 {
 }
 
 .virtual-keyboard {
+    --keyboard-key-width: 32px;
+    --keyboard-key-height: 36px;
+    --keyboard-space-width: 200px;
+    --keyboard-row-gap: 4px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -517,28 +521,28 @@ h1 {
 
 .keyboard-row {
     display: flex;
-    gap: 4px;
+    gap: var(--keyboard-row-gap);
     justify-content: center;
     align-items: center;
     position: relative;
 }
 
 .keyboard-row-top {
-    transform: translateX(calc(-32px / 8));
+    transform: translateX(calc(var(--keyboard-key-width) / -8));
 }
 
 /* Separator line between left and right hand */
 .keyboard-separator {
     width: 2px;
-    height: 36px;
+    height: var(--keyboard-key-height);
     background: linear-gradient(to bottom, transparent, #888, transparent);
     margin: 0 2px;
     opacity: 0.6;
 }
 
 .keyboard-key {
-    min-width: 32px;
-    height: 36px;
+    min-width: var(--keyboard-key-width);
+    height: var(--keyboard-key-height);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -697,7 +701,7 @@ h1 {
 }
 
 .keyboard-key.keyboard-space {
-    min-width: 200px;
+    min-width: var(--keyboard-space-width);
     background: #e0e0e0;
     color: #333;
     font-size: 0.75em;
@@ -4309,29 +4313,33 @@ body.viewport-fit-compact .direction-item {
 }
 
 body.viewport-fit-compact .virtual-keyboard {
+    --keyboard-key-width: 26px;
+    --keyboard-key-height: 29px;
+    --keyboard-space-width: 150px;
+    --keyboard-row-gap: 3px;
     gap: 4px;
     padding: 8px;
     border-radius: 8px;
 }
 
 body.viewport-fit-compact .keyboard-row {
-    gap: 3px;
+    gap: var(--keyboard-row-gap);
 }
 
 body.viewport-fit-compact .keyboard-key {
-    min-width: 26px;
-    height: 29px;
+    min-width: var(--keyboard-key-width);
+    height: var(--keyboard-key-height);
     border-radius: 5px;
     font-size: 0.72em;
 }
 
 body.viewport-fit-compact .keyboard-key.keyboard-space {
-    min-width: 150px;
-    height: 28px;
+    min-width: var(--keyboard-space-width);
+    height: var(--keyboard-key-height);
 }
 
 body.viewport-fit-compact .keyboard-separator {
-    height: 29px;
+    height: var(--keyboard-key-height);
 }
 
 body.viewport-fit-compact .game-area {
@@ -4369,12 +4377,16 @@ body.viewport-fit-tight .direction-label {
 }
 
 body.viewport-fit-tight .virtual-keyboard {
+    --keyboard-key-width: 22px;
+    --keyboard-key-height: 24px;
+    --keyboard-space-width: 118px;
+    --keyboard-row-gap: 3px;
     padding: 5px;
 }
 
 body.viewport-fit-tight .keyboard-key {
-    min-width: 22px;
-    height: 24px;
+    min-width: var(--keyboard-key-width);
+    height: var(--keyboard-key-height);
     font-size: 0.64em;
     border-width: 1px;
 }
@@ -4385,12 +4397,12 @@ body.viewport-fit-tight .keyboard-key.active-control {
 }
 
 body.viewport-fit-tight .keyboard-key.keyboard-space {
-    min-width: 118px;
-    height: 23px;
+    min-width: var(--keyboard-space-width);
+    height: var(--keyboard-key-height);
 }
 
 body.viewport-fit-tight .keyboard-separator {
-    height: 24px;
+    height: var(--keyboard-key-height);
 }
 
 body.viewport-fit-tight .arcade-actions,
@@ -4482,7 +4494,13 @@ body.viewport-fit-tight #gameStatus {
     }
 
     h1 {
-        font-size: 1.8em;
+        font-size: 1.45em;
+    }
+
+    .score-display {
+        flex-wrap: wrap;
+        gap: 4px 6px;
+        font-size: 0.65em;
     }
 
     .direction-info {
@@ -4524,8 +4542,8 @@ body.viewport-fit-tight #gameStatus {
     }
 
     .keyboard-key {
-        min-width: 28px;
-        height: 32px;
+        min-width: var(--keyboard-key-width);
+        height: var(--keyboard-key-height);
         font-size: 0.75em;
     }
 

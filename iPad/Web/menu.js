@@ -159,6 +159,7 @@
         var container = document.querySelector('.container');
         var canvas = document.getElementById('gameCanvas');
         var keyboard = document.querySelector('.keyboard-section');
+        var virtualKeyboard = keyboard ? keyboard.querySelector('.virtual-keyboard') : null;
         if (!container || !canvas || !keyboard) return;
 
         function numberStyle(element, property) {
@@ -166,12 +167,57 @@
             return Number.isFinite(value) ? value : 0;
         }
 
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
         function outerHeight(element) {
             if (!element) return 0;
             var style = window.getComputedStyle(element);
+            if (style.display === 'none' || style.position === 'fixed' || style.position === 'absolute') {
+                return 0;
+            }
             return element.getBoundingClientRect().height +
                 (parseFloat(style.marginTop) || 0) +
                 (parseFloat(style.marginBottom) || 0);
+        }
+
+        function fitKeyboardWidth() {
+            if (!virtualKeyboard) return;
+
+            var keyboardStyle = window.getComputedStyle(virtualKeyboard);
+            var horizontalPadding = (parseFloat(keyboardStyle.paddingLeft) || 0) +
+                (parseFloat(keyboardStyle.paddingRight) || 0);
+            var row = virtualKeyboard.querySelector('.keyboard-row');
+            var rowStyle = row ? window.getComputedStyle(row) : null;
+            var rowGap = rowStyle ? parseFloat(rowStyle.columnGap || rowStyle.gap) : 4;
+            if (!Number.isFinite(rowGap)) rowGap = 4;
+
+            var separator = virtualKeyboard.querySelector('.keyboard-separator');
+            var separatorWidth = 6;
+            if (separator) {
+                var separatorStyle = window.getComputedStyle(separator);
+                separatorWidth = separator.getBoundingClientRect().width +
+                    (parseFloat(separatorStyle.marginLeft) || 0) +
+                    (parseFloat(separatorStyle.marginRight) || 0);
+            }
+
+            var defaultKeyWidth = document.body.classList.contains('viewport-fit-tight') ? 22 :
+                (document.body.classList.contains('viewport-fit-compact') ? 26 : 32);
+            var defaultKeyHeight = document.body.classList.contains('viewport-fit-tight') ? 24 :
+                (document.body.classList.contains('viewport-fit-compact') ? 29 : 36);
+            var defaultSpaceWidth = document.body.classList.contains('viewport-fit-tight') ? 118 :
+                (document.body.classList.contains('viewport-fit-compact') ? 150 : 200);
+
+            var availableWidth = Math.max(0, virtualKeyboard.clientWidth - horizontalPadding);
+            var fittedKeyWidth = Math.floor((availableWidth - separatorWidth - (11 * rowGap)) / 11);
+            var keyWidth = clamp(fittedKeyWidth, 16, defaultKeyWidth);
+            var keyHeight = clamp(Math.round(keyWidth * 1.125), 20, defaultKeyHeight);
+            var spaceWidth = clamp(Math.round(keyWidth * 6.25), 96, defaultSpaceWidth);
+
+            virtualKeyboard.style.setProperty('--keyboard-key-width', keyWidth + 'px');
+            virtualKeyboard.style.setProperty('--keyboard-key-height', keyHeight + 'px');
+            virtualKeyboard.style.setProperty('--keyboard-space-width', spaceWidth + 'px');
         }
 
         function fit() {
@@ -182,6 +228,7 @@
 
             document.body.classList.toggle('viewport-fit-compact', viewportHeight < 760);
             document.body.classList.toggle('viewport-fit-tight', viewportHeight < 620);
+            fitKeyboardWidth();
 
             container.style.maxHeight = availablePageHeight + 'px';
 
@@ -195,9 +242,9 @@
             var gameArea = canvas.closest('.game-area');
             var gameMargins = gameArea ? numberStyle(gameArea, 'marginTop') + numberStyle(gameArea, 'marginBottom') : 0;
             var usableGameHeight = Math.max(130, availablePageHeight - nonGameHeight - gameMargins);
-            var availableGameWidth = Math.max(220, Math.min(container.clientWidth - 10, canvas.width || 420));
+            var availableGameWidth = Math.max(160, (gameArea ? gameArea.clientWidth : container.clientWidth) - 10);
             var aspect = (canvas.width || 1) / (canvas.height || 1);
-            var fittedHeight = Math.min(canvas.height || usableGameHeight, usableGameHeight, availableGameWidth / aspect);
+            var fittedHeight = Math.min(usableGameHeight, availableGameWidth / aspect);
             var fittedWidth = fittedHeight * aspect;
 
             canvas.style.width = Math.max(120, Math.floor(fittedWidth)) + 'px';
