@@ -6,11 +6,14 @@ const GRID_SIZE_TAB_LABELS = { small: 'Klein 20×20', medium: 'Mittel 30×30', b
 const LEVEL_EDITOR_CELL_SIZES = { small: 20, medium: 13, big: 10 };
 const LEGACY_LEVEL_GRID_SIZE = 'big';
 const DIFFICULTY_LABELS = { simple: 'Einfach', medium: 'Mittel', hard: 'Schwer', ultra: 'Ultra' };
+const ENDGAME_SPEED_MULTIPLIER = 1.25;
 let GRID_SIZE = GRID_SIZE_OPTIONS.medium;
 let CELL_SIZE = 400 / GRID_SIZE;
 let FPS = DIFFICULTY_FPS.medium;
 let currentDifficulty = 'medium';
 let gridSizeOption = 'medium';
+// Base FPS (stored to calculate speed adjustments)
+let baseFPS = DIFFICULTY_FPS.medium;
 
 // Load cached difficulty and grid from localStorage (before init)
 (function loadCachedSettings() {
@@ -295,9 +298,6 @@ let fingerInputs = {
     'finger-pinky-rechts': { total: 0, incorrect: 0 }
 };
 
-// Base FPS (stored to calculate speed adjustments)
-let baseFPS = DIFFICULTY_FPS.medium;
-
 // WPM tracking (words are direction changes until a food is eaten)
 let wordCount = 0;
 let wordStartTime = 0;  // Time when current word started (first direction change)
@@ -318,6 +318,14 @@ let maxLevelReached = 0;
 let pointsInCurrentLevel = 0; // Track points collected in current level
 let pendingLevelChange = null; // Store pending level change info to show after practice
 let pendingLevelAdvance = false; // Level reached 10 points but letter-foods still on screen; advance when clear
+let pendingEndgameProgression = false; // Final level or faster challenge reached 10 points while letter-foods remain
+let endgameChallengeActive = false;
+let progressionSpeedMultiplier = 1;
+let isTestingDesignedLevel = false;
+let levelDesignerUnlocked = false;
+try {
+    levelDesignerUnlocked = localStorage.getItem('qwertznake-level-designer-unlocked') === 'true';
+} catch (e) {}
 
 // Track all keys pressed during gameplay for practice mode
 let keyPressSequence = [];
@@ -391,8 +399,9 @@ let tutorialCurrentStep = 1;
 // Level designer DOM elements
 let adminLoginBtn, loginModal, loginClose, loginPassword, loginSubmit, loginError;
 let levelDesignerModal, designerClose, levelNameInput, levelGrid;
-let toolBarrier, toolEraser, toolClear, saveLevelBtn, savedLevelsList;
+let toolBarrier, toolEraser, toolClear, testLevelBtn, saveLevelBtn, savedLevelsList;
 let levelChangeModal, levelChangeName, levelChangeNumber;
+let endgameModal, endgameTitle, endgameMessage, endgamePrimaryBtn;
 let practiceModal, practiceKeysElement, practiceModalVisible = false;
 let practiceIntroElement, practiceMainElement, practicePunkteKeysElement;
 let practiceAwaitingIntro = false; // True when user must hold 6+ of 8 home row keys to start
@@ -655,11 +664,16 @@ async function init() {
     toolBarrier = document.getElementById('toolBarrier');
     toolEraser = document.getElementById('toolEraser');
     toolClear = document.getElementById('toolClear');
+    testLevelBtn = document.getElementById('testLevelBtn');
     saveLevelBtn = document.getElementById('saveLevelBtn');
     savedLevelsList = document.getElementById('savedLevelsList');
     levelChangeModal = document.getElementById('levelChangeModal');
     levelChangeName = document.getElementById('levelChangeName');
     levelChangeNumber = document.getElementById('levelChangeNumber');
+    endgameModal = document.getElementById('endgameModal');
+    endgameTitle = document.getElementById('endgameTitle');
+    endgameMessage = document.getElementById('endgameMessage');
+    endgamePrimaryBtn = document.getElementById('endgamePrimaryBtn');
     practiceModal = document.getElementById('practiceModal');
     practiceKeysElement = document.getElementById('practiceKeys');
     practiceIntroElement = document.getElementById('practiceIntro');
@@ -758,7 +772,10 @@ async function init() {
     });
     if (overlayStatsButton) overlayStatsButton.addEventListener('click', openStatsModal);
     document.addEventListener('menu-open-stats', openStatsModal);
-    document.addEventListener('menu-open-admin', openLoginModal);
+    document.addEventListener('menu-open-admin', () => {
+        if (levelDesignerUnlocked) openLevelDesigner({ unlocked: true });
+        else openLoginModal();
+    });
     document.addEventListener('menu-restart', () => startGame());
     document.addEventListener('menu-open-tutorial', (e) => {
         const step = (e.detail && e.detail.step) ? e.detail.step : 1;
@@ -798,7 +815,10 @@ async function init() {
     }
 
     // Level designer event listeners
-    adminLoginBtn.addEventListener('click', openLoginModal);
+    adminLoginBtn.addEventListener('click', () => {
+        if (levelDesignerUnlocked) openLevelDesigner({ unlocked: true });
+        else openLoginModal();
+    });
     loginClose.addEventListener('click', closeLoginModal);
     loginSubmit.addEventListener('click', handleLogin);
     loginPassword.addEventListener('keypress', (e) => {
@@ -814,7 +834,9 @@ async function init() {
     toolBarrier.addEventListener('click', () => setDesignerTool('barrier'));
     toolEraser.addEventListener('click', () => setDesignerTool('eraser'));
     toolClear.addEventListener('click', clearLevelGrid);
-    saveLevelBtn.addEventListener('click', saveLevel);
+    if (testLevelBtn) testLevelBtn.addEventListener('click', testDesignedLevel);
+    saveLevelBtn.addEventListener('click', saveLevelAndPlay);
+    if (endgamePrimaryBtn) endgamePrimaryBtn.addEventListener('click', handleEndgamePrimaryAction);
     document.querySelectorAll('.level-size-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
             setDesignerGridSize(this.getAttribute('data-grid-size'));
@@ -983,6 +1005,10 @@ function resetGame() {
     maxLevelReached = 0;
     pointsInCurrentLevel = 0;
     pendingLevelChange = null;
+    pendingEndgameProgression = false;
+    endgameChallengeActive = false;
+    progressionSpeedMultiplier = 1;
+    isTestingDesignedLevel = false;
     
     spawnFood();
     
@@ -1040,7 +1066,7 @@ function resetGame() {
     
     // Reset FPS to base (remove speed adjustments)
     baseFPS = DIFFICULTY_FPS[currentDifficulty];
-    FPS = baseFPS;
+    FPS = baseFPS * progressionSpeedMultiplier;
     
     // Reset WPM tracking
     wordCount = 0;
@@ -1137,7 +1163,7 @@ function adjustGameSpeedBasedOnAccuracy() {
     }
     
     // Apply speed adjustment to base FPS
-    const adjustedFPS = baseFPS * speedMultiplier;
+    const adjustedFPS = baseFPS * progressionSpeedMultiplier * speedMultiplier;
     
     // Only update if change is significant (avoid constant micro-adjustments)
     if (Math.abs(FPS - adjustedFPS) > 0.1) {
@@ -2011,7 +2037,7 @@ function update() {
                 }
                 delete letterFoods[dir];
                 ateLetterFood = true;
-                if (pendingLevelAdvance && Object.keys(letterFoods).length === 0) doLevelAdvance();
+                if (pendingLevelAdvance || pendingEndgameProgression) resolvePendingLevelProgression();
                 break;
             }
         }
@@ -2022,7 +2048,7 @@ function update() {
             const lf = letterFoods[dir];
             if (lf && (nowMs - lf.spawnTime) >= LETTER_FOOD_LIFETIME_MS) {
                 delete letterFoods[dir];
-                if (pendingLevelAdvance && Object.keys(letterFoods).length === 0) doLevelAdvance();
+                if (pendingLevelAdvance || pendingEndgameProgression) resolvePendingLevelProgression();
             }
         }
 
@@ -2160,6 +2186,14 @@ function handleKeyPress(event) {
     // Don't allow any keyboard shortcuts when game over screen is showing
     if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
         return; // Game over screen - no keyboard shortcuts
+    }
+
+    if (endgameModal && endgameModal.classList.contains('visible')) {
+        if (key === 'enter' || key === ' ' || event.code === 'Space') {
+            event.preventDefault();
+            handleEndgamePrimaryAction();
+        }
+        return;
     }
     
     // Handle practice mode
@@ -2948,6 +2982,20 @@ function refreshAvailableLevels() {
     updateDebugMenu();
 }
 
+function hasActiveLetterFoods() {
+    return Object.keys(letterFoods).length > 0;
+}
+
+function resolvePendingLevelProgression() {
+    if (hasActiveLetterFoods()) return;
+    if (pendingEndgameProgression) {
+        pendingEndgameProgression = false;
+        handleEndgameProgression();
+    } else if (pendingLevelAdvance) {
+        doLevelAdvance();
+    }
+}
+
 // Load levels from server
 async function loadLevels() {
     try {
@@ -2998,16 +3046,111 @@ function doLevelAdvance() {
 // Only called when eating food; practice points do not count.
 // Do not advance until no letter-foods on screen (eaten or timed out).
 function checkLevelChange(oldScore, newScore) {
-    if (availableLevels.length === 0) return;
     const pointsEarned = newScore - oldScore;
     pointsInCurrentLevel += pointsEarned;
-    if (pointsInCurrentLevel < 10 || currentLevelIndex >= availableLevels.length) return;
-    const hasLetterFoods = Object.keys(letterFoods).length > 0;
-    if (hasLetterFoods) {
+    if (pointsInCurrentLevel < 10) return;
+
+    if (currentLevelIndex >= availableLevels.length) {
+        if (isTestingDesignedLevel) {
+            pointsInCurrentLevel = 0;
+            return;
+        }
+        if (hasActiveLetterFoods()) {
+            pendingEndgameProgression = true;
+            return;
+        }
+        handleEndgameProgression();
+        return;
+    }
+
+    if (hasActiveLetterFoods()) {
         pendingLevelAdvance = true;
         return;
     }
     doLevelAdvance();
+}
+
+function pauseGameForProgression() {
+    if (gameRunning && !gamePaused) {
+        gamePaused = true;
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    }
+}
+
+function showEndgameModal(title, message, buttonText, action) {
+    if (!endgameModal || !endgamePrimaryBtn) return;
+    pauseGameForProgression();
+    endgameTitle.textContent = title;
+    endgameMessage.textContent = message;
+    endgamePrimaryBtn.textContent = buttonText;
+    endgamePrimaryBtn.dataset.action = action;
+    endgameModal.classList.add('visible');
+}
+
+function hideEndgameModal() {
+    if (!endgameModal) return;
+    endgameModal.classList.remove('visible');
+}
+
+function handleEndgameProgression() {
+    pointsInCurrentLevel = 0;
+    pendingLevelAdvance = false;
+    pendingEndgameProgression = false;
+
+    if (endgameChallengeActive) {
+        unlockLevelDesignerFromEndgame();
+        return;
+    }
+
+    showEndgameModal(
+        'Glückwunsch!',
+        'Du hast das aktuelle finale Level geschafft. Die nächste Herausforderung ist eine schnellere Version des Spiels: Das Tempo steigt um 25%. Sammelst du darin noch einmal 10 Punkte, schaltest du den Level Designer frei und kannst ein eigenes Level bauen.',
+        'Schnelle Herausforderung starten',
+        'start-fast-challenge'
+    );
+}
+
+function handleEndgamePrimaryAction() {
+    const action = endgamePrimaryBtn ? endgamePrimaryBtn.dataset.action : '';
+    hideEndgameModal();
+    if (action === 'start-fast-challenge') {
+        startFasterEndgameChallenge();
+    } else if (action === 'open-level-designer') {
+        openLevelDesigner({ unlocked: true });
+    }
+}
+
+function startFasterEndgameChallenge() {
+    endgameChallengeActive = true;
+    progressionSpeedMultiplier = ENDGAME_SPEED_MULTIPLIER;
+    FPS = baseFPS * progressionSpeedMultiplier;
+    updateSpeedDisplay();
+    triggerSpeedChangeSparks();
+    if (currentLevel) {
+        applyLevel(currentLevel);
+    }
+    resumeGameAfterProgression();
+}
+
+function resumeGameAfterProgression() {
+    if (!gameRunning) return;
+    gamePaused = false;
+    lastUpdate = Date.now();
+    gameLoop = requestAnimationFrame(update);
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+}
+
+function unlockLevelDesignerFromEndgame() {
+    endgameChallengeActive = false;
+    levelDesignerUnlocked = true;
+    try { localStorage.setItem('qwertznake-level-designer-unlocked', 'true'); } catch (e) {}
+    showEndgameModal(
+        'Level Designer freigeschaltet!',
+        'Stark gespielt. Baue jetzt dein eigenes Level. Wenn du es speicherst, wird es als neues finales Level angehängt und direkt gestartet.',
+        'Level Designer öffnen',
+        'open-level-designer'
+    );
 }
 
 // Apply level barriers and reset snake
@@ -3693,7 +3836,10 @@ let editingLevelId = null;
 let designerGridSizeOption = gridSizeOption;
 let isDrawing = false;
 
-function openLevelDesigner() {
+function openLevelDesigner(options = {}) {
+    if (statsModal && statsModal.classList.contains('visible')) {
+        closeStatsModal();
+    }
     // Pause the game if it's running and not already paused
     if (gameRunning && !gamePaused) {
         gamePaused = true;
@@ -3706,7 +3852,7 @@ function openLevelDesigner() {
     designerBarriers = [];
     editingLevelId = null;
     levelNameInput.value = '';
-    saveLevelBtn.textContent = '💾 Level Speichern';
+    saveLevelBtn.textContent = '💾 Speichern und Spielen';
     updateLevelSizeTabs();
     renderLevelGrid();
     loadSavedLevels();
@@ -3755,7 +3901,7 @@ function setDesignerGridSize(option) {
     designerBarriers = [];
     editingLevelId = null;
     levelNameInput.value = '';
-    saveLevelBtn.textContent = '💾 Level Speichern';
+    saveLevelBtn.textContent = '💾 Speichern und Spielen';
     updateLevelSizeTabs();
     renderLevelGrid();
     renderSavedLevelsList();
@@ -3843,25 +3989,42 @@ function clearLevelGrid() {
     renderLevelGrid();
 }
 
-async function saveLevel() {
+function buildDesignerLevelData(requireName = true) {
     const name = levelNameInput.value.trim();
-    if (!name) {
+    if (requireName && !name) {
         alert('Bitte gib einen Level-Namen ein!');
         levelNameInput.focus();
-        return;
+        return null;
     }
     
     if (designerBarriers.length === 0) {
         alert('Das Level braucht mindestens eine Barriere!');
-        return;
+        return null;
     }
     
-    const levelData = {
-        name: name,
+    return {
+        name: name || 'Test-Level',
         gridSize: designerGridSizeOption,
-        barriers: designerBarriers
+        barriers: designerBarriers.map(function (barrier) {
+            return { x: barrier.x, y: barrier.y };
+        })
     };
-    
+}
+
+function testDesignedLevel() {
+    const levelData = buildDesignerLevelData(false);
+    if (!levelData) return;
+    const draftLevel = Object.assign({}, levelData, {
+        id: 'draft-' + Date.now(),
+        name: levelData.name || 'Test-Level'
+    });
+    launchDesignedLevel(draftLevel, { test: true });
+}
+
+async function saveLevelAndPlay() {
+    const levelData = buildDesignerLevelData(true);
+    if (!levelData) return;
+
     try {
         const url = editingLevelId ? `/api/levels/${editingLevelId}` : '/api/levels';
         const response = await fetch(url, {
@@ -3871,14 +4034,19 @@ async function saveLevel() {
         });
         
         if (response.ok) {
-            alert(editingLevelId ? 'Level aktualisiert!' : 'Level gespeichert!');
+            const result = await response.json().catch(() => ({}));
+            const savedLevelId = result && result.id ? result.id : editingLevelId;
             levelNameInput.value = '';
             designerBarriers = [];
             editingLevelId = null;
-            saveLevelBtn.textContent = '💾 Level Speichern';
+            saveLevelBtn.textContent = '💾 Speichern und Spielen';
             renderLevelGrid();
             loadSavedLevels();
             await loadLevels(); // Reload levels for game
+            const savedLevel = availableLevels.find(level => level.id === savedLevelId) ||
+                allLevels.find(level => level.id === savedLevelId) ||
+                Object.assign({}, levelData, { id: savedLevelId || Date.now() });
+            launchDesignedLevel(savedLevel, { test: false });
         } else {
             let message = 'Fehler beim Speichern!';
             try {
@@ -3893,6 +4061,43 @@ async function saveLevel() {
         console.error('Failed to save level:', error);
         alert('Fehler beim Speichern!');
     }
+}
+
+async function saveLevel() {
+    await saveLevelAndPlay();
+}
+
+function launchDesignedLevel(level, options = {}) {
+    const normalizedLevel = Object.assign({}, level, {
+        gridSize: normalizeLevelGridSize(level.gridSize),
+        barriers: Array.isArray(level.barriers) ? level.barriers : []
+    });
+    if (normalizedLevel.gridSize !== gridSizeOption) {
+        applyGridSize(normalizedLevel.gridSize);
+    }
+    const levelIndex = availableLevels.findIndex(item => item.id === normalizedLevel.id);
+
+    closeLevelDesigner();
+    hideOverlay();
+    hideEndgameModal();
+
+    resetGame();
+    isTestingDesignedLevel = !!options.test;
+    currentLevel = normalizedLevel;
+    currentLevelIndex = levelIndex >= 0 ? levelIndex + 1 : Math.max(1, availableLevels.length);
+    maxLevelReached = currentLevelIndex;
+    applyLevel(normalizedLevel);
+    gameRunning = true;
+    gamePaused = false;
+    pausedByLevelDesignerModal = false;
+    window.location.hash = 'game';
+    gameStartTime = Date.now();
+    lastUpdate = Date.now();
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = requestAnimationFrame(update);
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
+    updateDebugMenu();
 }
 
 async function loadSavedLevels() {
@@ -3949,7 +4154,7 @@ function editLevel(id) {
         editingLevelId = id;
         levelNameInput.value = level.name;
         designerBarriers = [...level.barriers];
-        saveLevelBtn.textContent = '💾 Änderungen Speichern';
+        saveLevelBtn.textContent = '💾 Speichern und Spielen';
         updateLevelSizeTabs();
         renderLevelGrid();
         renderSavedLevelsList();
@@ -5506,7 +5711,7 @@ function simulateGameEndWithRandomData() {
 function applyDifficulty(mode) {
     if (DIFFICULTY_FPS[mode] != null) {
         baseFPS = DIFFICULTY_FPS[mode];
-        FPS = baseFPS; // Reset to base when difficulty changes
+        FPS = baseFPS * progressionSpeedMultiplier; // Preserve active progression multiplier
         currentDifficulty = mode;
         try { localStorage.setItem('qwertznake-difficulty', mode); } catch (e) {}
         const debugSpeedInput = document.getElementById('debugSpeed');

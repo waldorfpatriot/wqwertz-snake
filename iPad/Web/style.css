@@ -2381,8 +2381,36 @@ h1 {
 .level-designer-content h2 {
     color: #fff;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     font-size: 1.8em;
+}
+
+.level-size-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.level-size-tab {
+    min-height: 40px;
+    border: 2px solid #333;
+    border-radius: 8px;
+    background: #1a1a2e;
+    color: #d1d5db;
+    cursor: pointer;
+    font-weight: 700;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.level-size-tab:hover {
+    border-color: #888;
+}
+
+.level-size-tab.active {
+    border-color: #32cd32;
+    background: rgba(50, 205, 50, 0.18);
+    color: #fff;
 }
 
 .designer-close {
@@ -2472,23 +2500,26 @@ h1 {
     padding: 15px;
     margin-bottom: 20px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
+    overflow-x: auto;
 }
 
 .level-grid {
     display: grid;
-    grid-template-columns: repeat(40, 10px);
-    grid-template-rows: repeat(40, 10px);
+    grid-template-columns: repeat(var(--level-grid-size, 40), var(--level-cell-size, 10px));
+    grid-template-rows: repeat(var(--level-grid-size, 40), var(--level-cell-size, 10px));
     gap: 1px;
     background: #333;
     border-radius: 8px;
     overflow: hidden;
     width: fit-content;
+    margin: 0 auto;
+    flex: 0 0 auto;
 }
 
 .level-cell {
-    width: 10px;
-    height: 10px;
+    width: var(--level-cell-size, 10px);
+    height: var(--level-cell-size, 10px);
     background: #2d2d4a;
     cursor: pointer;
     transition: background 0.15s;
@@ -2511,10 +2542,13 @@ h1 {
 .level-designer-actions {
     display: flex;
     justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 25px;
 }
 
-.save-level-btn {
+.save-level-btn,
+.test-level-btn {
     background: linear-gradient(135deg, #32cd32 0%, #28a428 100%);
     color: white;
     border: none;
@@ -2527,9 +2561,22 @@ h1 {
     box-shadow: 0 4px 15px rgba(50, 205, 50, 0.4);
 }
 
-.save-level-btn:hover {
+.test-level-btn {
+    background: transparent;
+    color: #d1d5db;
+    border: 2px solid #888;
+    box-shadow: none;
+}
+
+.save-level-btn:hover,
+.test-level-btn:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(50, 205, 50, 0.5);
+}
+
+.test-level-btn:hover {
+    background: rgba(136, 136, 136, 0.16);
+    box-shadow: 0 8px 25px rgba(136, 136, 136, 0.22);
 }
 
 .saved-levels-section {
@@ -2578,6 +2625,12 @@ h1 {
     font-weight: 600;
 }
 
+.level-item-grid {
+    color: #9ca3af;
+    font-size: 0.85em;
+    margin-left: 8px;
+}
+
 .level-item-actions {
     display: flex;
     gap: 8px;
@@ -2603,6 +2656,55 @@ h1 {
 
 .level-item-btn.delete {
     background: #ff6b6b;
+}
+
+/* Endgame Progression Modal */
+.endgame-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.86);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 4100;
+    padding: 20px;
+}
+
+.endgame-modal.visible {
+    display: flex;
+}
+
+.endgame-content {
+    width: min(520px, 100%);
+    background: #ffffff;
+    color: #333;
+    border-radius: 18px;
+    padding: 34px;
+    text-align: center;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+}
+
+.endgame-icon {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.endgame-content h2 {
+    color: #555;
+    font-size: 2em;
+    margin-bottom: 14px;
+}
+
+.endgame-content p {
+    color: #555;
+    font-size: 1.1em;
+    line-height: 1.5;
+    margin-bottom: 22px;
+}
+
+.endgame-actions {
+    display: flex;
+    justify-content: center;
 }
 
 /* Level Change Modal */
@@ -4473,6 +4575,10 @@ body.viewport-fit-tight #gameStatus {
 
     .level-designer-controls {
         flex-direction: column;
+    }
+
+    .level-size-tabs {
+        grid-template-columns: 1fr;
     }
 
     .level-change-content {

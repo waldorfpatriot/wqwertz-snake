@@ -31,6 +31,8 @@ final class LocalWebBackend {
     private let store = LocalWebStore()
     private let adminPassword = "Znake"
     private let maximumBodySize = 1_048_576
+    private let levelGridSizes = ["small": 20, "medium": 30, "big": 40]
+    private let defaultLevelGridSize = "big"
 
     func handle(_ request: URLRequest) -> LocalWebResponse {
         guard let url = request.url else {
@@ -62,6 +64,9 @@ final class LocalWebBackend {
         default:
             if method == "DELETE", path.hasPrefix("/api/levels/") {
                 return deleteLevel(path)
+            }
+            if method == "PUT", path.hasPrefix("/api/levels/") {
+                return updateLevel(path, request)
             }
             return staticFile(path)
         }
@@ -120,7 +125,9 @@ final class LocalWebBackend {
         guard let name = levelData["name"] as? String, !name.isEmpty, name.count <= 50 else {
             return json(["error": "Invalid level name"], status: 400)
         }
-        guard let barriers = levelData["barriers"] as? [[String: Any]], barriers.count <= 400 else {
+        let gridSize = allowed(levelData["gridSize"] as? String, values: Array(levelGridSizes.keys), fallback: defaultLevelGridSize)
+        let gridDimension = levelGridSizes[gridSize] ?? levelGridSizes[defaultLevelGridSize]!
+        guard let barriers = levelData["barriers"] as? [[String: Any]], barriers.count <= gridDimension * gridDimension else {
             return json(["error": "Invalid barriers"], status: 400)
         }
 
@@ -128,7 +135,7 @@ final class LocalWebBackend {
             guard let x = number(barrier["x"]), let y = number(barrier["y"]) else { return nil }
             let xi = Int(x.rounded(.down))
             let yi = Int(y.rounded(.down))
-            guard xi >= 0, xi < 40, yi >= 0, yi < 40 else { return nil }
+            guard xi >= 0, xi < gridDimension, yi >= 0, yi < gridDimension else { return nil }
             return ["x": xi, "y": yi]
         }
         guard normalizedBarriers.count == barriers.count else {
@@ -146,12 +153,59 @@ final class LocalWebBackend {
             "id": id,
             "createdAt": ISO8601DateFormatter().string(from: Date()),
             "name": cleanText(name, fallback: "Level", maxLength: 50),
+            "gridSize": gridSize,
             "barriers": normalizedBarriers
         ])
         document["levels"] = levels
         store.saveLevels(document)
 
         return json(["success": true, "id": id], status: 201)
+    }
+
+    private func updateLevel(_ path: String, _ request: URLRequest) -> LocalWebResponse {
+        guard let id = Int(path.split(separator: "/").last ?? "") else {
+            return json(["error": "Level not found"], status: 404)
+        }
+        guard let levelData = jsonObject(from: request) else {
+            return json(["error": "Invalid JSON"], status: 400)
+        }
+        guard let name = levelData["name"] as? String, !name.isEmpty, name.count <= 50 else {
+            return json(["error": "Invalid level name"], status: 400)
+        }
+
+        let gridSize = allowed(levelData["gridSize"] as? String, values: Array(levelGridSizes.keys), fallback: defaultLevelGridSize)
+        let gridDimension = levelGridSizes[gridSize] ?? levelGridSizes[defaultLevelGridSize]!
+        guard let barriers = levelData["barriers"] as? [[String: Any]], barriers.count <= gridDimension * gridDimension else {
+            return json(["error": "Invalid barriers"], status: 400)
+        }
+
+        let normalizedBarriers = barriers.compactMap { barrier -> [String: Int]? in
+            guard let x = number(barrier["x"]), let y = number(barrier["y"]) else { return nil }
+            let xi = Int(x.rounded(.down))
+            let yi = Int(y.rounded(.down))
+            guard xi >= 0, xi < gridDimension, yi >= 0, yi < gridDimension else { return nil }
+            return ["x": xi, "y": yi]
+        }
+        guard normalizedBarriers.count == barriers.count else {
+            return json(["error": "Invalid barrier coordinates"], status: 400)
+        }
+
+        var document = store.levelsDocument()
+        var levels = document["levels"] as? [[String: Any]] ?? []
+        guard let index = levels.firstIndex(where: { Int(number($0["id"]) ?? -1) == id }) else {
+            return json(["error": "Level not found"], status: 404)
+        }
+
+        var updated = levels[index]
+        updated["name"] = cleanText(name, fallback: "Level", maxLength: 50)
+        updated["gridSize"] = gridSize
+        updated["barriers"] = normalizedBarriers
+        updated["updatedAt"] = ISO8601DateFormatter().string(from: Date())
+        levels[index] = updated
+        document["levels"] = levels
+        store.saveLevels(document)
+
+        return json(["success": true, "id": id])
     }
 
     private func deleteLevel(_ path: String) -> LocalWebResponse {

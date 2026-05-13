@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>qwertZnake</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     <div class="debug-menu" id="debugMenu">
@@ -191,6 +191,11 @@
             <div class="level-designer-content">
                 <button class="designer-close" id="designerClose">&times;</button>
                 <h2>🎨 Level Designer</h2>
+                <div class="level-size-tabs" id="levelSizeTabs" role="tablist" aria-label="Spielfeldgröße">
+                    <button type="button" class="level-size-tab" data-grid-size="small" role="tab" aria-selected="false">Klein 20×20</button>
+                    <button type="button" class="level-size-tab active" data-grid-size="medium" role="tab" aria-selected="true">Mittel 30×30</button>
+                    <button type="button" class="level-size-tab" data-grid-size="big" role="tab" aria-selected="false">Groß 40×40</button>
+                </div>
                 <div class="level-designer-controls">
                     <div class="level-name-input">
                         <label for="levelNameInput">Level Name:</label>
@@ -206,13 +211,26 @@
                     <div class="level-grid" id="levelGrid"></div>
                 </div>
                 <div class="level-designer-actions">
-                    <button class="save-level-btn" id="saveLevelBtn">💾 Level Speichern</button>
+                    <button class="test-level-btn" id="testLevelBtn">▶ Testmodus</button>
+                    <button class="save-level-btn" id="saveLevelBtn">💾 Speichern und Spielen</button>
                 </div>
                 <div class="saved-levels-section">
                     <h3>📁 Gespeicherte Levels</h3>
                     <div class="saved-levels-list" id="savedLevelsList">
                         <p class="no-levels">Keine Levels vorhanden</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endgame Progression Modal -->
+        <div class="endgame-modal" id="endgameModal">
+            <div class="endgame-content">
+                <div class="endgame-icon">🏁</div>
+                <h2 id="endgameTitle">Glückwunsch!</h2>
+                <p id="endgameMessage"></p>
+                <div class="endgame-actions">
+                    <button type="button" class="restart-button" id="endgamePrimaryBtn">Weiter</button>
                 </div>
             </div>
         </div>
@@ -592,6 +610,6 @@
     </div>
 
     <script src="menu.js"></script>
-    <script src="game.js?v=2"></script>
+    <script src="game.js?v=3"></script>
 </body>
 </html>

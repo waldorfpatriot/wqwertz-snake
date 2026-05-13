@@ -2542,10 +2542,13 @@ h1 {
 .level-designer-actions {
     display: flex;
     justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 25px;
 }
 
-.save-level-btn {
+.save-level-btn,
+.test-level-btn {
     background: linear-gradient(135deg, #32cd32 0%, #28a428 100%);
     color: white;
     border: none;
@@ -2558,9 +2561,22 @@ h1 {
     box-shadow: 0 4px 15px rgba(50, 205, 50, 0.4);
 }
 
-.save-level-btn:hover {
+.test-level-btn {
+    background: transparent;
+    color: #d1d5db;
+    border: 2px solid #888;
+    box-shadow: none;
+}
+
+.save-level-btn:hover,
+.test-level-btn:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(50, 205, 50, 0.5);
+}
+
+.test-level-btn:hover {
+    background: rgba(136, 136, 136, 0.16);
+    box-shadow: 0 8px 25px rgba(136, 136, 136, 0.22);
 }
 
 .saved-levels-section {
@@ -2640,6 +2656,55 @@ h1 {
 
 .level-item-btn.delete {
     background: #ff6b6b;
+}
+
+/* Endgame Progression Modal */
+.endgame-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.86);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 4100;
+    padding: 20px;
+}
+
+.endgame-modal.visible {
+    display: flex;
+}
+
+.endgame-content {
+    width: min(520px, 100%);
+    background: #ffffff;
+    color: #333;
+    border-radius: 18px;
+    padding: 34px;
+    text-align: center;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+}
+
+.endgame-icon {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.endgame-content h2 {
+    color: #555;
+    font-size: 2em;
+    margin-bottom: 14px;
+}
+
+.endgame-content p {
+    color: #555;
+    font-size: 1.1em;
+    line-height: 1.5;
+    margin-bottom: 22px;
+}
+
+.endgame-actions {
+    display: flex;
+    justify-content: center;
 }
 
 /* Level Change Modal */
