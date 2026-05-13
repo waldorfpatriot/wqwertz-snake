@@ -334,7 +334,7 @@ let keyPressSequence = [];
 // Key sequence from file
 let keySequence = '';
 let keySequenceIndex = 0;
-const PRACTICE_STRING_COUNT = 5;
+const PRACTICE_STRING_COUNT = 2;
 const PRACTICE_PAIRS_PER_STRING = 5;
 const GERMAN_LETTER_PAIR_FALLBACK = [
     { pair: 'er', frequencyPercent: 4.09 },
@@ -403,7 +403,7 @@ let levelDesignerModal, designerClose, levelNameInput, levelGrid;
 let toolBarrier, toolEraser, toolClear, testLevelBtn, saveLevelBtn, savedLevelsList;
 let levelChangeModal, levelChangeName, levelChangeNumber;
 let endgameModal, endgameTitle, endgameMessage, endgamePrimaryBtn;
-let practiceModal, practiceKeysElement, practiceModalVisible = false;
+let practiceModal, practiceKeysElement, practiceDeleteHintElement, practiceModalVisible = false;
 let practiceIntroElement, practiceMainElement, practicePunkteKeysElement;
 let practiceAwaitingIntro = false; // True when user must hold 6+ of 8 home row keys to start
 let practiceReadyToStart = false; // True when 6+ keys have been held and we're waiting for release
@@ -677,6 +677,7 @@ async function init() {
     endgamePrimaryBtn = document.getElementById('endgamePrimaryBtn');
     practiceModal = document.getElementById('practiceModal');
     practiceKeysElement = document.getElementById('practiceKeys');
+    practiceDeleteHintElement = document.getElementById('practiceDeleteHint');
     practiceIntroElement = document.getElementById('practiceIntro');
     practiceMainElement = document.getElementById('practiceMain');
     practicePunkteKeysElement = document.getElementById('practicePunkteKeys');
@@ -3537,6 +3538,24 @@ function renderPracticeKeys(combination) {
 }
 
 // Update practice keys display
+function hasBlockingPracticeMistake() {
+    const lastTypedIndex = practiceTyped.length - 1;
+    return lastTypedIndex >= 0 && practiceWrongKeys.has(lastTypedIndex);
+}
+
+function setPracticeDeleteHintVisible(visible) {
+    if (!practiceDeleteHintElement) return;
+    practiceDeleteHintElement.classList.toggle('visible', visible);
+}
+
+function flashPracticeDeleteHint() {
+    if (!practiceDeleteHintElement) return;
+    setPracticeDeleteHintVisible(true);
+    practiceDeleteHintElement.classList.remove('attention');
+    void practiceDeleteHintElement.offsetWidth;
+    practiceDeleteHintElement.classList.add('attention');
+}
+
 function updatePracticeKeys() {
     const combination = practiceCombinations[currentPracticeIndex];
     if (!combination || !practiceKeysElement) {
@@ -3547,6 +3566,7 @@ function updatePracticeKeys() {
     const correctedMarks = practiceKeysElement.querySelectorAll('.home-row-corrected-mark');
     const wrongMarks = practiceKeysElement.querySelectorAll('.home-row-wrong-mark');
     const keyElements = practiceKeysElement.querySelectorAll('.home-row-key-animate');
+    const blockingMistake = hasBlockingPracticeMistake();
     
     // Update checkmarks
     checkmarks.forEach((checkmark, index) => {
@@ -3575,18 +3595,18 @@ function updatePracticeKeys() {
         }
     });
     
-    // Remove wrong class from keys (we use red cross instead)
-    keyElements.forEach((keyEl) => {
+    keyElements.forEach((keyEl, index) => {
+        keyEl.classList.remove('active');
         keyEl.classList.remove('wrong');
+        if (practiceWrongKeys.has(index) && index < practiceTyped.length) {
+            keyEl.classList.add('wrong');
+        }
     });
+    setPracticeDeleteHintVisible(blockingMistake);
     
     // Highlight the next expected key
     if (practiceTyped.length < combination.length) {
-        // Remove active class from all keys
-        keyElements.forEach(el => el.classList.remove('active'));
-        
-        // Add active class to next expected key
-        const nextKeyIndex = practiceTyped.length;
+        const nextKeyIndex = blockingMistake ? practiceTyped.length - 1 : practiceTyped.length;
         if (keyElements[nextKeyIndex]) {
             keyElements[nextKeyIndex].classList.add('active');
         }
@@ -3652,6 +3672,12 @@ function handlePracticeKey(key, event) {
     if (currentPracticeIndex >= practiceCombinations.length) return false;
     
     const combination = practiceCombinations[currentPracticeIndex];
+    if (hasBlockingPracticeMistake()) {
+        flashPracticeDeleteHint();
+        return true;
+    }
+    if (practiceTyped.length >= combination.length) return true;
+
     const expectedChar = combination[practiceTyped.length];
     const normalizedKey = (key === ' ' || (event && event.code === 'Space')) ? ' ' : key.toLowerCase();
     
