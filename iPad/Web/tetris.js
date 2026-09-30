@@ -484,21 +484,34 @@ function changeSingleKey(direction) {
     const currentFingerIndex = fingerOrder.indexOf(currentFingerType);
     const directionIndex = directionIndices[direction] || 0;
     const keyChangeCount = keyChangeCounts[direction] || 0;
+    const usedKeys = new Set(Object.values(controlKeys));
+    const forceProgression = keyChangeCount >= KEY_CHANGES_BEFORE_FORCE_PROGRESSION;
     
     let targetFingerIndex = currentFingerIndex;
-    if (keyChangeCount >= KEY_CHANGES_BEFORE_FORCE_PROGRESSION) {
+    if (forceProgression) {
         targetFingerIndex = (currentFingerIndex + 1) % fingerOrder.length;
-        keyChangeCounts[direction] = 0;
     }
 
-    const targetKeys = keysByFinger[fingerOrder[targetFingerIndex]] || [];
-    if (targetKeys.length === 0) return;
-
-    const relativeIndex = directionIndex % targetKeys.length;
-    const finalKey = targetKeys[relativeIndex];
+    let finalKey;
+    let nextDirectionIndex;
+    // Keep all actions reachable, even when the preferred finger's keys are occupied.
+    for (let fingerOffset = 0; fingerOffset < fingerOrder.length; fingerOffset++) {
+        const fingerIndex = (targetFingerIndex + fingerOffset) % fingerOrder.length;
+        const targetKeys = keysByFinger[fingerOrder[fingerIndex]] || [];
+        for (let keyOffset = 0; keyOffset < targetKeys.length; keyOffset++) {
+            const candidate = targetKeys[(directionIndex + keyOffset) % targetKeys.length];
+            if (!usedKeys.has(candidate)) {
+                finalKey = candidate;
+                nextDirectionIndex = directionIndex + keyOffset + 1;
+                break;
+            }
+        }
+        if (finalKey) break;
+    }
+    if (!finalKey) return;
     
-    directionIndices[direction] = directionIndex + 1;
-    keyChangeCounts[direction] = (keyChangeCounts[direction] || 0) + 1;
+    directionIndices[direction] = nextDirectionIndex;
+    keyChangeCounts[direction] = (forceProgression || getFingerClass(finalKey) !== currentFingerType ? 0 : keyChangeCount) + 1;
     
     controlKeys[direction] = finalKey;
     updateKeyboardDisplay();
@@ -1050,11 +1063,14 @@ async function init() {
     keyChangeDirection = document.getElementById('keyChangeDirection');
     keyChangeFingerName = document.getElementById('keyChangeFingerName');
     
-    // Initialize random control keys
-    controlKeys.left = KEY_POOLS.left[Math.floor(Math.random() * KEY_POOLS.left.length)];
-    controlKeys.right = KEY_POOLS.right[Math.floor(Math.random() * KEY_POOLS.right.length)];
-    controlKeys.down = KEY_POOLS.down[Math.floor(Math.random() * KEY_POOLS.down.length)];
-    controlKeys.rotate = KEY_POOLS.rotate[Math.floor(Math.random() * KEY_POOLS.rotate.length)];
+    // Initialize distinct random control keys so every action has its own key.
+    const usedKeys = new Set();
+    Object.entries(KEY_POOLS).forEach(([direction, pool]) => {
+        const availableKeys = pool.filter(key => !usedKeys.has(key));
+        const key = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+        controlKeys[direction] = key;
+        usedKeys.add(key);
+    });
     
     renderKeyboard();
     renderTitleScreenKeyboard();
