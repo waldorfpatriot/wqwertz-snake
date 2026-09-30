@@ -103,6 +103,8 @@ let totalKeystrokes = 0;
 let keySequence = '';
 let keyChangeModalVisible = false;
 let pendingKeyConfirmation = null;
+let keyChangeStartedAt = null;
+let pausedBeforeKeyChange = false;
 let keysHeld = new Set();
 let pendingKeyChanges = new Set();
 
@@ -423,6 +425,14 @@ function changeSingleKey(direction) {
 }
 
 function showKeyChangeModal(direction, oldKey, newKey) {
+    pausedBeforeKeyChange = gamePaused;
+    keyChangeStartedAt = Date.now();
+    gamePaused = true;
+    keysHeld.clear();
+    updateKeyboardDisplay();
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = 0;
+
     const fingerType = getFingerClass(newKey);
     const fingerHand = getFingerHand(newKey);
     const fingerName = FINGER_NAMES[fingerType] || 'Unbekannt';
@@ -445,22 +455,26 @@ function showKeyChangeModal(direction, oldKey, newKey) {
     keyChangeModal.classList.add('visible');
     keyChangeModalVisible = true;
     pendingKeyConfirmation = newKey;
-    gamePaused = true;
 }
 
-function hideKeyChangeModal() {
+function hideKeyChangeModal(resumeGame = true) {
+    if (!keyChangeModalVisible) return;
     keyChangeModal.classList.remove('visible');
     keyChangeModalVisible = false;
     pendingKeyConfirmation = null;
     keysHeld.clear();
+    if (keyChangeStartedAt !== null && gameRunning) {
+        gameStartTime += Math.max(0, Date.now() - keyChangeStartedAt);
+    }
+    keyChangeStartedAt = null;
+    gamePaused = pausedBeforeKeyChange;
 
     const container = keyChangeModal.querySelector('.confetti-container');
     if (container) {
         container.innerHTML = '';
     }
 
-    if (gameRunning) {
-        gamePaused = false;
+    if (resumeGame && gameRunning && !gamePaused) {
         lastFrameTime = performance.now();
         gameLoop = requestAnimationFrame(update);
     }
@@ -547,6 +561,7 @@ function bounceAfterMiss(scoringSide) {
 }
 
 function resetGame() {
+    hideKeyChangeModal(false);
     state = createInitialState();
     keyPressCounters = {
         leftUp: 0,
@@ -766,7 +781,8 @@ function updateBall(deltaSeconds) {
 }
 
 function update(timestamp) {
-    if (!gameRunning || gamePaused) return;
+    gameLoop = 0;
+    if (!gameRunning || gamePaused || keyChangeModalVisible) return;
 
     const deltaSeconds = Math.min(0.033, (timestamp - lastFrameTime) / 1000 || 0);
     lastFrameTime = timestamp;
@@ -776,7 +792,7 @@ function update(timestamp) {
     updateKPMDisplay();
     draw();
 
-    if (gameRunning && !gamePaused) {
+    if (gameRunning && !gamePaused && !keyChangeModalVisible) {
         gameLoop = requestAnimationFrame(update);
     }
 }
@@ -865,10 +881,15 @@ function handleKeyDown(event) {
     const key = normalizeKey(event);
 
     if (keyChangeModalVisible) {
-        if (key === pendingKeyConfirmation) {
-            event.preventDefault();
+        if (key.length === 1) event.preventDefault();
+        if (key === pendingKeyConfirmation && !event.repeat) {
             hideKeyChangeModal();
         }
+        return;
+    }
+
+    if (event.repeat) {
+        if (key === ' ' || findDirectionByKey(key)) event.preventDefault();
         return;
     }
 
@@ -878,7 +899,12 @@ function handleKeyDown(event) {
             startGame();
         } else {
             gamePaused = !gamePaused;
-            if (!gamePaused) {
+            if (gamePaused) {
+                if (gameLoop) cancelAnimationFrame(gameLoop);
+                gameLoop = 0;
+                keysHeld.clear();
+                updateKeyboardDisplay();
+            } else {
                 lastFrameTime = performance.now();
                 gameLoop = requestAnimationFrame(update);
             }
@@ -896,6 +922,8 @@ function handleKeyDown(event) {
     if (!gameRunning) {
         startGame();
     }
+
+    if (gamePaused) return;
 
     if (!keysHeld.has(key)) {
         keysHeld.add(key);

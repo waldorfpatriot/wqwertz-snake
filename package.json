@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "PORT=3080 node server.js",
-    "test": "node --test analytics.test.js arcade-shared.test.js"
+    "test": "node --test *.test.js"
   },
   "author": "",
   "license": "MIT",

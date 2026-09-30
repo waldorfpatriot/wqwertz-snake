@@ -243,6 +243,10 @@ let score = 0;
 let gameRunning = false;
 let gamePaused = false;
 let gameLoop;
+let learningController = null;
+let learningLeaderboardController = null;
+let learningModeDismissed = false;
+let arcadeStartGeneration = 0;
 let lastUpdate = 0;
 
 // Control keys
@@ -252,6 +256,19 @@ let controlKeys = {
     left: 'f',
     right: 'j'
 };
+
+function getDirectionNameFromVector(vector) {
+    if (vector.x === 0 && vector.y === -1) return 'up';
+    if (vector.x === 0 && vector.y === 1) return 'down';
+    if (vector.x === -1 && vector.y === 0) return 'left';
+    if (vector.x === 1 && vector.y === 0) return 'right';
+    return null;
+}
+
+function getCurrentDirectionKey() {
+    const directionName = getDirectionNameFromVector(direction);
+    return directionName ? controlKeys[directionName] : '';
+}
 
 // Key press counters
 let keyPressCounters = {
@@ -490,6 +507,15 @@ async function loadGermanLetterPairs() {
 // Render virtual keyboard
 function renderKeyboard() {
     virtualKeyboardElement.innerHTML = '';
+    const correctionRow = document.createElement('div');
+    correctionRow.className = 'keyboard-row learning-control-row';
+    const correctionKey = document.createElement('div');
+    correctionKey.className = 'keyboard-key finger-pinky learning-backspace-key';
+    correctionKey.dataset.key = 'backspace';
+    correctionKey.textContent = '⌫';
+    correctionKey.setAttribute('aria-label', 'Rücktaste · Backspace · rechter kleiner Finger');
+    correctionRow.appendChild(correctionKey);
+    virtualKeyboardElement.appendChild(correctionRow);
     keyElements = {};
 
     // Define separator positions for each row (after which index to insert separator)
@@ -614,6 +640,7 @@ function updateKeyboardDisplay() {
 
 // Initialize game
 async function init() {
+    const requestedLearningView = ['#lernen', '#lern-bestenliste'].includes(window.location.hash) ? window.location.hash : null;
     await loadKeySequence();
     await loadGermanLetterPairs();
     await loadLevels();
@@ -905,7 +932,30 @@ async function init() {
         updateLoggingUI();
     }
     
+    // Learning uses the same canvas and keyboard, with its own lesson state.
+    if (window.QwertzLearningLeaderboard) {
+        learningLeaderboardController = window.QwertzLearningLeaderboard.mount({
+            onClose: () => learningController && learningController.open()
+        });
+        document.addEventListener('menu-open-learning-leaderboard', openLearningLeaderboard);
+    }
+    if (window.QwertzLearningMode) {
+        learningController = window.QwertzLearningMode.mount({
+            canvas,
+            keyboard: virtualKeyboardElement,
+            fingerMap: FINGER_MAP,
+            onEnter: () => {
+                if (learningLeaderboardController) learningLeaderboardController.close();
+                suspendArcadeForLearning();
+            },
+            onExit: restoreArcadeAfterLearning,
+            onArcade: () => startGame(),
+            onLeaderboard: openLearningLeaderboard
+        });
+    }
+
     // Handle hash navigation
+    if (requestedLearningView && window.history && window.history.replaceState) window.history.replaceState(null, '', requestedLearningView);
     handleHashNavigation();
     window.addEventListener('hashchange', handleHashNavigation);
 }
@@ -913,6 +963,15 @@ async function init() {
 // Handle hash-based navigation
 function handleHashNavigation() {
     const hash = window.location.hash.substring(1); // Remove #
+
+    if (hash === 'lern-bestenliste' && learningLeaderboardController) {
+        if (!learningLeaderboardController.isActive()) openLearningLeaderboard();
+        return;
+    }
+    if (learningController && (hash === 'lernen' || ((!hash || hash === 'start') && !learningModeDismissed))) {
+        if (!learningController.isActive()) learningController.open();
+        return;
+    }
     
     if (!hash) {
         // No hash - show start screen if game not running
@@ -984,6 +1043,67 @@ function handleHashNavigation() {
             openLevelDesigner();
             break;
     }
+}
+
+function learningIsActive() {
+    return !!((learningController && learningController.isActive()) || (learningLeaderboardController && learningLeaderboardController.isActive()));
+}
+
+function closeLearningForArcadePanel() {
+    if (learningController && learningController.isActive()) learningController.close();
+    if (learningLeaderboardController) learningLeaderboardController.close();
+}
+
+function openLearningLeaderboard() {
+    if (!learningLeaderboardController) return;
+    if (learningController && learningController.isActive()) learningController.close();
+    suspendArcadeForLearning();
+    if (window.history && window.history.replaceState) window.history.replaceState(null, '', '#lern-bestenliste');
+    learningLeaderboardController.open();
+}
+
+function suspendArcadeForLearning() {
+    arcadeStartGeneration++;
+    learningModeDismissed = false;
+    gameRunning = false;
+    gamePaused = true;
+    if (window.history && window.history.replaceState) window.history.replaceState(null, '', '#lernen');
+    if (tutorialModal) closeTutorial();
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = null;
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    kpmUpdateInterval = null;
+    if (practiceKPMInterval) clearInterval(practiceKPMInterval);
+    practiceKPMInterval = null;
+    [levelChangeAnimationInterval, practiceIntroAnimationInterval].forEach(timer => {
+        if (timer) clearInterval(timer);
+    });
+    [levelChangePulseTimeout, practiceIntroPulseTimeout].forEach(timer => {
+        if (timer) clearTimeout(timer);
+    });
+    levelChangeAnimationInterval = practiceIntroAnimationInterval = null;
+    levelChangePulseTimeout = practiceIntroPulseTimeout = null;
+    keyChangeModalVisible = levelChangeModalVisible = practiceModalVisible = false;
+    practiceAwaitingIntro = practiceReadyToStart = false;
+    pendingKeyConfirmation = null;
+    document.querySelectorAll('.tutorial-modal, .stats-modal, .settings-modal, .login-modal, .level-designer-modal, .key-change-modal, .level-change-modal, .practice-modal, .endgame-modal').forEach(modal => modal.classList.remove('visible'));
+    hideOverlay();
+    // Remove arcade direction badges while the lesson highlights target letters.
+    Object.values(keyElements).forEach(element => {
+        element.classList.remove('active-control', 'active', 'unmapped-key');
+        element.removeAttribute('data-arrow');
+        element.removeAttribute('data-direction');
+        element.querySelectorAll('.key-x-indicator').forEach(indicator => indicator.remove());
+    });
+}
+
+function restoreArcadeAfterLearning() {
+    learningModeDismissed = true;
+    gameRunning = false;
+    gamePaused = false;
+    updateKeyboardDisplay();
+    draw();
+    showOverlay('qwertZnake', 'Wähle Tippen lernen oder Arcade spielen.', false);
 }
 
 // Reset game state
@@ -1296,6 +1416,11 @@ const LOG_BUFFER_SIZE = 50; // Send logs in batches
 
 // Start game
 async function startGame() {
+    const generation = ++arcadeStartGeneration;
+    closeLearningForArcadePanel();
+    learningModeDismissed = true;
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
     // Save statistics from previous game if not saved yet
     if (!gameStatsSaved && lastGameScore > 0) {
         console.log('[stats] startGame: saving previous game statistics', { lastGameScore, lastGameKPM, currentDifficulty, gridSizeOption });
@@ -1303,6 +1428,8 @@ async function startGame() {
         if (saved) gameStatsSaved = true;
     }
     
+    // A later mode switch or start wins if saving the previous run was asynchronous.
+    if (generation !== arcadeStartGeneration || learningIsActive()) return;
     resetGame();
     gameRunning = true;
     gamePaused = false;
@@ -1494,6 +1621,7 @@ function escapeHtml(text) {
 
 // Open statistics modal
 async function openStatsModal() {
+    closeLearningForArcadePanel();
     statsModal.classList.add('visible');
     window.location.hash = 'statistics';
     statsActiveDifficulty = currentDifficulty;
@@ -1536,6 +1664,7 @@ function closeStatsModal() {
 
 // Open settings modal (sync toggle selection to current settings)
 function openSettingsModal() {
+    closeLearningForArcadePanel();
     if (!settingsModal) return;
     document.querySelectorAll('#settingsDifficultyGroup .settings-toggle-option').forEach(function (b) {
         var isActive = b.getAttribute('data-value') === currentDifficulty;
@@ -1562,6 +1691,7 @@ function closeSettingsModal() {
 
 // Show overlay
 async function showOverlay(title, message, showStats = false, kpm = 0, accuracy = 100, wpm = 0, fingerAccuracy = null) {
+    if (learningIsActive()) return;
     overlayTitleElement.textContent = title;
     overlayMessageElement.textContent = message;
     // Hide message when showing stats
@@ -1600,6 +1730,17 @@ async function showOverlay(title, message, showStats = false, kpm = 0, accuracy 
             } else if (spacebarHint) {
                 spacebarHint.style.display = 'flex';
             }
+        }
+    }
+    const learningChoices = document.getElementById('learningStartChoices');
+    if (learningChoices) {
+        const showChoices = !gameRunning && !showStats;
+        learningChoices.hidden = !showChoices;
+        if (showChoices) {
+            if (titleKeyboardElement) titleKeyboardElement.style.display = 'none';
+            if (titleScreenHint) titleScreenHint.style.display = 'none';
+            if (spacebarHint) spacebarHint.style.display = 'none';
+            overlayMessageElement.style.display = 'none';
         }
     }
     
@@ -1773,6 +1914,8 @@ const DIRECTION_ARROWS = {
 // Key change modal state
 let pendingKeyConfirmation = null;
 let keyChangeModalVisible = false;
+let keyChangeResumeGame = false;
+let keyChangePauseStartedAt = null;
 
 // Render QWERTZ keyboard in key change modal
 function renderKeyChangeKeyboard(newKey) {
@@ -1829,6 +1972,11 @@ function renderKeyChangeKeyboard(newKey) {
 
 // Show key change modal with entertaining graphics
 function showKeyChangeModal(direction, oldKey, newKey) {
+    if (learningIsActive()) return;
+    if (!keyChangeModalVisible) {
+        keyChangeResumeGame = gameRunning && !gamePaused;
+        keyChangePauseStartedAt = Date.now();
+    }
     const fingerType = getFingerClass(newKey);
     const fingerHand = getFingerHand(newKey);
     const fingerName = FINGER_NAMES[fingerType] || 'Unbekannt';
@@ -1857,23 +2005,40 @@ function showKeyChangeModal(direction, oldKey, newKey) {
     pendingKeyConfirmation = newKey;
     
     // Pause the game while modal is shown
-    if (gameRunning && !gamePaused) {
+    if (gameRunning) {
         gamePaused = true;
-        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
     }
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = null;
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    kpmUpdateInterval = null;
 }
 
 // Hide key change modal and resume game
 function hideKeyChangeModal() {
+    if (!keyChangeModalVisible) return;
+    const resumeGame = keyChangeResumeGame;
+    const pausedDuration = keyChangePauseStartedAt === null ? 0 : Math.max(0, Date.now() - keyChangePauseStartedAt);
+    Object.values(letterFoods).forEach(letterFood => {
+        letterFood.spawnTime += pausedDuration;
+    });
     keyChangeModal.classList.remove('visible');
     keyChangeModalVisible = false;
     pendingKeyConfirmation = null;
+    keyChangeResumeGame = false;
+    keyChangePauseStartedAt = null;
+
+    // Finish the key announcement before presenting any waiting level challenge.
+    resolvePendingLevelProgression();
     
     // Resume the game
-    if (gameRunning) {
+    if (gameRunning && resumeGame && !pendingLevelChange && !levelChangeModalVisible && !practiceModalVisible &&
+        !(endgameModal && endgameModal.classList.contains('visible'))) {
         gamePaused = false;
         lastUpdate = Date.now();
+        if (gameLoop) cancelAnimationFrame(gameLoop);
         gameLoop = requestAnimationFrame(update);
+        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
         kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
     }
 }
@@ -1901,7 +2066,7 @@ function createConfetti() {
 
 // Toggle pause
 function togglePause() {
-    if (!gameRunning) return;
+    if (!gameRunning || keyChangeModalVisible) return;
     
     gamePaused = !gamePaused;
     
@@ -1982,7 +2147,8 @@ function spawnLetterFood(direction) {
 
 // Update game state
 function update() {
-    if (!gameRunning || gamePaused) return;
+    if (learningIsActive()) return;
+    if (!gameRunning || gamePaused || keyChangeModalVisible) return;
 
     const now = Date.now();
     const deltaTime = now - lastUpdate;
@@ -2085,11 +2251,14 @@ function update() {
     }
 
     draw();
-    gameLoop = requestAnimationFrame(update);
+    if (gameRunning && !gamePaused && !keyChangeModalVisible) {
+        gameLoop = requestAnimationFrame(update);
+    }
 }
 
 // Draw game
 function draw() {
+    if (learningIsActive()) return;
     // Clear canvas
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2155,6 +2324,8 @@ function draw() {
 
     // Draw snake
     snake.forEach((segment, index) => {
+        const x = segment.x * CELL_SIZE;
+        const y = segment.y * CELL_SIZE;
         if (index === 0) {
             // Head
             ctx.fillStyle = '#32cd32';
@@ -2162,13 +2333,34 @@ function draw() {
             // Body
             ctx.fillStyle = '#28a428';
         }
-        ctx.fillRect(segment.x * CELL_SIZE + 1, segment.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        ctx.fillRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+
+        if (index === 0) {
+            const headKey = getCurrentDirectionKey();
+            if (headKey) {
+                ctx.shadowColor = 'transparent';
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${Math.max(8, CELL_SIZE - 5)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(headKey.toUpperCase(), x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+            }
+        }
     });
 }
 
 // Handle keyboard input
 function handleKeyPress(event) {
     const key = event.key.toLowerCase();
+
+    // Pupil names and other editable fields keep their normal keyboard behavior.
+    if (event.target && event.target.closest && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (learningLeaderboardController && learningLeaderboardController.isActive()) return;
+    if (learningIsActive()) {
+        if (event.target && event.target.closest && event.target.closest('button, a[href]') && key !== 'escape') return;
+        learningController.handleKey(event);
+        return;
+    }
     
     // Ignore keypresses when typing in input fields
     if (document.activeElement === playerNameInput || 
@@ -2189,6 +2381,15 @@ function handleKeyPress(event) {
     // Don't allow any keyboard shortcuts when game over screen is showing
     if (!gameRunning && lastGameScore > 0 && !gameStatsSaved) {
         return; // Game over screen - no keyboard shortcuts
+    }
+
+    // A changed control always needs its own confirmation before other shortcuts.
+    if (keyChangeModalVisible) {
+        event.preventDefault();
+        if (key === pendingKeyConfirmation && !event.repeat) {
+            hideKeyChangeModal();
+        }
+        return;
     }
 
     if (endgameModal && endgameModal.classList.contains('visible')) {
@@ -2227,15 +2428,6 @@ function handleKeyPress(event) {
         return;
     }
     
-    // Handle key change modal confirmation
-    if (keyChangeModalVisible && pendingKeyConfirmation) {
-        event.preventDefault();
-        if (key === pendingKeyConfirmation) {
-            hideKeyChangeModal();
-        }
-        return;
-    }
-
     // Handle Escape to close modals
     if (key === 'escape') {
         if (statsModal.classList.contains('visible')) {
@@ -2495,7 +2687,6 @@ function handleKeyPress(event) {
         currentWordDirectionChanges++;
         
         totalKeystrokes++;
-        totalKeystrokes++;
         const fingerType = getFingerClass(key);
         if (fingerType && fingerUsage[fingerType] !== undefined) {
             fingerUsage[fingerType]++;
@@ -2533,6 +2724,11 @@ function handleKeyPress(event) {
 
 // Keyup: remove key from held sets so checkmarks only show while key is down
 function handleKeyUp(event) {
+    if (learningLeaderboardController && learningLeaderboardController.isActive()) return;
+    if (learningIsActive()) {
+        learningController.handleKeyUp(event);
+        return;
+    }
     const key = (event.key || '').toLowerCase();
     if (levelChangeModalVisible && homeRowKeysSequence.includes(key)) {
         levelChangeKeysHeld.delete(key);
@@ -2990,7 +3186,7 @@ function hasActiveLetterFoods() {
 }
 
 function resolvePendingLevelProgression() {
-    if (hasActiveLetterFoods()) return;
+    if (keyChangeModalVisible || hasActiveLetterFoods()) return;
     if (pendingEndgameProgression) {
         pendingEndgameProgression = false;
         handleEndgameProgression();
@@ -3081,6 +3277,7 @@ function pauseGameForProgression() {
 }
 
 function showEndgameModal(title, message, buttonText, action) {
+    if (learningIsActive()) return;
     if (!endgameModal || !endgamePrimaryBtn) return;
     pauseGameForProgression();
     endgameTitle.textContent = title;
@@ -3206,6 +3403,7 @@ function applyLevel(level) {
 
 // Show level change modal
 function showLevelChangeModal(level, levelNumber) {
+    if (learningIsActive()) return;
     levelChangeName.textContent = level.name || `Level ${levelNumber}`;
     levelChangeNumber.textContent = levelNumber;
     
@@ -3354,6 +3552,7 @@ function buildGermanPairPracticeCombinations() {
 
 // Show practice mode
 function showPracticeMode() {
+    if (learningIsActive()) return;
     practiceCombinations = buildGermanPairPracticeCombinations();
     
     if (practiceCombinations.length === 0) {
@@ -3823,6 +4022,7 @@ function hidePracticeMode() {
 // ============= LOGIN SYSTEM =============
 
 function openLoginModal() {
+    closeLearningForArcadePanel();
     closeStatsModal();
     // Pause the game if it's running and not already paused
     if (gameRunning && !gamePaused) {
@@ -3891,6 +4091,7 @@ let designerGridSizeOption = gridSizeOption;
 let isDrawing = false;
 
 function openLevelDesigner(options = {}) {
+    closeLearningForArcadePanel();
     if (statsModal && statsModal.classList.contains('visible')) {
         closeStatsModal();
     }
@@ -4269,6 +4470,7 @@ const losgehtsSequence = ['l', 'o', 's', ' ', 'g', 'e', 'h', 't', 's'];
 
 // Open tutorial modal
 function openTutorial(step = 1) {
+    closeLearningForArcadePanel();
     // Ensure step is always a number
     const stepNumber = typeof step === 'number' ? step : parseInt(step, 10);
     if (isNaN(stepNumber) || stepNumber < 1 || stepNumber > 6) {
@@ -4299,6 +4501,7 @@ function openTutorial(step = 1) {
     
     // Render keyboards for tutorial steps (step 4 keys rendered when navigating to step 4)
     setTimeout(() => {
+        if (learningIsActive() || !tutorialModal.classList.contains('visible')) return;
         renderTutorialHomeRow();
         renderTutorialKeyboards();
         renderTutorialGameDemo();

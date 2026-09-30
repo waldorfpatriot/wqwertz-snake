@@ -30,6 +30,13 @@
 ├── key_sequence.txt
 ├── german_letter_pairs.json
 ├── server.js
+├── learning-engine.js
+├── learning-mode.js
+├── learning-classroom-server.js
+├── learning-classroom-client.js
+├── learning-leaderboard.js
+├── learning-leaderboard.css
+├── assets/learning/
 ├── package.json
 ├── statistics.json
 └── levels.json
@@ -46,7 +53,7 @@ ssh root@82.165.153.24 "mkdir -p /var/www/qwertznake.de"
 
 ### 2. Copy All Files
 ```bash
-scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
+./deploy.sh
 ```
 
 ### 3. Install Node.js (if not installed)
@@ -61,7 +68,7 @@ ssh root@82.165.153.24 "npm install -g pm2 && cd /var/www/qwertznake.de && pm2 s
 
 ### 5. Set Environment Variables
 ```bash
-ssh root@82.165.153.24 "pm2 stop qwertznake && ADMIN_PASSWORD='YourSecurePassword' ALLOWED_ORIGINS='https://qwertznake.de,https://www.qwertznake.de' pm2 start server.js --name qwertznake && pm2 save"
+ssh root@82.165.153.24 "cd /var/www/qwertznake.de && ADMIN_PASSWORD='replace-with-secure-password' pm2 start ecosystem.config.js --update-env && pm2 save"
 ```
 
 Or create an ecosystem file `/var/www/qwertznake.de/ecosystem.config.js`:
@@ -73,7 +80,7 @@ module.exports = {
     cwd: '/var/www/qwertznake.de',
     env: {
       PORT: 3000,
-      ADMIN_PASSWORD: 'YourSecurePassword',
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
       ALLOWED_ORIGINS: 'https://qwertznake.de,https://www.qwertznake.de'
     }
   }]
@@ -166,7 +173,7 @@ This command:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PORT` | No | Server port (default: 3000) |
-| `ADMIN_PASSWORD` | Yes | Password for level editor access |
+| `ADMIN_PASSWORD` | Yes in production | Password for level editor access. If unset in production, admin login is disabled. |
 | `ALLOWED_ORIGINS` | Yes | Comma-separated list of allowed CORS origins |
 
 ---
@@ -213,8 +220,7 @@ pm2 restart qwertznake
 
 ### Update Game Files
 ```bash
-scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json root@82.165.153.24:/var/www/qwertznake.de/
-ssh root@82.165.153.24 "pm2 restart qwertznake"
+./deploy.sh
 ```
 
 ### Quick Deploy Script
@@ -225,7 +231,14 @@ SERVER="root@82.165.153.24"
 DEST="/var/www/qwertznake.de"
 
 echo "Deploying qwertZnake..."
-scp index.html style.css game.js key_sequence.txt german_letter_pairs.json server.js package.json levels.json $SERVER:$DEST/
+scp index.html analytics.html privacy.html support.html breakout.html frogqwertz.html invaders.html mario.html pinball.html pong.html qwertzman.html qwertzoids.html tetris.html \
+  style.css analytics.js arcade-shared.js game.js menu.js pong.js tetris.js \
+  learning-engine.js learning-progress.js learning-hands.js learning-reward.js learning-tetris.js learning-arcade.js learning-mode.js \
+  learning-classroom-client.js learning-classroom-server.js learning-leaderboard.js learning-leaderboard.css \
+  key_sequence.txt german_letter_pairs.json server.js package.json ecosystem.config.js \
+  $SERVER:$DEST/
+scp -r ressources $SERVER:$DEST/
+scp -r assets $SERVER:$DEST/
 ssh $SERVER "pm2 restart qwertznake"
 echo "Deployment complete!"
 ```

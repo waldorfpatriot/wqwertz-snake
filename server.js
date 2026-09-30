@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createClassroomService } = require('./learning-classroom-server');
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -12,9 +13,16 @@ const LEVEL_GRID_SIZES = { small: 20, medium: 30, big: 40 };
 const LEGACY_LEVEL_GRID_SIZE = 'big';
 const LEVEL_GRID_SIZE = LEVEL_GRID_SIZES.big;
 const MAX_LEVEL_BARRIERS = LEVEL_GRID_SIZE * LEVEL_GRID_SIZE;
+const STATIC_PAGE_ALIASES = {
+    '/privacy': 'privacy.html',
+    '/privacy/': 'privacy.html',
+    '/support': 'support.html',
+    '/support/': 'support.html'
+};
 
-// Admin password - set via environment variable for security
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Znake';
+// Admin password - set via environment variable for security.
+// Local development keeps the historical default; production disables admin login if unset.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'Znake');
 
 // Maximum request body size (1MB)
 const MAX_BODY_SIZE = 1024 * 1024;
@@ -353,10 +361,13 @@ function buildAnalyticsResponse(stats) {
 }
 
 function isValidAdminPassword(password) {
-    return typeof password === 'string' &&
-        password.length === ADMIN_PASSWORD.length &&
-        crypto.timingSafeEqual(Buffer.from(password), Buffer.from(ADMIN_PASSWORD));
+    if (typeof password !== 'string' || !ADMIN_PASSWORD) return false;
+    const supplied = Buffer.from(password);
+    const expected = Buffer.from(ADMIN_PASSWORD);
+    return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
 }
+
+const classroomService = createClassroomService({ isValidAdminPassword, webRoot: __dirname });
 
 // MIME types for static files
 const mimeTypes = {
@@ -421,6 +432,19 @@ function sanitizePath(requestPath) {
     return cleaned;
 }
 
+function isPrivateStaticPath(requestedPath) {
+    const parts = requestedPath.split(/[/\\]/);
+    const filename = parts[parts.length - 1].toLowerCase();
+    return parts.some(part => part.startsWith('.')) ||
+        ['server.js', 'learning-classroom-server.js', 'classroom.json'].includes(filename) ||
+        filename.endsWith('.test.js');
+}
+
+function isInsideWebRoot(filePath) {
+    const relative = path.relative(__dirname, filePath);
+    return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
+}
+
 // Create HTTP server
 const server = http.createServer((req, res) => {
     // Security headers
@@ -431,8 +455,8 @@ const server = http.createServer((req, res) => {
     
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Password');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -441,6 +465,11 @@ const server = http.createServer((req, res) => {
     }
 
     const pathname = (req.url || '').split('?')[0];
+
+    if (pathname.startsWith('/api/learning/')) {
+        classroomService.handle(req, res);
+        return;
+    }
 
     // API endpoints
     if (pathname === '/api/statistics' && req.method === 'GET') {
@@ -756,7 +785,16 @@ const server = http.createServer((req, res) => {
     }
 
     // Serve static files with path traversal protection
-    let requestedPath = pathname === '/' ? 'index.html' : sanitizePath(pathname);
+    let requestedPath;
+    try {
+        if (isPrivateStaticPath(decodeURIComponent(pathname))) throw new Error('Private path');
+        requestedPath = pathname === '/' ? 'index.html' : (STATIC_PAGE_ALIASES[pathname] || sanitizePath(pathname));
+        if (isPrivateStaticPath(requestedPath) || requestedPath.includes('\0')) throw new Error('Private path');
+    } catch (error) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
     
     // Only allow specific file extensions
     const extname = path.extname(requestedPath).toLowerCase();
@@ -770,7 +808,7 @@ const server = http.createServer((req, res) => {
     
     // Ensure the resolved path is within __dirname
     const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(path.resolve(__dirname))) {
+    if (!isInsideWebRoot(resolvedPath)) {
         res.writeHead(403);
         res.end('Forbidden');
         return;
@@ -778,23 +816,31 @@ const server = http.createServer((req, res) => {
 
     const contentType = mimeTypes[extname];
 
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            if (error.code === 'ENOENT') {
-                res.writeHead(404);
-                res.end('File not found');
-            } else {
-                res.writeHead(500);
-                res.end('Server error');
-            }
-        } else {
-            // Add caching headers for static assets
-            if (extname !== '.html') {
-                res.setHeader('Cache-Control', 'public, max-age=86400');
-            }
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content);
+    fs.realpath(filePath, (resolveError, actualPath) => {
+        if (!resolveError && (!isInsideWebRoot(actualPath) || isPrivateStaticPath(path.relative(__dirname, actualPath)))) {
+            res.writeHead(403);
+            res.end('Forbidden');
+            return;
         }
+        const readFile = (callback) => resolveError ? callback(resolveError) : fs.readFile(actualPath, callback);
+        readFile((error, content) => {
+            if (error) {
+                if (error.code === 'ENOENT') {
+                    res.writeHead(404);
+                    res.end('File not found');
+                } else {
+                    res.writeHead(500);
+                    res.end('Server error');
+                }
+            } else {
+                // Add caching headers for static assets
+                if (extname !== '.html') {
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                }
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(content);
+            }
+        });
     });
 });
 
@@ -820,10 +866,24 @@ if (require.main === module) {
         }
         process.exit(1);
     });
+
+    let shuttingDown = false;
+    const shutdown = () => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        server.close(async () => {
+            await classroomService.flush();
+            process.exit(0);
+        });
+        if (server.closeIdleConnections) server.closeIdleConnections();
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 }
 
 module.exports = {
     server,
+    classroomService,
     buildAnalyticsResponse,
     normalizeStatisticsRecord,
     normalizeLevelPayload,

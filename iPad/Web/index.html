@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>qwertZnake</title>
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="learning-leaderboard.css?v=1">
 </head>
 <body>
     <div class="debug-menu" id="debugMenu">
@@ -66,6 +67,12 @@
             <div class="overlay-content">
                 <a href="#einstellungen" class="overlay-settings-link" id="overlaySettingsLink" aria-label="Einstellungen" title="Einstellungen">⚙</a>
                 <h2 id="overlayTitle">qwertZnake</h2>
+                <div class="learning-start-choices" id="learningStartChoices">
+                    <p>Deine Finger lernen. Deine Schlange wächst.</p>
+                    <button type="button" class="learning-button learning-primary" id="learningStartButton">🌱 Tippen lernen</button>
+                    <button type="button" class="learning-button learning-secondary" id="learningArcadeButton">Arcade spielen</button>
+                    <small>Mit einer QWERTZ-Tastatur · Schritt für Schritt</small>
+                </div>
                 <div class="title-screen-keyboard" id="titleScreenKeyboard"></div>
                 <div class="title-screen-hint">
                     <div class="keyboard-icon">⌨️</div>
@@ -610,7 +617,17 @@
         </main>
     </div>
 
-    <script src="menu.js?v=6"></script>
-    <script src="game.js?v=5"></script>
+    <script src="menu.js?v=10"></script>
+    <script src="learning-engine.js?v=3"></script>
+    <script src="arcade-shared.js?v=4"></script>
+    <script src="learning-tetris.js?v=1"></script>
+    <script src="learning-arcade.js?v=3"></script>
+    <script src="learning-progress.js?v=5"></script>
+    <script src="learning-hands.js?v=4"></script>
+    <script src="learning-reward.js?v=4"></script>
+    <script src="learning-classroom-client.js?v=2"></script>
+    <script src="learning-leaderboard.js?v=2"></script>
+    <script src="learning-mode.js?v=14"></script>
+    <script src="game.js?v=12"></script>
 </body>
 </html>

@@ -10,10 +10,8 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
-      // IMPORTANT: Change this password before deploying!
-      ADMIN_PASSWORD: 'Neue Level brauche ich',
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
       ALLOWED_ORIGINS: 'https://qwertznake.de,https://www.qwertznake.de'
     }
   }]
 };
-

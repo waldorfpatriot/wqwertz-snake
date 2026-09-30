@@ -261,7 +261,7 @@
                 if (game.bullet) {
                     game.bullet.y -= 330 * dt;
                     game.aliens.forEach(function (alien) {
-                        if (alien.alive && intersects(game.bullet, alien)) {
+                        if (game.bullet && alien.alive && intersects(game.bullet, alien)) {
                             alien.alive = false;
                             game.bullet = null;
                             finish.addScore(25);
@@ -730,6 +730,7 @@
         this.finished = false;
         this.running = false;
         this.pendingConfirmation = null;
+        this.keyChangeStartedAt = null;
         this.customGrid = Array(14 * 14).fill(false);
         this.activeCustomLevel = null;
         this.resetSession();
@@ -817,6 +818,9 @@
     };
 
     QwertzArcade.prototype.start = function (customLevel) {
+        if (this.pendingConfirmation) return;
+        if (this.frame) cancelAnimationFrame(this.frame);
+        this.keysDown = {};
         this.resetSession();
         this.activeCustomLevel = customLevel || null;
         this.game = this.config.create(customLevel || null);
@@ -835,12 +839,13 @@
         this.finished = true;
         this.running = false;
         if (this.frame) cancelAnimationFrame(this.frame);
+        this.frame = null;
         saveArcadeStatistics(this.config, this.state);
         this.showOverlay(won ? 'Geschafft' : 'Game Over', message, won && this.config.usesLevels);
     };
 
     QwertzArcade.prototype.loop = function (now) {
-        if (!this.running || this.finished) return;
+        if (!this.running || this.finished || this.pendingConfirmation) return;
         const dt = Math.min(0.032, (now - this.lastFrame) / 1000 || 0.016);
         this.lastFrame = now;
         const finish = {
@@ -857,7 +862,9 @@
         this.scoreEl.textContent = this.state.score;
         const minutes = Math.max(0.01, (Date.now() - this.state.startedAt) / 60000);
         this.kpmEl.textContent = Math.round(this.state.totalKeystrokes / minutes);
-        this.frame = requestAnimationFrame(this.loop.bind(this));
+        if (this.running && !this.finished && !this.pendingConfirmation) {
+            this.frame = requestAnimationFrame(this.loop.bind(this));
+        }
     };
 
     QwertzArcade.prototype.draw = function () {
@@ -888,7 +895,11 @@
     };
 
     QwertzArcade.prototype.showKeyChange = function (action, key) {
+        if (!this.pendingConfirmation) this.keyChangeStartedAt = Date.now();
         this.pendingConfirmation = key;
+        this.keysDown = {};
+        if (this.frame) cancelAnimationFrame(this.frame);
+        this.frame = null;
         this.keyChangeDirection.textContent = action.label + ': ' + displayKey(key);
         this.keyChangeFingerName.textContent = FINGER_NAMES[FINGER_MAP[key]] || 'Finger';
         this.keyChangeModal.classList.add('visible');
@@ -897,9 +908,17 @@
     QwertzArcade.prototype.handleKeyDown = function (event) {
         const key = event.key === ' ' ? ' ' : event.key.toLowerCase();
         if (this.pendingConfirmation) {
-            if (key === this.pendingConfirmation) {
+            if (!event.repeat && key === this.pendingConfirmation) {
+                if (this.running && this.keyChangeStartedAt !== null) {
+                    this.state.startedAt += Date.now() - this.keyChangeStartedAt;
+                }
                 this.pendingConfirmation = null;
+                this.keyChangeStartedAt = null;
                 this.keyChangeModal.classList.remove('visible');
+                this.lastFrame = performance.now();
+                if (this.running && !this.finished) {
+                    this.frame = requestAnimationFrame(this.loop.bind(this));
+                }
             }
             event.preventDefault();
             return;
@@ -1019,6 +1038,7 @@
     }
 
     if (typeof window !== 'undefined') {
+        window.QwertzArcadeGames = GAMES;
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {

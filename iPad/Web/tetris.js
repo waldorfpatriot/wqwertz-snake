@@ -191,6 +191,10 @@ let keyElements = {};
 
 let pendingKeyConfirmation = null;
 let keyChangeModalVisible = false;
+let keyChangeStartedAt = null;
+let pausedBeforeKeyChange = false;
+let keysHeld = new Set();
+let keysBlockedUntilRelease = new Set();
 let gameStatsSaved = false;
 let lastGameKPM = 0;
 let lastGameScore = 0;
@@ -503,6 +507,16 @@ function changeSingleKey(direction) {
 
 // Show key change modal
 function showKeyChangeModal(direction, oldKey, newKey) {
+    pausedBeforeKeyChange = gamePaused;
+    keyChangeStartedAt = Date.now();
+    gamePaused = true;
+    keysHeld.forEach(key => keysBlockedUntilRelease.add(key));
+    keysHeld.clear();
+    if (gameLoop) cancelAnimationFrame(gameLoop);
+    gameLoop = 0;
+    if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+    kpmUpdateInterval = 0;
+
     const fingerType = getFingerClass(newKey);
     const fingerHand = getFingerHand(newKey);
     const fingerName = FINGER_NAMES[fingerType] || 'Unbekannt';
@@ -524,18 +538,21 @@ function showKeyChangeModal(direction, oldKey, newKey) {
     keyChangeModal.classList.add('visible');
     keyChangeModalVisible = true;
     pendingKeyConfirmation = newKey;
-    
-    if (gameRunning && !gamePaused) {
-        gamePaused = true;
-        if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
-    }
 }
 
 // Hide key change modal
-function hideKeyChangeModal() {
+function hideKeyChangeModal(resumeGame = true) {
+    if (!keyChangeModalVisible) return;
     keyChangeModal.classList.remove('visible');
     keyChangeModalVisible = false;
     pendingKeyConfirmation = null;
+    keysHeld.forEach(key => keysBlockedUntilRelease.add(key));
+    keysHeld.clear();
+    if (keyChangeStartedAt !== null && gameRunning) {
+        gameStartTime += Math.max(0, Date.now() - keyChangeStartedAt);
+    }
+    keyChangeStartedAt = null;
+    gamePaused = pausedBeforeKeyChange;
     
     // Clear confetti particles
     const container = keyChangeModal.querySelector('.confetti-container');
@@ -543,8 +560,7 @@ function hideKeyChangeModal() {
         container.innerHTML = '';
     }
     
-    if (gameRunning) {
-        gamePaused = false;
+    if (resumeGame && gameRunning && !gamePaused) {
         lastUpdate = Date.now();
         gameLoop = requestAnimationFrame(update);
         kpmUpdateInterval = setInterval(updateKPMDisplay, 500);
@@ -710,6 +726,9 @@ function hideOverlay() {
 
 // Reset game
 function resetGame() {
+    hideKeyChangeModal(false);
+    keysHeld.clear();
+    keysBlockedUntilRelease.clear();
     initBoard();
     score = 0;
     level = 1;
@@ -747,6 +766,7 @@ async function startGame() {
     window.location.hash = 'game';
     lastUpdate = Date.now();
     dropTimer = 0;
+    if (gameLoop) cancelAnimationFrame(gameLoop);
     gameLoop = requestAnimationFrame(update);
     
     if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
@@ -758,9 +778,11 @@ function gameOver() {
     gameRunning = false;
     if (gameLoop) {
         cancelAnimationFrame(gameLoop);
+        gameLoop = 0;
     }
     if (kpmUpdateInterval) {
         clearInterval(kpmUpdateInterval);
+        kpmUpdateInterval = 0;
     }
     
     const elapsed = (Date.now() - gameStartTime) / 1000 / 60;
@@ -774,10 +796,8 @@ function gameOver() {
 
 // Update game
 function update() {
-    if (!gameRunning || gamePaused) {
-        gameLoop = requestAnimationFrame(update);
-        return;
-    }
+    gameLoop = 0;
+    if (!gameRunning || gamePaused || keyChangeModalVisible) return;
 
     const now = Date.now();
     const deltaTime = now - lastUpdate;
@@ -805,7 +825,9 @@ function update() {
     
     lastUpdate = now;
     draw();
-    gameLoop = requestAnimationFrame(update);
+    if (gameRunning && !gamePaused && !keyChangeModalVisible) {
+        gameLoop = requestAnimationFrame(update);
+    }
 }
 
 // Draw game
@@ -859,16 +881,20 @@ function draw() {
 }
 
 // Handle key press
-function handleKeyPress(key) {
+function handleKeyPress(key, isRepeat = false) {
     if (keyChangeModalVisible) {
-        if (key === pendingKeyConfirmation) {
+        if (key === pendingKeyConfirmation && !isRepeat) {
+            keysBlockedUntilRelease.add(key);
             hideKeyChangeModal();
         }
         return;
     }
+
+    if (keysBlockedUntilRelease.has(key)) return;
     
     // Handle space key for pause/resume
     if (key === ' ') {
+        if (isRepeat) return;
         if (!gameRunning) {
             startGame();
         } else {
@@ -876,6 +902,9 @@ function handleKeyPress(key) {
             gamePaused = !gamePaused;
             if (gamePaused) {
                 if (kpmUpdateInterval) clearInterval(kpmUpdateInterval);
+                kpmUpdateInterval = 0;
+                if (gameLoop) cancelAnimationFrame(gameLoop);
+                gameLoop = 0;
             } else {
                 lastUpdate = Date.now();
                 gameLoop = requestAnimationFrame(update);
@@ -974,6 +1003,21 @@ function handleKeyPress(key) {
     }
 }
 
+function handleKeyDown(event) {
+    const key = event.key.toLowerCase();
+    if (key.length === 1 || key === ' ') {
+        event.preventDefault();
+        keysHeld.add(key);
+        handleKeyPress(key, event.repeat);
+    }
+}
+
+function handleKeyUp(event) {
+    const key = event.key.toLowerCase();
+    keysHeld.delete(key);
+    keysBlockedUntilRelease.delete(key);
+}
+
 // Initialize
 async function init() {
     await loadKeySequence();
@@ -1018,13 +1062,8 @@ async function init() {
     resetGame();
     
     // Event listeners
-    document.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase();
-        if (key.length === 1 || key === ' ') {
-            e.preventDefault();
-            handleKeyPress(key);
-        }
-    });
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
     
     restartButton.addEventListener('click', () => {
         startGame();

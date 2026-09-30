@@ -198,6 +198,27 @@
       }
     },
     {
+      "id": 1790713883949,
+      "timestamp": "2026-09-29T20:31:23.949Z",
+      "name": "Anonym",
+      "points": 16,
+      "kpm": 39,
+      "accuracy": 91.7,
+      "wpm": 9,
+      "level": 1,
+      "duration": 157,
+      "fingersUsed": {
+        "finger-pinky": 3,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 30
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "qwertZnake",
+      "source": "index.html"
+    },
+    {
       "name": "Jonathan",
       "points": 15,
       "kpm": 31,
@@ -321,6 +342,27 @@
       },
       "difficulty": "ultra",
       "gridSize": "small"
+    },
+    {
+      "id": 1778674390200,
+      "timestamp": "2026-05-13T12:13:10.200Z",
+      "name": "jonathan",
+      "points": 4,
+      "kpm": 67,
+      "accuracy": 100,
+      "wpm": 10,
+      "level": 1,
+      "duration": 23,
+      "fingersUsed": {
+        "finger-pinky": 0,
+        "finger-ring": 0,
+        "finger-middle": 0,
+        "finger-index": 10
+      },
+      "difficulty": "medium",
+      "gridSize": "medium",
+      "game": "qwertZnake",
+      "source": "index.html"
     },
     {
       "id": 1769723226576,

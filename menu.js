@@ -14,6 +14,8 @@
         return `
 <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Menü schließen">&times;</button>
 <ul class="sidebar-nav">
+  ${document.getElementById('learningStartButton') ? '<li><a href="#lernen" class="menu-item menu-link menu-action" data-action="learning">🌱 Tippen lernen</a></li>' : '<li><a href="index.html#lernen" class="menu-item menu-link">🌱 Tippen lernen</a></li>'}
+  ${document.getElementById('learningStartButton') ? '<li><a href="#lern-bestenliste" class="menu-item menu-link menu-action" data-action="learning-leaderboard">Lektions-Bestenliste</a></li>' : '<li><a href="index.html#lern-bestenliste" class="menu-item menu-link">Lektions-Bestenliste</a></li>'}
   <li><a href="#bestenliste" class="menu-item menu-link menu-action" data-action="stats">Bestenliste</a></li>
   <li><a href="analytics.html" class="menu-item menu-link">Analytics</a></li>
   <li><a href="#einstellungen" class="menu-item menu-link menu-action" data-action="settings">Einstellungen</a></li>
@@ -35,14 +37,12 @@
       <li><a href="tetris.html" class="menu-item sub menu-link">qwertzris</a></li>
       <li><a href="pong.html" class="menu-item sub menu-link">qwertzPong</a></li>
       <li><a href="breakout.html" class="menu-item sub menu-link">qwertz breaker</a></li>
-      <li><a href="invaders.html" class="menu-item sub menu-link">qwertz invaders</a></li>
-      <li><a href="pinball.html" class="menu-item sub menu-link">qwertz pinball</a></li>
-      <li><a href="mario.html" class="menu-item sub menu-link">qwertz plummer</a></li>
       <li><a href="qwertzman.html" class="menu-item sub menu-link">qwertz man</a></li>
-      <li><a href="qwertzoids.html" class="menu-item sub menu-link">qwertzoids</a></li>
       <li><a href="frogqwertz.html" class="menu-item sub menu-link">frogqwertz</a></li>
     </ul>
   </li>
+  <li><a href="/support" class="menu-item menu-link">Support</a></li>
+  <li><a href="/privacy" class="menu-item menu-link">Datenschutz</a></li>
   <li><a href="#admin" class="menu-item menu-link menu-action" data-action="admin">Admin</a></li>
 </ul>
 `;
@@ -121,6 +121,19 @@
             var action = item.getAttribute('data-action');
             var step = item.getAttribute('data-step');
 
+            if (action === 'learning') {
+                e.preventDefault();
+                closeOverlay();
+                dispatch('menu-open-learning');
+                return;
+            }
+            if (action === 'learning-leaderboard') {
+                e.preventDefault();
+                closeOverlay();
+                dispatch('menu-open-learning-leaderboard');
+                return;
+            }
+
             if (action === 'stats' || action === 'admin' || action === 'settings') {
                 closeOverlay();
                 return;
@@ -149,7 +162,7 @@
 
         window.addEventListener('hashchange', function () {
             var h = window.location.hash.substring(1);
-            if (h === 'bestenliste' || h === 'einstellungen' || h === 'admin' || h.indexOf('tutorial-step-') === 0) closeOverlay();
+            if (h === 'bestenliste' || h === 'lern-bestenliste' || h === 'einstellungen' || h === 'admin' || h.indexOf('tutorial-step-') === 0) closeOverlay();
         });
 
         initViewportFitter();
@@ -312,6 +325,13 @@
         }
 
         function fit() {
+            if (document.body.classList.contains('learning-active') || document.body.classList.contains('learning-leaderboard-active')) {
+                container.style.maxHeight = '';
+                canvas.style.width = '';
+                canvas.style.height = '';
+                fitKeyboardWidth();
+                return;
+            }
             var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
             var viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
             var isNarrow = viewportWidth < MENU_BREAKPOINT;

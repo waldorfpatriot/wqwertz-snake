@@ -1,0 +1,36 @@
+{
+  "app": {
+    "name": "qwertZnake",
+    "subtitle_de": "10-Finger-Tippen als Spiel",
+    "subtitle_en": "Touch typing as a game",
+    "bundle_id": "com.wqwertz.qwertznake",
+    "sku": "qwertznake-ios-1",
+    "primary_language": "German",
+    "primary_category": "Education",
+    "secondary_category": "Games",
+    "age_rating_target": "4+",
+    "business_model": "paid_upfront_no_ads_no_iap",
+    "version": "1.0",
+    "copyright": "2026 Jonathan Kutscher"
+  },
+  "urls": {
+    "marketing": "https://qwertznake.de",
+    "support": "https://qwertznake.de/support",
+    "privacy_policy": "https://qwertznake.de/privacy"
+  },
+  "de": {
+    "promotional_text": "Tippen üben, ohne Vokabellisten: qwertZnake verbindet Snake, QWERTZ-Fingertraining und lokale Bestenlisten für iPad-Schüler.",
+    "keywords": "tippen,10finger,tastatur,qwertz,schule,lernen,snake,schreiben,typing,keyboard",
+    "screenshot_captions": [
+      "Spiele Snake mit wechselnden QWERTZ-Tasten.",
+      "Lerne Fingerzonen mit farbcodierter Tastatur.",
+      "Trainiere Genauigkeit, WPM und Reaktion.",
+      "Spiele mit lokaler Bestenliste.",
+      "Passe das Spielfeld an."
+    ]
+  },
+  "en": {
+    "promotional_text": "Practice QWERTZ touch typing through Snake challenges built for short, focused student training sessions.",
+    "keywords": "typing,qwertz,touchtype,keyboard,school,students,snake,learning,practice"
+  }
+}
