@@ -1,4 +1,4 @@
-/* One classroom per server: private, durable pupil credentials and lesson results. */
+/* Private, durable classroom lists, pupil credentials, and lesson results. */
 'use strict';
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -7,9 +7,12 @@ const crypto = require('node:crypto');
 const engine = require('./learning-engine');
 const { normalizeResult } = require('./learning-progress');
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+const DEFAULT_CLASS_ID = 'class-vormittag-1-trimester';
+const DEFAULT_CLASS_NAME = 'Vormittag 1. Trimester';
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_PUPILS = 1000;
+const MAX_CLASSES = 1000;
 const HISTORY_LIMIT = 50;
 const queues = new Map();
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -27,6 +30,16 @@ function normalizeName(value) {
     if (!name || [...name].length > 50 || Buffer.byteLength(name) > 150 || !/^[\p{L}\p{M}\p{N} .’'\-]+$/u.test(name) || !/[\p{L}\p{N}]/u.test(name)) return null;
     return { name, key: name.toLocaleLowerCase('de') };
 }
+
+function normalizeClassName(value) {
+    if (typeof value !== 'string') return null;
+    const name = value.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+    if (!name || [...name].length > 80 || Buffer.byteLength(name) > 240 || !/^[\p{L}\p{M}\p{N} .’'\-–—()/]+$/u.test(name) || !/[\p{L}\p{N}]/u.test(name)) return null;
+    return { name, key: name.toLocaleLowerCase('de') };
+}
+
+const validClassId = value => typeof value === 'string' && /^class-[a-z0-9][a-z0-9-]{0,79}$/.test(value);
+const validPupilId = value => typeof value === 'string' && /^pupil-[a-f0-9-]{36}$/.test(value);
 
 function validateResult(value, now) {
     const result = normalizeResult(value);
@@ -65,7 +78,7 @@ function cellsOf(pupil) {
 }
 
 function publicPupil(pupil) {
-    return { pupilId: pupil.id, name: pupil.name, createdAt: pupil.createdAt, updatedAt: pupil.updatedAt,
+    return { pupilId: pupil.id, name: pupil.name, classId: pupil.classId, createdAt: pupil.createdAt, updatedAt: pupil.updatedAt,
         curriculumVersion: engine.CURRICULUM_VERSION, cells: cellsOf(pupil), recentResults: clone(pupil.recentResults) };
 }
 
@@ -125,14 +138,44 @@ function createClassroomService(options = {}) {
             const stat = await fs.lstat(file);
             if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Invalid private file');
             const data = JSON.parse(await fs.readFile(file, 'utf8'));
-            if (!data || data.schemaVersion !== SCHEMA_VERSION || !Array.isArray(data.pupils) || data.pupils.length > MAX_PUPILS) throw new Error('Invalid classroom data');
+            if (!data || ![1, SCHEMA_VERSION].includes(data.schemaVersion) || !Array.isArray(data.pupils) || data.pupils.length > MAX_PUPILS) throw new Error('Invalid classroom data');
             for (const pupil of data.pupils) {
-                if (!pupil || !/^pupil-[a-f0-9-]{36}$/.test(pupil.id) || !normalizeName(pupil.name) || !/^[a-f0-9]{64}$/.test(pupil.tokenHash) ||
+                if (!pupil || !validPupilId(pupil.id) || !normalizeName(pupil.name) || !/^[a-f0-9]{64}$/.test(pupil.tokenHash) ||
                     !object(pupil.lessons) || !object(pupil.receipts) || !Array.isArray(pupil.recentResults)) throw new Error('Invalid pupil data');
             }
+            const migrating = data.schemaVersion === 1;
+            if (migrating) {
+                data.schemaVersion = SCHEMA_VERSION;
+                data.classes = [{ id: DEFAULT_CLASS_ID, name: DEFAULT_CLASS_NAME, createdAt: now() }];
+                data.activeClassId = DEFAULT_CLASS_ID;
+                data.deletedTokenHashes = [];
+                for (const pupil of data.pupils) pupil.classId = DEFAULT_CLASS_ID;
+            }
+            if (!Array.isArray(data.classes) || !data.classes.length || data.classes.length > MAX_CLASSES || !Array.isArray(data.deletedTokenHashes)) throw new Error('Invalid class data');
+            const ids = new Set();
+            const names = new Set();
+            for (const entry of data.classes) {
+                const normalized = entry && normalizeClassName(entry.name);
+                if (!entry || !validClassId(entry.id) || !normalized || ids.has(entry.id) || names.has(normalized.key)) throw new Error('Invalid class data');
+                ids.add(entry.id); names.add(normalized.key);
+            }
+            if (!ids.has(data.activeClassId) || data.pupils.some(pupil => !ids.has(pupil.classId)) || data.deletedTokenHashes.some(hash => typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash))) throw new Error('Invalid class assignment');
+            const pupilIds = new Set();
+            const tokenHashes = new Set(data.deletedTokenHashes);
+            const pupilNames = new Set();
+            for (const pupil of data.pupils) {
+                const key = pupil.classId + ':' + normalizeName(pupil.name).key;
+                if (pupilIds.has(pupil.id) || tokenHashes.has(pupil.tokenHash) || pupilNames.has(key)) throw new Error('Invalid duplicate pupil');
+                pupilIds.add(pupil.id); tokenHashes.add(pupil.tokenHash); pupilNames.add(key);
+            }
+            // Read and migration both run inside the per-file queue, so the upgrade is
+            // persisted once before any request can change an assignment or result.
+            if (migrating) await writeData(data);
             return data;
         } catch (error) {
-            if (error.code === 'ENOENT') return { schemaVersion: SCHEMA_VERSION, curriculumVersion: engine.CURRICULUM_VERSION, pupils: [] };
+            if (error.code === 'ENOENT') return { schemaVersion: SCHEMA_VERSION, curriculumVersion: engine.CURRICULUM_VERSION,
+                classes: [{ id: DEFAULT_CLASS_ID, name: DEFAULT_CLASS_NAME, createdAt: now() }], activeClassId: DEFAULT_CLASS_ID,
+                pupils: [], deletedTokenHashes: [] };
             throw new ClassroomError(503, 'CLASSROOM_UNAVAILABLE', 'Der Klassenfortschritt ist gerade nicht verfügbar. Bitte versuche es erneut.');
         }
     }
@@ -183,6 +226,26 @@ function createClassroomService(options = {}) {
         return match && match[1];
     }
 
+    function requireTeacher(req) {
+        if (!verifyAdmin(req.headers['x-admin-password'])) throw new ClassroomError(403, 'TEACHER_AUTH_REQUIRED', 'Bitte gib das Lehrerpasswort ein.');
+    }
+
+    function classFor(data, id) {
+        if (!validClassId(id)) throw new ClassroomError(400, 'INVALID_CLASS_ID', 'Bitte wähle eine gültige Klasse aus.');
+        const selected = data.classes.find(entry => entry.id === id);
+        if (!selected) throw new ClassroomError(404, 'CLASS_NOT_FOUND', 'Diese Klasse wurde nicht gefunden.');
+        return selected;
+    }
+
+    function boardOf(data) {
+        const counts = new Map(data.classes.map(entry => [entry.id, 0]));
+        for (const pupil of data.pupils) counts.set(pupil.classId, counts.get(pupil.classId) + 1);
+        return { curriculumVersion: engine.CURRICULUM_VERSION, activeClassId: data.activeClassId, classId: data.activeClassId,
+            classes: data.classes.map(entry => ({ id: entry.id, name: entry.name, pupilCount: counts.get(entry.id) })),
+            lessons: engine.getLessons().map(lesson => ({ id: lesson.id, title: lesson.title, number: lesson.number, index: lesson.index, newKeys: lesson.newKeys, newControlKeys: lesson.newControlKeys || [], taughtKeys: lesson.taughtKeys })),
+            rows: data.pupils.filter(pupil => pupil.classId === data.activeClassId).map(pupil => ({ pupilId: pupil.id, name: pupil.name, cells: cellsOf(pupil) })).sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true })) };
+    }
+
     function send(res, status, value) {
         if (res.destroyed || res.writableEnded) return;
         res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store, private', Pragma: 'no-cache', 'X-Content-Type-Options': 'nosniff' });
@@ -204,25 +267,65 @@ function createClassroomService(options = {}) {
                 const token = body.enrollmentKey === undefined ? crypto.randomBytes(32).toString('base64url') : Buffer.from(body.enrollmentKey, 'hex').toString('base64url');
                 const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
                 const created = await queued(data => {
+                    if (data.deletedTokenHashes.includes(tokenHash)) throw new ClassroomError(401, 'ENROLLMENT_REVOKED', 'Dieses Schülerprofil wurde gelöscht. Bitte wende dich an deine Lehrkraft.');
                     const enrolled = data.pupils.find(pupil => pupil.tokenHash === tokenHash);
-                    if (enrolled) return { pupilId: enrolled.id, token, name: enrolled.name, skipWrite: true };
+                    if (enrolled) return { pupilId: enrolled.id, token, name: enrolled.name, classId: enrolled.classId, skipWrite: true };
                     if (!normalized) throw new ClassroomError(400, 'INVALID_NAME', 'Bitte gib einen Namen mit höchstens 50 Zeichen ein.');
-                    if (data.pupils.some(pupil => normalizeName(pupil.name).key === normalized.key)) throw new ClassroomError(409, 'NAME_TAKEN', 'Dieser Name ist schon vergeben. Ergänze zum Beispiel den Anfangsbuchstaben deines Nachnamens.');
-                    if (data.pupils.length >= MAX_PUPILS) throw new ClassroomError(409, 'CLASSROOM_FULL', 'In dieser Klasse können gerade keine weiteren Profile angelegt werden.');
+                    if (data.pupils.some(pupil => pupil.classId === data.activeClassId && normalizeName(pupil.name).key === normalized.key)) throw new ClassroomError(409, 'NAME_TAKEN', 'Dieser Name ist schon vergeben. Ergänze zum Beispiel den Anfangsbuchstaben deines Nachnamens.');
+                    if (data.pupils.length >= MAX_PUPILS) throw new ClassroomError(409, 'CLASSROOM_FULL', 'Es können gerade keine weiteren Schülerprofile angelegt werden.');
                     const timestamp = now();
-                    const pupil = { id: 'pupil-' + crypto.randomUUID(), name: normalized.name, tokenHash,
+                    const pupil = { id: 'pupil-' + crypto.randomUUID(), name: normalized.name, tokenHash, classId: data.activeClassId,
                         createdAt: timestamp, updatedAt: timestamp, lessons: {}, receipts: {}, recentResults: [] };
                     data.pupils.push(pupil);
-                    return { pupilId: pupil.id, token, name: pupil.name };
+                    return { pupilId: pupil.id, token, name: pupil.name, classId: pupil.classId };
                 }, true);
                 const { skipWrite, ...response } = created;
                 send(res, skipWrite ? 200 : 201, response); return true;
             }
             if (pathname === '/api/learning/leaderboard' && req.method === 'GET') {
-                if (!verifyAdmin(req.headers['x-admin-password'])) throw new ClassroomError(403, 'TEACHER_AUTH_REQUIRED', 'Bitte gib das Lehrerpasswort ein.');
-                const board = await queued(data => ({ curriculumVersion: engine.CURRICULUM_VERSION,
-                    lessons: engine.getLessons().map(lesson => ({ id: lesson.id, title: lesson.title, number: lesson.number, index: lesson.index, newKeys: lesson.newKeys, newControlKeys: lesson.newControlKeys || [], taughtKeys: lesson.taughtKeys })),
-                    rows: data.pupils.map(pupil => ({ pupilId: pupil.id, name: pupil.name, cells: cellsOf(pupil) })).sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true })) }), false);
+                requireTeacher(req);
+                const board = await queued(boardOf, false);
+                send(res, 200, board); return true;
+            }
+            if (pathname === '/api/learning/classes' && req.method === 'POST') {
+                requireTeacher(req);
+                const body = await readJSON(req);
+                const normalized = normalizeClassName(body.name);
+                if (!normalized) throw new ClassroomError(400, 'INVALID_CLASS_NAME', 'Bitte gib einen Klassennamen mit höchstens 80 Zeichen ein.');
+                const board = await queued(data => {
+                    if (data.classes.some(entry => normalizeClassName(entry.name).key === normalized.key)) throw new ClassroomError(409, 'CLASS_NAME_TAKEN', 'Eine Klasse mit diesem Namen ist schon vorhanden.');
+                    if (data.classes.length >= MAX_CLASSES) throw new ClassroomError(409, 'CLASS_LIMIT_REACHED', 'Es können gerade keine weiteren Klassen angelegt werden.');
+                    const entry = { id: 'class-' + crypto.randomUUID(), name: normalized.name, createdAt: now() };
+                    data.classes.push(entry); data.activeClassId = entry.id;
+                    return boardOf(data);
+                }, true);
+                send(res, 201, board); return true;
+            }
+            if (pathname === '/api/learning/classes/active' && req.method === 'PATCH') {
+                requireTeacher(req);
+                const body = await readJSON(req);
+                const board = await queued(data => { classFor(data, body.classId); data.activeClassId = body.classId; return boardOf(data); }, true);
+                send(res, 200, board); return true;
+            }
+            const pupilPath = /^\/api\/learning\/pupils\/([^/]*)$/.exec(pathname);
+            if (pupilPath && ['PATCH', 'DELETE'].includes(req.method)) {
+                requireTeacher(req);
+                const pupilId = pupilPath[1];
+                if (!validPupilId(pupilId)) throw new ClassroomError(400, 'INVALID_PUPIL_ID', 'Bitte wähle ein gültiges Schülerprofil aus.');
+                const body = req.method === 'PATCH' ? await readJSON(req) : null;
+                const board = await queued(data => {
+                    const pupil = data.pupils.find(entry => entry.id === pupilId);
+                    if (!pupil) throw new ClassroomError(404, 'PUPIL_NOT_FOUND', 'Dieses Schülerprofil wurde nicht gefunden.');
+                    if (req.method === 'PATCH') {
+                        classFor(data, body.classId);
+                        if (data.pupils.some(entry => entry.id !== pupil.id && entry.classId === body.classId && normalizeName(entry.name).key === normalizeName(pupil.name).key)) throw new ClassroomError(409, 'NAME_TAKEN', 'In der Zielklasse ist dieser Name schon vergeben. Bitte ändere zuerst den Namen des Schülerprofils.');
+                        pupil.classId = body.classId; pupil.updatedAt = now();
+                    } else {
+                        data.pupils = data.pupils.filter(entry => entry.id !== pupil.id);
+                        data.deletedTokenHashes.push(pupil.tokenHash);
+                    }
+                    return boardOf(data);
+                }, true);
                 send(res, 200, board); return true;
             }
             if (pathname === '/api/learning/me' && ['GET', 'PATCH'].includes(req.method)) {
@@ -237,7 +340,7 @@ function createClassroomService(options = {}) {
                 if (!normalized) throw new ClassroomError(400, 'INVALID_NAME', 'Bitte gib einen Namen mit höchstens 50 Zeichen ein.');
                 const pupil = await queued(data => {
                     const selected = pupilFor(data, token);
-                    if (data.pupils.some(entry => entry.id !== selected.id && normalizeName(entry.name).key === normalized.key)) throw new ClassroomError(409, 'NAME_TAKEN', 'Dieser Name ist schon vergeben. Ergänze zum Beispiel den Anfangsbuchstaben deines Nachnamens.');
+                    if (data.pupils.some(entry => entry.id !== selected.id && entry.classId === selected.classId && normalizeName(entry.name).key === normalized.key)) throw new ClassroomError(409, 'NAME_TAKEN', 'Dieser Name ist schon vergeben. Ergänze zum Beispiel den Anfangsbuchstaben deines Nachnamens.');
                     selected.name = normalized.name; selected.updatedAt = now(); return publicPupil(selected);
                 }, true);
                 send(res, 200, pupil); return true;
@@ -282,4 +385,4 @@ function createClassroomService(options = {}) {
     return { handle, ready, flush: () => queues.get(file) || Promise.resolve(), dataDir, dataFile: file };
 }
 
-module.exports = { createClassroomService, normalizeName, validateResult, MAX_BODY_BYTES, HISTORY_LIMIT };
+module.exports = { createClassroomService, normalizeName, normalizeClassName, validateResult, MAX_BODY_BYTES, HISTORY_LIMIT, DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME };

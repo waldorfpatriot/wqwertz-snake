@@ -33,10 +33,20 @@ struct QwertZnakeClassroomRow: Decodable, Identifiable {
     var id: String { pupilId }
 }
 
+struct QwertZnakeClassroomClass: Decodable, Identifiable {
+    var id: String
+    var name: String
+    var pupilCount: Int
+}
+
 struct QwertZnakeClassroomLeaderboard: Decodable {
     var curriculumVersion: String
     var lessons: [QwertZnakeClassroomLesson]
     var rows: [QwertZnakeClassroomRow]
+    // Older classroom servers can still display their existing lesson table.
+    var classes: [QwertZnakeClassroomClass]?
+    var activeClassId: String?
+    var classId: String?
 }
 
 struct QwertZnakeClassroomError: LocalizedError {
@@ -264,6 +274,28 @@ final class QwertZnakeClassroomClient: ObservableObject {
         return try JSONDecoder().decode(QwertZnakeClassroomLeaderboard.self, from: data)
     }
 
+    func createClass(name: String, password: String) async throws -> QwertZnakeClassroomLeaderboard {
+        try await manageClassroom(path: "api/learning/classes", method: "POST", password: password, body: ["name": name])
+    }
+
+    func selectClass(classId: String, password: String) async throws -> QwertZnakeClassroomLeaderboard {
+        try await manageClassroom(path: "api/learning/classes/active", method: "PATCH", password: password, body: ["classId": classId])
+    }
+
+    func movePupil(pupilId: String, classId: String, password: String) async throws -> QwertZnakeClassroomLeaderboard {
+        try await manageClassroom(path: "api/learning/pupils/" + pupilId, method: "PATCH", password: password, body: ["classId": classId])
+    }
+
+    func deletePupil(pupilId: String, password: String) async throws -> QwertZnakeClassroomLeaderboard {
+        try await manageClassroom(path: "api/learning/pupils/" + pupilId, method: "DELETE", password: password)
+    }
+
+    private func manageClassroom(path: String, method: String, password: String, body: [String: String]? = nil) async throws -> QwertZnakeClassroomLeaderboard {
+        guard !serverURL.isEmpty else { throw QwertZnakeClassroomError(message: "Trage zuerst den Klassenserver ein.", code: "NO_SERVER") }
+        let data = try await request(server: serverURL, path: path, method: method, adminPassword: password, body: body)
+        return try JSONDecoder().decode(QwertZnakeClassroomLeaderboard.self, from: data)
+    }
+
     private struct ResultBody: Encodable { var result: QwertZnakeLearningResult }
     private struct ResultReceipt: Decodable { var receiptId: String; var resultId: String; var duplicate: Bool; var acceptedAt: Double }
     private struct QwertZnakeClassroomIdentityResponse: Decodable { var name: String }
@@ -344,9 +376,21 @@ struct QwertZnakeClassroomMatrixView: View {
     @State private var refreshId = UUID()
     @State private var active = false
     @State private var generation = UUID()
+    @State private var showClassForm = false
+    @State private var newClassName = ""
+    @State private var pupilToDelete: QwertZnakeClassroomRow?
+    @State private var showDeleteConfirmation = false
     private let nameWidth: CGFloat = 180
+    private let managementWidth: CGFloat = 140
     private let lessonWidth: CGFloat = 125
     private let rowHeight: CGFloat = 54
+
+    private enum TeacherAction {
+        case selectClass(String)
+        case createClass(String)
+        case movePupil(String, String)
+        case deletePupil(String)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -354,14 +398,14 @@ struct QwertZnakeClassroomMatrixView: View {
                 Text("Treffer beim Tippen").font(.title.bold())
                 Spacer()
                 if unlocked { Button("Aktualisieren", systemImage: "arrow.clockwise") { Task { await refresh() } }.disabled(isLoading) }
-                Button("Schließen") { password = ""; dismiss() }
+                Button("Schließen") { clearPrivateState(); dismiss() }
             }
             Text("Jede Zeile zeigt ein Kind. Jede Lektion zeigt den besten Anteil der Zeichen, die beim ersten Versuch richtig waren. Noch nicht begonnen: —.")
                 .font(.callout).foregroundStyle(.secondary)
             if !unlocked {
                 HStack {
                     SecureField("Admin-Passwort der Lehrkraft", text: $password).textFieldStyle(.roundedBorder)
-                        .onSubmit { Task { await refresh() } }
+                        .onSubmit { Task { await refresh() } }.disabled(isLoading)
                     Button("Tabelle öffnen") { Task { await refresh() } }.buttonStyle(.borderedProminent)
                         .disabled(password.isEmpty || isLoading)
                 }
@@ -369,7 +413,10 @@ struct QwertZnakeClassroomMatrixView: View {
             }
             if !error.isEmpty { Text(error).foregroundStyle(.red).font(.callout) }
             if isLoading, board == nil { ProgressView("Tabelle laden …") }
-            if unlocked, let board { matrix(board) }
+            if unlocked, let board {
+                classControls(board)
+                matrix(board)
+            }
             if let lastUpdated {
                 Text("Aktualisiert um \(lastUpdated.formatted(date: .omitted, time: .standard)). Aktualisierung alle 5 Sekunden.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -386,6 +433,59 @@ struct QwertZnakeClassroomMatrixView: View {
         .onAppear { active = true; generation = UUID() }
         .onDisappear { active = false; clearPrivateState() }
         .onChange(of: classroom.serverURL) { _, _ in clearPrivateState() }
+        .alert("Kind löschen?", isPresented: $showDeleteConfirmation, presenting: pupilToDelete) { pupil in
+            Button("Abbrechen", role: .cancel) { pupilToDelete = nil }
+            Button("Kind löschen", role: .destructive) {
+                pupilToDelete = nil
+                Task { await manage(.deletePupil(pupil.pupilId)) }
+            }.disabled(isLoading)
+        } message: { pupil in
+            Text("„\(pupil.name)“ und alle zugehörigen Ergebnisse werden vom Klassenserver gelöscht. Dies kann nicht rückgängig gemacht werden. Der Lernfortschritt auf dem Gerät bleibt erhalten.")
+        }
+    }
+
+    @ViewBuilder
+    private func classControls(_ board: QwertZnakeClassroomLeaderboard) -> some View {
+        if let classes = board.classes, !classes.isEmpty, let currentClassId = board.activeClassId ?? board.classId {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Aktive Klasse").font(.headline)
+                    Picker("Aktive Klasse", selection: Binding(
+                        get: { self.board?.activeClassId ?? self.board?.classId ?? currentClassId },
+                        set: { classId in
+                            guard classId != (self.board?.activeClassId ?? self.board?.classId) else { return }
+                            Task { await manage(.selectClass(classId)) }
+                        }
+                    )) {
+                        ForEach(classes) { item in
+                            Text("\(item.name) (\(item.pupilCount))").tag(item.id)
+                        }
+                    }
+                    .pickerStyle(.menu).labelsHidden().disabled(isLoading)
+                    Spacer()
+                    Button("Neue Klasse", systemImage: "plus") { showClassForm = true }
+                        .buttonStyle(.bordered).disabled(isLoading || showClassForm)
+                    if isLoading { ProgressView().accessibilityLabel("Klasse wird aktualisiert") }
+                }
+                if let selected = classes.first(where: { $0.id == currentClassId }) {
+                    Text("Neue Anmeldungen werden automatisch „\(selected.name)“ zugeordnet. Diese Auswahl gilt für alle Geräte am Klassenserver. Bereits angemeldete Kinder bleiben in ihrer Klasse.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if showClassForm {
+                    HStack {
+                        TextField("Name der neuen Klasse", text: $newClassName)
+                            .textFieldStyle(.roundedBorder).disabled(isLoading)
+                            .onSubmit { createClass() }
+                        Button("Klasse anlegen") { createClass() }.buttonStyle(.borderedProminent)
+                            .disabled(newClassName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+                        Button("Abbrechen") { showClassForm = false; newClassName = "" }.disabled(isLoading)
+                    }
+                }
+            }
+        } else {
+            Text("Dieser Klassenserver unterstützt noch keine Klassenlisten. Aktualisiere den Server, um Klassen anzulegen und Kinder zu verwalten.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
     }
 
     private func matrix(_ board: QwertZnakeClassroomLeaderboard) -> some View {
@@ -393,9 +493,10 @@ struct QwertZnakeClassroomMatrixView: View {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 GridRow {
                     cell("Name", width: nameWidth, header: true)
+                    if board.classes != nil { cell("Verwalten", width: managementWidth, header: true) }
                     ForEach(board.lessons) { lesson in lessonHeader(lesson) }
                 }
-                ForEach(board.rows) { row in matrixRow(row, lessons: board.lessons) }
+                ForEach(board.rows) { row in matrixRow(row, board: board) }
             }
             if board.rows.isEmpty { Text("Noch keine Kinder angemeldet.").padding(20) }
         }
@@ -407,10 +508,32 @@ struct QwertZnakeClassroomMatrixView: View {
         return cell("\(number). \(lesson.title)", width: lessonWidth, header: true)
     }
 
-    private func matrixRow(_ row: QwertZnakeClassroomRow, lessons: [QwertZnakeClassroomLesson]) -> some View {
+    private func matrixRow(_ row: QwertZnakeClassroomRow, board: QwertZnakeClassroomLeaderboard) -> some View {
         GridRow {
             cell(row.name, width: nameWidth)
-            ForEach(lessons) { lesson in scoreCell(row.cells[lesson.id]) }
+            if let classes = board.classes {
+                Menu {
+                    let destinations = classes.filter { $0.id != (board.classId ?? board.activeClassId) }
+                    if !destinations.isEmpty {
+                        Menu("In andere Klasse verschieben", systemImage: "arrow.right") {
+                            ForEach(destinations) { item in
+                                Button(item.name) { Task { await manage(.movePupil(row.pupilId, item.id)) } }
+                            }
+                        }
+                    }
+                    Button("Kind löschen", systemImage: "trash", role: .destructive) {
+                        pupilToDelete = row
+                        showDeleteConfirmation = true
+                    }
+                } label: {
+                    Label("Verwalten", systemImage: "ellipsis.circle")
+                        .font(.callout).frame(width: managementWidth - 16, height: rowHeight)
+                        .padding(.horizontal, 8)
+                        .overlay(Rectangle().stroke(Color.secondary.opacity(0.15), lineWidth: 0.5))
+                }
+                .disabled(isLoading).accessibilityLabel("\(row.name) verwalten")
+            }
+            ForEach(board.lessons) { lesson in scoreCell(row.cells[lesson.id]) }
         }
     }
 
@@ -442,11 +565,52 @@ struct QwertZnakeClassroomMatrixView: View {
         } catch {
             guard active, generation == requestGeneration, classroom.serverURL == server, !Task.isCancelled else { return }
             self.error = error.localizedDescription
-            if let failure = error as? QwertZnakeClassroomError, failure.statusCode == 401 || failure.statusCode == 403 { unlocked = false; board = nil }
+            if let failure = error as? QwertZnakeClassroomError, failure.statusCode == 401 || failure.statusCode == 403 { lockTable() }
         }
     }
 
+    private func createClass() {
+        let name = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        Task { await manage(.createClass(name)) }
+    }
+
+    @MainActor private func manage(_ action: TeacherAction) async {
+        guard active, unlocked, !isLoading, !password.isEmpty else { return }
+        let requestGeneration = generation
+        let server = classroom.serverURL
+        let secret = password
+        isLoading = true
+        defer { if generation == requestGeneration { isLoading = false } }
+        do {
+            let updated: QwertZnakeClassroomLeaderboard
+            switch action {
+            case .selectClass(let classId):
+                updated = try await classroom.selectClass(classId: classId, password: secret)
+            case .createClass(let name):
+                updated = try await classroom.createClass(name: name, password: secret)
+            case .movePupil(let pupilId, let classId):
+                updated = try await classroom.movePupil(pupilId: pupilId, classId: classId, password: secret)
+            case .deletePupil(let pupilId):
+                updated = try await classroom.deletePupil(pupilId: pupilId, password: secret)
+            }
+            guard active, generation == requestGeneration, classroom.serverURL == server, !Task.isCancelled else { return }
+            board = updated; error = ""; lastUpdated = Date()
+            if case .createClass = action { showClassForm = false; newClassName = "" }
+        } catch {
+            guard active, generation == requestGeneration, classroom.serverURL == server, !Task.isCancelled else { return }
+            self.error = error.localizedDescription
+            if let failure = error as? QwertZnakeClassroomError, failure.statusCode == 401 || failure.statusCode == 403 { lockTable() }
+        }
+    }
+
+    private func lockTable() {
+        unlocked = false; board = nil; lastUpdated = nil
+        showClassForm = false; newClassName = ""; pupilToDelete = nil; showDeleteConfirmation = false
+    }
+
     private func clearPrivateState() {
-        generation = UUID(); password = ""; unlocked = false; board = nil; lastUpdated = nil; isLoading = false; error = ""
+        generation = UUID(); password = ""; isLoading = false; error = ""
+        lockTable()
     }
 }

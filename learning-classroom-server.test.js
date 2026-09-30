@@ -8,7 +8,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const engine = require('./learning-engine');
-const { createClassroomService, MAX_BODY_BYTES } = require('./learning-classroom-server');
+const { createClassroomService, MAX_BODY_BYTES, DEFAULT_CLASS_ID, DEFAULT_CLASS_NAME } = require('./learning-classroom-server');
 
 const copy = value => JSON.parse(JSON.stringify(value));
 
@@ -68,6 +68,210 @@ async function register(server, name = 'Mia K.') {
     assert.equal(response.status, 201, response.text);
     return response.json;
 }
+
+async function createClass(server, name) {
+    const response = await server.req('classes', { method: 'POST', admin: 'teacher-test', body: { name } });
+    assert.equal(response.status, 201, response.text);
+    return response.json;
+}
+
+async function selectClass(server, classId) {
+    const response = await server.req('classes/active', { method: 'PATCH', admin: 'teacher-test', body: { classId } });
+    assert.equal(response.status, 200, response.text);
+    return response.json;
+}
+
+test('version 1 migration puts existing pupils in Vormittag 1. Trimester and preserves their credentials and results', async t => {
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'qwertz-classroom-migrate-'));
+    let running = await host(dataDir);
+    t.after(async () => { await running.close(); await fs.rm(dataDir, { recursive: true, force: true }); });
+    const server = { req: (url, options) => request(running.port, '/api/learning/' + url, options) };
+    const pupil = await register(server, 'Lotte');
+    const result = completeResult({ feedErrors: 2 });
+    const receipt = await server.req('results', { method: 'POST', token: pupil.token, body: { result } });
+    await running.close();
+    const legacy = JSON.parse(await fs.readFile(running.service.dataFile, 'utf8'));
+    legacy.schemaVersion = 1;
+    delete legacy.classes; delete legacy.activeClassId; delete legacy.deletedTokenHashes;
+    for (const entry of legacy.pupils) delete entry.classId;
+    const legacyPupil = copy(legacy.pupils[0]);
+    await fs.writeFile(running.service.dataFile, JSON.stringify(legacy));
+    running = await host(dataDir);
+    const board = await server.req('leaderboard', { admin: 'teacher-test' });
+    assert.equal(board.status, 200);
+    assert.equal(board.json.activeClassId, DEFAULT_CLASS_ID); assert.equal(board.json.classId, DEFAULT_CLASS_ID);
+    assert.deepEqual(board.json.classes, [{ id: DEFAULT_CLASS_ID, name: DEFAULT_CLASS_NAME, pupilCount: 1 }]);
+    assert.equal(board.json.rows[0].cells['home-fj'].resultId, result.id);
+    const upgraded = JSON.parse(await fs.readFile(running.service.dataFile, 'utf8'));
+    assert.equal(upgraded.schemaVersion, 2);
+    assert.deepEqual(upgraded.pupils[0], { ...legacyPupil, classId: DEFAULT_CLASS_ID });
+    assert.deepEqual(upgraded.deletedTokenHashes, []);
+    assert.equal((await server.req('me', { token: pupil.token })).json.classId, DEFAULT_CLASS_ID);
+    await running.close(); running = await host(dataDir);
+    const retried = await server.req('results', { method: 'POST', token: pupil.token, body: { result } });
+    assert.equal(retried.status, 200); assert.equal(retried.json.receiptId, receipt.json.receiptId);
+    assert.equal((await server.req('leaderboard', { admin: 'teacher-test' })).json.rows[0].pupilId, pupil.pupilId);
+});
+
+test('the selected class receives new registrations while enrollment retries retain their original class across restart', async t => {
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'qwertz-classroom-selection-'));
+    let running = await host(dataDir);
+    t.after(async () => { await running.close(); await fs.rm(dataDir, { recursive: true, force: true }); });
+    const server = { req: (url, options) => request(running.port, '/api/learning/' + url, options) };
+    const enrollmentKey = crypto.randomBytes(32).toString('hex');
+    const original = await server.req('pupils', { method: 'POST', body: { name: 'Anna', enrollmentKey } });
+    assert.equal(original.status, 201); assert.equal(original.json.classId, DEFAULT_CLASS_ID);
+    const created = await createClass(server, '  Nachmittag\u00a02. Trimester (2026/27)  ');
+    const nextId = created.activeClassId;
+    assert.equal(created.classId, nextId); assert.notEqual(nextId, DEFAULT_CLASS_ID);
+    assert.equal(created.classes[1].name, 'Nachmittag 2. Trimester (2026/27)'); assert.deepEqual(created.rows, []);
+    const next = await register(server, 'ANNA');
+    assert.equal(next.classId, nextId);
+    const recovered = await server.req('pupils', { method: 'POST', body: { name: 'Anna', enrollmentKey } });
+    assert.equal(recovered.status, 200); assert.deepEqual(recovered.json, original.json);
+    assert.equal((await server.req('pupils', { method: 'POST', body: { name: 'anna' } })).status, 409);
+    assert.deepEqual((await server.req('leaderboard', { admin: 'teacher-test' })).json.rows.map(row => row.pupilId), [next.pupilId]);
+    // Renaming an existing profile is scoped to its own class, even while another
+    // class is selected by the teacher.
+    assert.equal((await server.req('me', { method: 'PATCH', token: original.json.token, body: { name: 'Anna' } })).status, 200);
+    await running.close(); running = await host(dataDir);
+    assert.equal((await register(server, 'Ben')).classId, nextId);
+    const firstBoard = await selectClass(server, DEFAULT_CLASS_ID);
+    assert.deepEqual(firstBoard.rows.map(row => row.pupilId), [original.json.pupilId]);
+    assert.deepEqual(firstBoard.classes.map(entry => entry.pupilCount), [1, 2]);
+    assert.equal((await register(server, 'Clara')).classId, DEFAULT_CLASS_ID);
+    const replay = await server.req('pupils', { method: 'POST', body: { name: 'Unused retry name', enrollmentKey } });
+    assert.equal(replay.status, 200); assert.equal(replay.json.pupilId, original.json.pupilId); assert.equal(replay.json.classId, DEFAULT_CLASS_ID);
+});
+
+test('moving pupils preserves their profile and results and rejects target-class name conflicts', async t => {
+    const server = await fixture(t);
+    const first = await register(server, 'Mia');
+    const result = completeResult({ feedErrors: 1 });
+    const receipt = await server.req('results', { method: 'POST', token: first.token, body: { result } });
+    const target = await createClass(server, 'Nachmittag 1. Trimester');
+    const targetId = target.activeClassId;
+    const second = await register(server, 'MIA');
+    const move = classId => server.req('pupils/' + first.pupilId, { method: 'PATCH', admin: 'teacher-test', body: { classId } });
+    const conflict = await move(targetId);
+    assert.equal(conflict.status, 409); assert.equal(conflict.json.code, 'NAME_TAKEN');
+    assert.equal((await server.req('me', { token: first.token })).json.classId, DEFAULT_CLASS_ID);
+    await server.req('me', { method: 'PATCH', token: second.token, body: { name: 'Ben' } });
+    const moved = await move(targetId);
+    assert.equal(moved.status, 200); assert.equal(moved.json.activeClassId, targetId);
+    assert.deepEqual(moved.json.classes.map(entry => entry.pupilCount), [0, 2]);
+    const own = (await server.req('me', { token: first.token })).json;
+    assert.equal(own.pupilId, first.pupilId); assert.equal(own.name, first.name); assert.equal(own.classId, targetId);
+    assert.equal(own.cells['home-fj'].resultId, result.id); assert.equal(own.cells['home-fj'].attemptCount, 1);
+    assert.equal(own.recentResults[0].id, result.id);
+    const retried = await server.req('results', { method: 'POST', token: first.token, body: { result } });
+    assert.equal(retried.status, 200); assert.equal(retried.json.receiptId, receipt.json.receiptId);
+    const renameConflict = await server.req('me', { method: 'PATCH', token: first.token, body: { name: 'BEN' } });
+    assert.equal(renameConflict.status, 409); assert.equal(renameConflict.json.code, 'NAME_TAKEN');
+    const same = await move(targetId);
+    assert.equal(same.status, 200); assert.deepEqual(same.json.rows.map(row => row.pupilId).sort(), [first.pupilId, second.pupilId].sort());
+    await selectClass(server, DEFAULT_CLASS_ID);
+    const back = await move(DEFAULT_CLASS_ID);
+    assert.equal(back.status, 200); assert.deepEqual(back.json.rows.map(row => row.pupilId), [first.pupilId]);
+    assert.equal((await server.req('me', { token: first.token })).json.cells['home-fj'].attemptCount, 1);
+});
+
+test('deleting a pupil removes results and revokes credentials and enrollment replay durably', async t => {
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'qwertz-classroom-deletion-'));
+    let running = await host(dataDir);
+    t.after(async () => { await running.close(); await fs.rm(dataDir, { recursive: true, force: true }); });
+    const server = { req: (url, options) => request(running.port, '/api/learning/' + url, options) };
+    const enrollmentKey = crypto.randomBytes(32).toString('hex');
+    const registration = await server.req('pupils', { method: 'POST', body: { name: 'Deleted Pupil', enrollmentKey } });
+    const pupil = registration.json;
+    const result = completeResult();
+    const saved = await server.req('results', { method: 'POST', token: pupil.token, body: { result } });
+    const removed = await server.req('pupils/' + pupil.pupilId, { method: 'DELETE', admin: 'teacher-test' });
+    assert.equal(removed.status, 200); assert.deepEqual(removed.json.rows, []); assert.equal(removed.json.classes[0].pupilCount, 0);
+    const storedText = await fs.readFile(running.service.dataFile, 'utf8');
+    for (const privateValue of [pupil.name, pupil.pupilId, pupil.token, result.id, saved.json.receiptId, enrollmentKey]) assert.equal(storedText.includes(privateValue), false, privateValue);
+    const stored = JSON.parse(storedText);
+    assert.deepEqual(stored.pupils, []);
+    assert.deepEqual(stored.deletedTokenHashes, [crypto.createHash('sha256').update(pupil.token).digest('hex')]);
+    await running.close(); running = await host(dataDir);
+    assert.equal((await server.req('me', { token: pupil.token })).status, 401);
+    assert.equal((await server.req('me', { method: 'PATCH', token: pupil.token, body: { name: 'Return' } })).status, 401);
+    assert.equal((await server.req('results', { method: 'POST', token: pupil.token, body: { result } })).status, 401);
+    await createClass(server, 'New class');
+    for (const name of ['Deleted Pupil', 'Different name']) {
+        const replay = await server.req('pupils', { method: 'POST', body: { name, enrollmentKey } });
+        assert.equal(replay.status, 401); assert.equal(replay.json.code, 'ENROLLMENT_REVOKED');
+    }
+    const fresh = await register(server, 'Deleted Pupil');
+    assert.notEqual(fresh.pupilId, pupil.pupilId); assert.notEqual(fresh.token, pupil.token);
+    assert.equal((await server.req('me', { token: fresh.token })).json.recentResults.length, 0);
+    const again = await server.req('pupils/' + pupil.pupilId, { method: 'DELETE', admin: 'teacher-test' });
+    assert.equal(again.status, 404); assert.equal(again.json.code, 'PUPIL_NOT_FOUND');
+});
+
+test('teacher mutations authenticate before parsing bodies or reading storage and validate classes and pupils', async t => {
+    const server = await fixture(t);
+    const pupil = await register(server);
+    const routes = [['classes', 'POST'], ['classes/active', 'PATCH'], ['pupils/' + pupil.pupilId, 'PATCH'], ['pupils/' + pupil.pupilId, 'DELETE'], ['pupils/invalid', 'DELETE']];
+    const untouched = await fs.readFile(server.service.dataFile, 'utf8');
+    for (const [route, method] of routes) {
+        for (const admin of [undefined, 'wrong']) {
+            const response = await server.req(route, { method, admin, raw: '{' });
+            assert.equal(response.status, 403); assert.equal(response.json.code, 'TEACHER_AUTH_REQUIRED');
+        }
+    }
+    assert.equal(await fs.readFile(server.service.dataFile, 'utf8'), untouched);
+    await fs.writeFile(server.service.dataFile, '{invalid storage');
+    for (const [route, method] of routes) assert.equal((await server.req(route, { method, admin: 'wrong', raw: '{' })).status, 403);
+    await fs.writeFile(server.service.dataFile, untouched);
+    for (const name of ['', null, '..', '<script>', 'x'.repeat(81)]) {
+        const response = await server.req('classes', { method: 'POST', admin: 'teacher-test', body: { name } });
+        assert.equal(response.status, 400); assert.equal(response.json.code, 'INVALID_CLASS_NAME');
+    }
+    const duplicate = await server.req('classes', { method: 'POST', admin: 'teacher-test', body: { name: DEFAULT_CLASS_NAME.toUpperCase() } });
+    assert.equal(duplicate.status, 409); assert.equal(duplicate.json.code, 'CLASS_NAME_TAKEN');
+    for (const classId of [undefined, null, 12, '../private', 'class-' + 'x'.repeat(81)]) {
+        const response = await server.req('classes/active', { method: 'PATCH', admin: 'teacher-test', body: { classId } });
+        assert.equal(response.status, 400); assert.equal(response.json.code, 'INVALID_CLASS_ID');
+    }
+    const missingClass = 'class-' + crypto.randomUUID();
+    for (const route of ['classes/active', 'pupils/' + pupil.pupilId]) {
+        const response = await server.req(route, { method: 'PATCH', admin: 'teacher-test', body: { classId: missingClass } });
+        assert.equal(response.status, 404); assert.equal(response.json.code, 'CLASS_NOT_FOUND');
+    }
+    for (const method of ['PATCH', 'DELETE']) {
+        const invalid = await server.req('pupils/invalid', { method, admin: 'teacher-test', body: { classId: DEFAULT_CLASS_ID } });
+        assert.equal(invalid.status, 400); assert.equal(invalid.json.code, 'INVALID_PUPIL_ID');
+        const missing = await server.req('pupils/pupil-' + crypto.randomUUID(), { method, admin: 'teacher-test', body: { classId: DEFAULT_CLASS_ID } });
+        assert.equal(missing.status, 404); assert.equal(missing.json.code, 'PUPIL_NOT_FOUND');
+    }
+    assert.equal(await fs.readFile(server.service.dataFile, 'utf8'), untouched);
+});
+
+test('concurrent services serialize class selection, enrollment, moves, and result writes', async t => {
+    const server = await fixture(t);
+    const second = await host(server.dataDir); t.after(() => second.close());
+    const targetId = (await createClass(server, 'Nachmittag')).activeClassId;
+    const call = (index, endpoint, options) => request(index % 2 ? second.port : server.port, '/api/learning/' + endpoint, options);
+    const selections = Array.from({ length: 20 }, (_, index) => call(index, 'classes/active', { method: 'PATCH', admin: 'teacher-test', body: { classId: index % 3 ? targetId : DEFAULT_CLASS_ID } }));
+    const registrations = Array.from({ length: 20 }, (_, index) => call(index, 'pupils', { method: 'POST', body: { name: 'Pupil ' + index } }));
+    const [selected, registered] = await Promise.all([Promise.all(selections), Promise.all(registrations)]);
+    assert.ok(selected.every(response => response.status === 200)); assert.ok(registered.every(response => response.status === 201));
+    const persisted = JSON.parse(await fs.readFile(server.service.dataFile, 'utf8'));
+    assert.equal(persisted.pupils.length, 20);
+    for (const response of registered) assert.equal(persisted.pupils.find(pupil => pupil.id === response.json.pupilId).classId, response.json.classId);
+    const pupil = registered[0].json;
+    const moved = Array.from({ length: 12 }, (_, index) => call(index, 'pupils/' + pupil.pupilId, { method: 'PATCH', admin: 'teacher-test', body: { classId: index % 2 ? targetId : DEFAULT_CLASS_ID } }));
+    const results = Array.from({ length: 12 }, (_, index) => call(index, 'results', { method: 'POST', token: pupil.token, body: { result: completeResult({ feedErrors: 1 }) } }));
+    const [moves, writes] = await Promise.all([Promise.all(moved), Promise.all(results)]);
+    assert.ok(moves.every(response => response.status === 200)); assert.ok(writes.every(response => response.status === 201));
+    const own = (await server.req('me', { token: pupil.token })).json;
+    assert.equal(own.cells['home-fj'].attemptCount, 12);
+    const board = await selectClass(server, own.classId);
+    assert.equal(board.rows.find(row => row.pupilId === pupil.pupilId).cells['home-fj'].attemptCount, 12);
+    assert.equal(board.classes.reduce((count, entry) => count + entry.pupilCount, 0), 20);
+    assert.deepEqual(await fs.readdir(server.dataDir), ['classroom.json']);
+});
 
 test('registration normalizes names, keeps zero-result pupils, and protects the teacher matrix', async t => {
     const server = await fixture(t);
@@ -292,6 +496,17 @@ test('the existing server routes the API, rejects private static paths, and hand
     const cors = await request(port, '/api/learning/me', { method: 'OPTIONS' });
     assert.match(cors.headers['access-control-allow-headers'], /Authorization/);
     assert.match(cors.headers['access-control-allow-methods'], /PATCH/);
+    assert.match(cors.headers['access-control-allow-methods'], /DELETE/);
+    const newClass = await request(port, '/api/learning/classes', { method: 'POST', admin: 'Znake', body: { name: 'Nachmittag 1. Trimester' } });
+    assert.equal(newClass.status, 201); assert.deepEqual(newClass.json.rows, []);
+    assert.equal(newClass.json.classes[0].pupilCount, 1);
+    const moved = await request(port, '/api/learning/pupils/' + registration.json.pupilId, { method: 'PATCH', admin: 'Znake', body: { classId: newClass.json.activeClassId } });
+    assert.equal(moved.status, 200); assert.equal(moved.json.rows[0].pupilId, registration.json.pupilId);
+    const selected = await request(port, '/api/learning/classes/active', { method: 'PATCH', admin: 'Znake', body: { classId: DEFAULT_CLASS_ID } });
+    assert.equal(selected.status, 200); assert.deepEqual(selected.json.rows, []);
+    const deleted = await request(port, '/api/learning/pupils/' + registration.json.pupilId, { method: 'DELETE', admin: 'Znake' });
+    assert.equal(deleted.status, 200); assert.deepEqual(deleted.json.classes.map(entry => entry.pupilCount), [0, 0]);
+    assert.equal((await request(port, '/api/learning/me', { token: registration.json.token })).status, 401);
     for (const pathname of ['/server.js', '/learning-classroom-server.js', '/learning-classroom-server.test.js', '/classroom.json', '/%2eserver.js', '/.git/config', '/%zz']) {
         assert.equal((await request(port, pathname)).status, 403, pathname);
     }
